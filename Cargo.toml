@@ -1,0 +1,10 @@
+[package]
+name = "rbase"
+version = "0.2.0"
+authors = ["LSH <github@lsh.tech>"]
+edition = "2021"
+description = "Github template to setup the CI and cargo publish"
+license = "GPL-3.0"
+
+
+[dependencies]
