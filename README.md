@@ -370,6 +370,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let account_id = ami::get_account_id_from_store(&store);
     println!("Using AWS account ID: {}", account_id);
     
+    // Print AWS environment variables for export
+    ami::print_aws_environment_variables(&store);
+    
     let mut iam_client = MemoryIamClient::new(store);
     let mut sts_client = MemoryStsClient::new(store);
     let mut sso_client = MemorySsoAdminClient::new(store);
@@ -432,6 +435,60 @@ AMI.rs automatically generates realistic 12-digit AWS account IDs for each insta
 - **Logging**: Enable logging with `env_logger::init()` to see account ID generation
 
 All ARNs (users, groups, roles, policies) will use the same account ID consistently across IAM, STS, and SSO Admin operations.
+
+### AWS Environment Variables
+
+AMI.rs provides AWS environment variables for compatibility with AWS CLI and other tools:
+
+```rust
+use ami::{create_memory_store, print_aws_environment_variables};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init(); // Enable logging
+    
+    let store = create_memory_store();
+    
+    // Print environment variables to console
+    print_aws_environment_variables(&store);
+    
+    // Or get them programmatically
+    let env_vars = store.aws_environment_variables();
+    println!("AWS_ACCOUNT_ID: {}", env_vars["AWS_ACCOUNT_ID"]);
+    
+    Ok(())
+}
+```
+
+**Console Output:**
+```
+INFO ami::store::in_memory: Generated AWS account ID: 847392847392
+INFO ami::store::in_memory: AWS Environment Variables for export:
+INFO ami::store::in_memory:   export AWS_ACCOUNT_ID=847392847392
+INFO ami::store::in_memory:   export AWS_DEFAULT_REGION=us-east-1
+INFO ami::store::in_memory:   export AWS_REGION=us-east-1
+INFO ami::store::in_memory:   export AWS_PROFILE=default
+INFO ami::store::in_memory: 
+INFO ami::store::in_memory: To use with AWS CLI or other tools, run:
+INFO ami::store::in_memory:   export AWS_ACCOUNT_ID=847392847392
+INFO ami::store::in_memory:   export AWS_DEFAULT_REGION=us-east-1
+
+AWS Environment Variables:
+  export AWS_ACCOUNT_ID=847392847392
+  export AWS_DEFAULT_REGION=us-east-1
+  export AWS_REGION=us-east-1
+  export AWS_PROFILE=default
+
+To use with AWS CLI or other tools, run:
+  export AWS_ACCOUNT_ID=847392847392
+  export AWS_DEFAULT_REGION=us-east-1
+```
+
+**Export for AWS CLI:**
+```bash
+export AWS_ACCOUNT_ID=847392847392
+export AWS_DEFAULT_REGION=us-east-1
+```
 
 ## License
 

@@ -29,6 +29,9 @@
 //!     let account_id = ami::get_account_id_from_store(&store);
 //!     println!("Using AWS account ID: {}", account_id);
 //!     
+//!     // Print AWS environment variables for export
+//!     ami::print_aws_environment_variables(&store);
+//!     
 //!     let mut iam_client = MemoryIamClient::new(store);
 //!     let mut sts_client = MemoryStsClient::new(store);
 //!     let mut sso_client = MemorySsoAdminClient::new(store);
@@ -115,6 +118,16 @@ pub fn create_memory_store_with_account_id(account_id: String) -> InMemoryStore 
 /// Get the account ID from a store
 pub fn get_account_id_from_store(store: &InMemoryStore) -> &str {
     store.account_id()
+}
+
+/// Get AWS environment variables from a store
+pub fn get_aws_environment_variables(store: &InMemoryStore) -> std::collections::HashMap<String, String> {
+    store.aws_environment_variables()
+}
+
+/// Print AWS environment variables from a store
+pub fn print_aws_environment_variables(store: &InMemoryStore) {
+    store.print_aws_environment_variables();
 }
 
 /// Type alias for convenience when using in-memory storage
