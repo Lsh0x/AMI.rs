@@ -216,22 +216,24 @@ impl<S: Store> StsClient<S> {
     }
 
     /// Get access key info
-    pub async fn get_access_key_info(&self, access_key_id: String) -> Result<AmiResponse<String>> {
-        // In a real implementation, this would return account information
-        let account = "123456789012".to_string();
-        Ok(AmiResponse::success(account))
+    pub async fn get_access_key_info(&mut self, access_key_id: String) -> Result<AmiResponse<String>> {
+        let store = self.sts_store().await?;
+        let account_id = store.account_id();
+        Ok(AmiResponse::success(account_id.to_string()))
     }
 
     /// Get caller identity
     pub async fn get_caller_identity(&mut self) -> Result<AmiResponse<CallerIdentity>> {
         let store = self.sts_store().await?;
+        let account_id = store.account_id();
         
         // Try to get existing identity, or create a default one
-        let identity = store.get_identity("arn:aws:iam::123456789012:user/example-user").await?
+        let identity_arn = format!("arn:aws:iam::{}:user/example-user", account_id);
+        let identity = store.get_identity(&identity_arn).await?
             .unwrap_or_else(|| CallerIdentity {
                 user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
-                account: "123456789012".to_string(),
-                arn: "arn:aws:iam::123456789012:user/example-user".to_string(),
+                account: account_id.to_string(),
+                arn: identity_arn,
             });
         
         Ok(AmiResponse::success(identity))

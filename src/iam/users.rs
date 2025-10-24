@@ -39,8 +39,11 @@ pub struct ListUsersResponse {
 impl<S: Store> IamClient<S> {
     /// Create a new IAM user
     pub async fn create_user(&mut self, request: CreateUserRequest) -> Result<AmiResponse<User>> {
+        let store = self.iam_store().await?;
+        let account_id = store.account_id();
+        
         let user_id = format!("AID{}", uuid::Uuid::new_v4().to_string().replace('-', "").chars().take(17).collect::<String>());
-        let arn = format!("arn:aws:iam::123456789012:user/{}", request.user_name);
+        let arn = format!("arn:aws:iam::{}:user/{}", account_id, request.user_name);
         
         let user = User {
             user_name: request.user_name.clone(),
@@ -53,7 +56,6 @@ impl<S: Store> IamClient<S> {
             tags: request.tags.unwrap_or_default(),
         };
         
-        let store = self.iam_store().await?;
         let created_user = store.create_user(user).await?;
         
         Ok(AmiResponse::success(created_user))
@@ -90,7 +92,7 @@ impl<S: Store> IamClient<S> {
         // Update user properties
         if let Some(new_name) = request.new_user_name {
             user.user_name = new_name.clone();
-            user.arn = format!("arn:aws:iam::123456789012:user/{}", new_name);
+            user.arn = format!("arn:aws:iam::{}:user/{}", store.account_id(), new_name);
         }
         if let Some(new_path) = request.new_path {
             user.path = new_path;

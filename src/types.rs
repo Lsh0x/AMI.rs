@@ -31,6 +31,7 @@ impl<T> AmiResponse<T> {
 pub struct AwsConfig {
     pub region: String,
     pub profile: Option<String>,
+    pub account_id: String,
 }
 
 impl Default for AwsConfig {
@@ -38,6 +39,31 @@ impl Default for AwsConfig {
         Self {
             region: "us-east-1".to_string(),
             profile: None,
+            account_id: Self::generate_account_id(),
+        }
+    }
+}
+
+impl AwsConfig {
+    /// Generate a random AWS account ID (12 digits)
+    pub fn generate_account_id() -> String {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        
+        let mut hasher = DefaultHasher::new();
+        chrono::Utc::now().timestamp_nanos().hash(&mut hasher);
+        let hash = hasher.finish();
+        
+        // Generate 12-digit account ID
+        format!("{:012}", hash % 1_000_000_000_000)
+    }
+    
+    /// Create a new config with a specific account ID
+    pub fn with_account_id(account_id: String) -> Self {
+        Self {
+            region: "us-east-1".to_string(),
+            profile: None,
+            account_id,
         }
     }
 }

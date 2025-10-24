@@ -35,11 +35,14 @@ pub struct ListGroupsResponse {
     pub marker: Option<String>,
 }
 
-impl IamClient {
+impl<S: Store> IamClient<S> {
     /// Create a new group
     pub async fn create_group(&mut self, request: CreateGroupRequest) -> Result<AmiResponse<Group>> {
+        let store = self.iam_store().await?;
+        let account_id = store.account_id();
+        
         let group_id = format!("AGPA{}", uuid::Uuid::new_v4().to_string().replace('-', "").chars().take(17).collect::<String>());
-        let arn = format!("arn:aws:iam::123456789012:group/{}", request.group_name);
+        let arn = format!("arn:aws:iam::{}:group/{}", account_id, request.group_name);
         
         let group = Group {
             group_name: request.group_name.clone(),
@@ -50,9 +53,9 @@ impl IamClient {
             tags: request.tags.unwrap_or_default(),
         };
         
-        self.groups.insert(request.group_name, group.clone());
+        let created_group = store.create_group(group).await?;
         
-        Ok(AmiResponse::success(group))
+        Ok(AmiResponse::success(created_group))
     }
 
     /// Update group properties

@@ -5,6 +5,7 @@ use crate::store::memory::{InMemoryIamStore, InMemoryStsStore, InMemorySsoAdminS
 /// Main store implementation that combines all sub-stores
 #[derive(Debug)]
 pub struct InMemoryStore {
+    pub account_id: String,
     pub iam_store: InMemoryIamStore,
     pub sts_store: InMemoryStsStore,
     pub sso_admin_store: InMemorySsoAdminStore,
@@ -18,9 +19,20 @@ impl Default for InMemoryStore {
 
 impl InMemoryStore {
     pub fn new() -> Self {
+        let account_id = crate::types::AwsConfig::generate_account_id();
         Self {
-            iam_store: InMemoryIamStore::default(),
-            sts_store: InMemoryStsStore::default(),
+            account_id: account_id.clone(),
+            iam_store: InMemoryIamStore::with_account_id(account_id.clone()),
+            sts_store: InMemoryStsStore::with_account_id(account_id.clone()),
+            sso_admin_store: InMemorySsoAdminStore::default(),
+        }
+    }
+    
+    pub fn with_account_id(account_id: String) -> Self {
+        Self {
+            account_id: account_id.clone(),
+            iam_store: InMemoryIamStore::with_account_id(account_id.clone()),
+            sts_store: InMemoryStsStore::with_account_id(account_id.clone()),
             sso_admin_store: InMemorySsoAdminStore::default(),
         }
     }

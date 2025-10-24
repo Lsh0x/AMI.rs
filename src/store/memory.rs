@@ -6,8 +6,9 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 
 /// In-memory implementation of IAM store
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct InMemoryIamStore {
+    account_id: String,
     users: HashMap<String, User>,
     access_keys: HashMap<String, AccessKey>,
     groups: HashMap<String, Group>,
@@ -17,8 +18,46 @@ pub struct InMemoryIamStore {
     user_groups: HashMap<String, Vec<String>>, // user_name -> group_names
 }
 
+impl Default for InMemoryIamStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl InMemoryIamStore {
+    pub fn new() -> Self {
+        Self {
+            account_id: crate::types::AwsConfig::generate_account_id(),
+            users: HashMap::new(),
+            access_keys: HashMap::new(),
+            groups: HashMap::new(),
+            roles: HashMap::new(),
+            policies: HashMap::new(),
+            mfa_devices: HashMap::new(),
+            user_groups: HashMap::new(),
+        }
+    }
+    
+    pub fn with_account_id(account_id: String) -> Self {
+        Self {
+            account_id,
+            users: HashMap::new(),
+            access_keys: HashMap::new(),
+            groups: HashMap::new(),
+            roles: HashMap::new(),
+            policies: HashMap::new(),
+            mfa_devices: HashMap::new(),
+            user_groups: HashMap::new(),
+        }
+    }
+}
+
 #[async_trait]
 impl IamStore for InMemoryIamStore {
+    fn account_id(&self) -> &str {
+        &self.account_id
+    }
+    
     async fn create_user(&mut self, user: User) -> Result<User> {
         self.users.insert(user.user_name.clone(), user.clone());
         Ok(user)

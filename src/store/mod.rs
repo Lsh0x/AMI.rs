@@ -12,6 +12,8 @@ use std::collections::HashMap;
 /// This allows easy swapping between in-memory, database, or AWS backends
 #[async_trait]
 pub trait IamStore: Send + Sync {
+    /// Get the account ID for this store
+    fn account_id(&self) -> &str;
     // User operations
     async fn create_user(&mut self, user: User) -> Result<User>;
     async fn get_user(&self, user_name: &str) -> Result<Option<User>>;
@@ -63,6 +65,8 @@ pub trait IamStore: Send + Sync {
 /// Trait for STS data storage operations
 #[async_trait]
 pub trait StsStore: Send + Sync {
+    /// Get the account ID for this store
+    fn account_id(&self) -> &str;
     async fn create_session(&mut self, session: crate::sts::StsSession) -> Result<crate::sts::StsSession>;
     async fn get_session(&self, session_token: &str) -> Result<Option<crate::sts::StsSession>>;
     async fn delete_session(&mut self, session_token: &str) -> Result<()>;

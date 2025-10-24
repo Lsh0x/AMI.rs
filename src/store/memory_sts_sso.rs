@@ -6,14 +6,43 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 
 /// In-memory implementation of STS store
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct InMemoryStsStore {
+    account_id: String,
     sessions: HashMap<String, StsSession>,
     identities: HashMap<String, CallerIdentity>,
 }
 
+impl Default for InMemoryStsStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl InMemoryStsStore {
+    pub fn new() -> Self {
+        Self {
+            account_id: crate::types::AwsConfig::generate_account_id(),
+            sessions: HashMap::new(),
+            identities: HashMap::new(),
+        }
+    }
+    
+    pub fn with_account_id(account_id: String) -> Self {
+        Self {
+            account_id,
+            sessions: HashMap::new(),
+            identities: HashMap::new(),
+        }
+    }
+}
+
 #[async_trait]
 impl StsStore for InMemoryStsStore {
+    fn account_id(&self) -> &str {
+        &self.account_id
+    }
+    
     async fn create_session(&mut self, session: StsSession) -> Result<StsSession> {
         self.sessions.insert(session.session_token.clone(), session.clone());
         Ok(session)
