@@ -19,6 +19,12 @@ impl<S: Store> StsClient<S> {
     async fn sts_store(&mut self) -> Result<&mut S::StsStore> {
         self.store.sts_store().await
     }
+    
+    /// Get the AWS account ID for this client
+    pub async fn account_id(&mut self) -> Result<String> {
+        let store = self.sts_store().await?;
+        Ok(store.account_id().to_string())
+    }
 }
 
 /// STS session information

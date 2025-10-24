@@ -20,6 +20,7 @@ impl Default for InMemoryStore {
 impl InMemoryStore {
     pub fn new() -> Self {
         let account_id = crate::types::AwsConfig::generate_account_id();
+        log::info!("Generated AWS account ID: {}", account_id);
         Self {
             account_id: account_id.clone(),
             iam_store: InMemoryIamStore::with_account_id(account_id.clone()),
@@ -29,12 +30,23 @@ impl InMemoryStore {
     }
     
     pub fn with_account_id(account_id: String) -> Self {
+        log::info!("Using provided AWS account ID: {}", account_id);
         Self {
             account_id: account_id.clone(),
             iam_store: InMemoryIamStore::with_account_id(account_id.clone()),
             sts_store: InMemoryStsStore::with_account_id(account_id.clone()),
             sso_admin_store: InMemorySsoAdminStore::default(),
         }
+    }
+    
+    /// Get the current AWS account ID
+    pub fn account_id(&self) -> &str {
+        &self.account_id
+    }
+    
+    /// Get the current AWS account ID as a String
+    pub fn account_id_string(&self) -> String {
+        self.account_id.clone()
     }
 }
 

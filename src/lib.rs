@@ -21,11 +21,21 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Initialize logging to see account ID generation
+//!     env_logger::init();
+//!     
 //!     // Initialize clients with in-memory storage
 //!     let store = ami::create_memory_store();
+//!     let account_id = ami::get_account_id_from_store(&store);
+//!     println!("Using AWS account ID: {}", account_id);
+//!     
 //!     let mut iam_client = MemoryIamClient::new(store);
 //!     let mut sts_client = MemoryStsClient::new(store);
 //!     let mut sso_client = MemorySsoAdminClient::new(store);
+//!     
+//!     // Get account ID from client
+//!     let client_account_id = iam_client.account_id().await?;
+//!     println!("Account ID from IAM client: {}", client_account_id);
 //!     
 //!     // Create a user
 //!     let user_request = ami::CreateUserRequest {
@@ -36,6 +46,7 @@
 //!     };
 //!     let user = iam_client.create_user(user_request).await?;
 //!     println!("Created user: {:?}", user.data);
+//!     println!("User ARN: {}", user.data.unwrap().arn);
 //!     
 //!     // Get caller identity
 //!     let identity = sts_client.get_caller_identity().await?;
@@ -94,6 +105,16 @@ pub fn initialize_clients_with_memory_store() -> (IamClient<InMemoryStore>, StsC
 /// Create a new in-memory store
 pub fn create_memory_store() -> InMemoryStore {
     InMemoryStore::new()
+}
+
+/// Create a new in-memory store with a specific account ID
+pub fn create_memory_store_with_account_id(account_id: String) -> InMemoryStore {
+    InMemoryStore::with_account_id(account_id)
+}
+
+/// Get the account ID from a store
+pub fn get_account_id_from_store(store: &InMemoryStore) -> &str {
+    store.account_id()
 }
 
 /// Type alias for convenience when using in-memory storage

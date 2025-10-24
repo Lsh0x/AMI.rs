@@ -36,6 +36,12 @@ impl<S: Store> IamClient<S> {
     async fn iam_store(&mut self) -> Result<&mut S::IamStore> {
         self.store.iam_store().await
     }
+    
+    /// Get the AWS account ID for this client
+    pub async fn account_id(&mut self) -> Result<String> {
+        let store = self.iam_store().await?;
+        Ok(store.account_id().to_string())
+    }
 }
 
 // Common IAM resource types

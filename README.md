@@ -355,27 +355,83 @@ ami = "0.1.0"
 
 ## Usage
 
+### Basic Usage with Auto-Generated Account ID
+
 ```rust
-use ami::{IamClient, StsClient, SsoAdminClient};
+use ami::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize AWS clients
-    let iam_client = IamClient::new().await?;
-    let sts_client = StsClient::new().await?;
-    let sso_client = SsoAdminClient::new().await?;
+    // Initialize logging to see account ID generation
+    env_logger::init();
     
-    // Example: List IAM users
-    let users = iam_client.list_users().await?;
-    println!("Found {} users", users.len());
+    // Initialize AWS clients with auto-generated account ID
+    let store = ami::create_memory_store();
+    let account_id = ami::get_account_id_from_store(&store);
+    println!("Using AWS account ID: {}", account_id);
+    
+    let mut iam_client = MemoryIamClient::new(store);
+    let mut sts_client = MemoryStsClient::new(store);
+    let mut sso_client = MemorySsoAdminClient::new(store);
+    
+    // Get account ID from client
+    let client_account_id = iam_client.account_id().await?;
+    println!("Account ID from IAM client: {}", client_account_id);
+    
+    // Example: Create a user
+    let user_request = ami::CreateUserRequest {
+        user_name: "test-user".to_string(),
+        path: Some("/".to_string()),
+        permissions_boundary: None,
+        tags: None,
+    };
+    let user = iam_client.create_user(user_request).await?;
+    println!("Created user ARN: {}", user.data.unwrap().arn);
     
     // Example: Get caller identity
     let identity = sts_client.get_caller_identity().await?;
-    println!("Current user: {}", identity.arn);
+    println!("Current user: {}", identity.data.unwrap().arn);
     
     Ok(())
 }
 ```
+
+### Using Custom Account ID
+
+```rust
+use ami::{create_memory_store_with_account_id, MemoryIamClient};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Use a specific account ID
+    let store = create_memory_store_with_account_id("123456789012".to_string());
+    let mut iam_client = MemoryIamClient::new(store);
+    
+    // All ARNs will use the specified account ID
+    let user_request = ami::CreateUserRequest {
+        user_name: "my-user".to_string(),
+        path: Some("/".to_string()),
+        permissions_boundary: None,
+        tags: None,
+    };
+    let user = iam_client.create_user(user_request).await?;
+    println!("User ARN: {}", user.data.unwrap().arn);
+    // Output: arn:aws:iam::123456789012:user/my-user
+    
+    Ok(())
+}
+```
+
+### Account ID Management
+
+AMI.rs automatically generates realistic 12-digit AWS account IDs for each instance. You can:
+
+- **Auto-generate**: Use `create_memory_store()` for a random account ID
+- **Custom ID**: Use `create_memory_store_with_account_id("123456789012")` for a specific ID
+- **Retrieve ID**: Use `get_account_id_from_store(&store)` or `client.account_id().await?`
+- **Logging**: Enable logging with `env_logger::init()` to see account ID generation
+
+All ARNs (users, groups, roles, policies) will use the same account ID consistently across IAM, STS, and SSO Admin operations.
 
 ## License
 
