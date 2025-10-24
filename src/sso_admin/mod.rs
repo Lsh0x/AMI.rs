@@ -1,17 +1,24 @@
 use crate::error::Result;
 use crate::types::{AmiResponse, AwsConfig};
+use crate::store::{SsoAdminStore, Store};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-/// In-memory SSO Admin client that simulates AWS SSO Admin operations
-#[derive(Debug, Clone)]
-pub struct SsoAdminClient {
-    // In-memory storage for SSO resources
-    permission_sets: HashMap<String, PermissionSet>,
-    assignments: HashMap<String, AccountAssignment>,
-    instances: HashMap<String, SsoInstance>,
-    applications: HashMap<String, Application>,
-    trusted_token_issuers: HashMap<String, TrustedTokenIssuer>,
+/// Generic SSO Admin client that works with any store implementation
+#[derive(Debug)]
+pub struct SsoAdminClient<S: Store> {
+    store: S,
+}
+
+impl<S: Store> SsoAdminClient<S> {
+    /// Create a new SSO Admin client with a store
+    pub fn new(store: S) -> Self {
+        Self { store }
+    }
+
+    /// Get mutable reference to the SSO Admin store
+    async fn sso_admin_store(&mut self) -> Result<&mut S::SsoAdminStore> {
+        self.store.sso_admin_store().await
+    }
 }
 
 /// Permission set information
@@ -83,24 +90,7 @@ pub struct CreateAccountAssignmentRequest {
     pub principal_id: String,
 }
 
-impl SsoAdminClient {
-    /// Create a new in-memory SSO Admin client
-    pub async fn new() -> Result<Self> {
-        Ok(Self {
-            permission_sets: HashMap::new(),
-            assignments: HashMap::new(),
-            instances: HashMap::new(),
-            applications: HashMap::new(),
-            trusted_token_issuers: HashMap::new(),
-        })
-    }
-
-    /// Create a new SSO Admin client with custom configuration
-    pub async fn with_config(_config: AwsConfig) -> Result<Self> {
-        // For in-memory implementation, config is not used
-        Self::new().await
-    }
-
+impl<S: Store> SsoAdminClient<S> {
     /// Create permission set
     pub async fn create_permission_set(&mut self, request: CreatePermissionSetRequest) -> Result<AmiResponse<PermissionSet>> {
         let permission_set_arn = format!("arn:aws:sso:::permissionSet/ssoins-{}", uuid::Uuid::new_v4());
@@ -114,44 +104,44 @@ impl SsoAdminClient {
             relay_state: request.relay_state,
         };
         
-        self.permission_sets.insert(permission_set_arn, permission_set.clone());
+        let store = self.sso_admin_store().await?;
+        let created_permission_set = store.create_permission_set(permission_set).await?;
         
-        Ok(AmiResponse::success(permission_set))
+        Ok(AmiResponse::success(created_permission_set))
     }
 
     /// Update permission set
     pub async fn update_permission_set(&mut self, instance_arn: String, permission_set_arn: String, name: Option<String>, description: Option<String>) -> Result<AmiResponse<PermissionSet>> {
-        if let Some(mut permission_set) = self.permission_sets.get_mut(&permission_set_arn) {
-            if let Some(new_name) = name {
-                permission_set.name = new_name;
-            }
-            if let Some(new_description) = description {
-                permission_set.description = Some(new_description);
-            }
-            
-            Ok(AmiResponse::success(permission_set.clone()))
-        } else {
-            Err(crate::error::AmiError::ResourceNotFound { 
+        let store = self.sso_admin_store().await?;
+        
+        let mut permission_set = store.get_permission_set(&permission_set_arn).await?
+            .ok_or_else(|| crate::error::AmiError::ResourceNotFound { 
                 resource: format!("PermissionSet: {}", permission_set_arn) 
-            })
+            })?;
+        
+        if let Some(new_name) = name {
+            permission_set.name = new_name;
         }
+        if let Some(new_description) = description {
+            permission_set.description = Some(new_description);
+        }
+        
+        let updated_permission_set = store.update_permission_set(permission_set).await?;
+        Ok(AmiResponse::success(updated_permission_set))
     }
 
     /// Delete permission set
     pub async fn delete_permission_set(&mut self, instance_arn: String, permission_set_arn: String) -> Result<AmiResponse<()>> {
-        if self.permission_sets.remove(&permission_set_arn).is_some() {
-            Ok(AmiResponse::success(()))
-        } else {
-            Err(crate::error::AmiError::ResourceNotFound { 
-                resource: format!("PermissionSet: {}", permission_set_arn) 
-            })
-        }
+        let store = self.sso_admin_store().await?;
+        store.delete_permission_set(&permission_set_arn).await?;
+        Ok(AmiResponse::success(()))
     }
 
     /// Describe permission set
-    pub async fn describe_permission_set(&self, instance_arn: String, permission_set_arn: String) -> Result<AmiResponse<PermissionSet>> {
-        match self.permission_sets.get(&permission_set_arn) {
-            Some(permission_set) => Ok(AmiResponse::success(permission_set.clone())),
+    pub async fn describe_permission_set(&mut self, instance_arn: String, permission_set_arn: String) -> Result<AmiResponse<PermissionSet>> {
+        let store = self.sso_admin_store().await?;
+        match store.get_permission_set(&permission_set_arn).await? {
+            Some(permission_set) => Ok(AmiResponse::success(permission_set)),
             None => Err(crate::error::AmiError::ResourceNotFound { 
                 resource: format!("PermissionSet: {}", permission_set_arn) 
             })
@@ -159,15 +149,14 @@ impl SsoAdminClient {
     }
 
     /// List permission sets
-    pub async fn list_permission_sets(&self, instance_arn: String) -> Result<AmiResponse<Vec<PermissionSet>>> {
-        let permission_sets: Vec<PermissionSet> = self.permission_sets.values().cloned().collect();
+    pub async fn list_permission_sets(&mut self, instance_arn: String) -> Result<AmiResponse<Vec<PermissionSet>>> {
+        let store = self.sso_admin_store().await?;
+        let permission_sets = store.list_permission_sets(&instance_arn).await?;
         Ok(AmiResponse::success(permission_sets))
     }
 
     /// Create account assignment
     pub async fn create_account_assignment(&mut self, request: CreateAccountAssignmentRequest) -> Result<AmiResponse<AccountAssignment>> {
-        let assignment_id = format!("{}", uuid::Uuid::new_v4());
-        
         let assignment = AccountAssignment {
             account_id: request.target_id.clone(),
             permission_set_arn: request.permission_set_arn.clone(),
@@ -176,53 +165,41 @@ impl SsoAdminClient {
             created_date: chrono::Utc::now(),
         };
         
-        self.assignments.insert(assignment_id, assignment.clone());
+        let store = self.sso_admin_store().await?;
+        let created_assignment = store.create_account_assignment(assignment).await?;
         
-        Ok(AmiResponse::success(assignment))
+        Ok(AmiResponse::success(created_assignment))
     }
 
     /// Delete account assignment
     pub async fn delete_account_assignment(&mut self, instance_arn: String, target_id: String, target_type: String, permission_set_arn: String, principal_type: String, principal_id: String) -> Result<AmiResponse<()>> {
-        // Find and remove the assignment
-        let assignment_key = self.assignments.iter()
-            .find(|(_, assignment)| {
-                assignment.account_id == target_id &&
-                assignment.permission_set_arn == permission_set_arn &&
-                assignment.principal_type == principal_type &&
-                assignment.principal_id == principal_id
-            })
-            .map(|(key, _)| key.clone());
+        let store = self.sso_admin_store().await?;
         
-        if let Some(key) = assignment_key {
-            self.assignments.remove(&key);
-            Ok(AmiResponse::success(()))
-        } else {
-            Err(crate::error::AmiError::ResourceNotFound { 
-                resource: "AccountAssignment".to_string() 
-            })
-        }
+        // Find the assignment ID
+        let assignment_id = format!("{}-{}-{}", target_id, permission_set_arn, principal_id);
+        store.delete_account_assignment(&assignment_id).await?;
+        
+        Ok(AmiResponse::success(()))
     }
 
     /// List account assignments
-    pub async fn list_account_assignments(&self, instance_arn: String, account_id: String, permission_set_arn: String) -> Result<AmiResponse<Vec<AccountAssignment>>> {
-        let assignments: Vec<AccountAssignment> = self.assignments
-            .values()
-            .filter(|assignment| assignment.account_id == account_id && assignment.permission_set_arn == permission_set_arn)
-            .cloned()
-            .collect();
-        
+    pub async fn list_account_assignments(&mut self, instance_arn: String, account_id: String, permission_set_arn: String) -> Result<AmiResponse<Vec<AccountAssignment>>> {
+        let store = self.sso_admin_store().await?;
+        let assignments = store.list_account_assignments(&account_id, &permission_set_arn).await?;
         Ok(AmiResponse::success(assignments))
     }
 
     /// List instances
-    pub async fn list_instances(&self) -> Result<AmiResponse<Vec<SsoInstance>>> {
-        let instances: Vec<SsoInstance> = self.instances.values().cloned().collect();
+    pub async fn list_instances(&mut self) -> Result<AmiResponse<Vec<SsoInstance>>> {
+        let store = self.sso_admin_store().await?;
+        let instances = store.list_instances().await?;
         Ok(AmiResponse::success(instances))
     }
 
     /// List applications
-    pub async fn list_applications(&self, instance_arn: String) -> Result<AmiResponse<Vec<Application>>> {
-        let applications: Vec<Application> = self.applications.values().cloned().collect();
+    pub async fn list_applications(&mut self, instance_arn: String) -> Result<AmiResponse<Vec<Application>>> {
+        let store = self.sso_admin_store().await?;
+        let applications = store.list_applications(&instance_arn).await?;
         Ok(AmiResponse::success(applications))
     }
 
@@ -237,32 +214,31 @@ impl SsoAdminClient {
             created_date: chrono::Utc::now(),
         };
         
-        self.trusted_token_issuers.insert(trusted_token_issuer_arn, issuer.clone());
+        let store = self.sso_admin_store().await?;
+        let created_issuer = store.create_trusted_token_issuer(issuer).await?;
         
-        Ok(AmiResponse::success(issuer))
+        Ok(AmiResponse::success(created_issuer))
     }
 
     /// Delete trusted token issuer
     pub async fn delete_trusted_token_issuer(&mut self, instance_arn: String, trusted_token_issuer_arn: String) -> Result<AmiResponse<()>> {
-        if self.trusted_token_issuers.remove(&trusted_token_issuer_arn).is_some() {
-            Ok(AmiResponse::success(()))
-        } else {
-            Err(crate::error::AmiError::ResourceNotFound { 
-                resource: format!("TrustedTokenIssuer: {}", trusted_token_issuer_arn) 
-            })
-        }
+        let store = self.sso_admin_store().await?;
+        store.delete_trusted_token_issuer(&trusted_token_issuer_arn).await?;
+        Ok(AmiResponse::success(()))
     }
 
     /// List trusted token issuers
-    pub async fn list_trusted_token_issuers(&self, instance_arn: String) -> Result<AmiResponse<Vec<TrustedTokenIssuer>>> {
-        let issuers: Vec<TrustedTokenIssuer> = self.trusted_token_issuers.values().cloned().collect();
+    pub async fn list_trusted_token_issuers(&mut self, instance_arn: String) -> Result<AmiResponse<Vec<TrustedTokenIssuer>>> {
+        let store = self.sso_admin_store().await?;
+        let issuers = store.list_trusted_token_issuers(&instance_arn).await?;
         Ok(AmiResponse::success(issuers))
     }
 
     /// Describe trusted token issuer
-    pub async fn describe_trusted_token_issuer(&self, instance_arn: String, trusted_token_issuer_arn: String) -> Result<AmiResponse<TrustedTokenIssuer>> {
-        match self.trusted_token_issuers.get(&trusted_token_issuer_arn) {
-            Some(issuer) => Ok(AmiResponse::success(issuer.clone())),
+    pub async fn describe_trusted_token_issuer(&mut self, instance_arn: String, trusted_token_issuer_arn: String) -> Result<AmiResponse<TrustedTokenIssuer>> {
+        let store = self.sso_admin_store().await?;
+        match store.get_trusted_token_issuer(&trusted_token_issuer_arn).await? {
+            Some(issuer) => Ok(AmiResponse::success(issuer)),
             None => Err(crate::error::AmiError::ResourceNotFound { 
                 resource: format!("TrustedTokenIssuer: {}", trusted_token_issuer_arn) 
             })

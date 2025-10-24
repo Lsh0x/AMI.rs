@@ -1,14 +1,24 @@
 use crate::error::Result;
 use crate::types::{AmiResponse, AwsConfig};
+use crate::store::{StsStore, Store};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-/// In-memory STS client that simulates AWS STS operations
-#[derive(Debug, Clone)]
-pub struct StsClient {
-    // In-memory storage for temporary credentials
-    sessions: HashMap<String, StsSession>,
-    identities: HashMap<String, CallerIdentity>,
+/// Generic STS client that works with any store implementation
+#[derive(Debug)]
+pub struct StsClient<S: Store> {
+    store: S,
+}
+
+impl<S: Store> StsClient<S> {
+    /// Create a new STS client with a store
+    pub fn new(store: S) -> Self {
+        Self { store }
+    }
+
+    /// Get mutable reference to the STS store
+    async fn sts_store(&mut self) -> Result<&mut S::StsStore> {
+        self.store.sts_store().await
+    }
 }
 
 /// STS session information
@@ -64,21 +74,7 @@ pub struct Credentials {
     pub expiration: chrono::DateTime<chrono::Utc>,
 }
 
-impl StsClient {
-    /// Create a new in-memory STS client
-    pub async fn new() -> Result<Self> {
-        Ok(Self {
-            sessions: HashMap::new(),
-            identities: HashMap::new(),
-        })
-    }
-
-    /// Create a new STS client with custom configuration
-    pub async fn with_config(_config: AwsConfig) -> Result<Self> {
-        // For in-memory implementation, config is not used
-        Self::new().await
-    }
-
+impl<S: Store> StsClient<S> {
     /// Assume a role
     pub async fn assume_role(&mut self, request: AssumeRoleRequest) -> Result<AmiResponse<Credentials>> {
         let session_token = format!("{}", uuid::Uuid::new_v4());
@@ -103,7 +99,8 @@ impl StsClient {
             assumed_role_arn: Some(request.role_arn),
         };
         
-        self.sessions.insert(session_token, session);
+        let store = self.sts_store().await?;
+        store.create_session(session).await?;
         
         Ok(AmiResponse::success(credentials))
     }
@@ -174,7 +171,8 @@ impl StsClient {
             assumed_role_arn: None,
         };
         
-        self.sessions.insert(session_token, session);
+        let store = self.sts_store().await?;
+        store.create_session(session).await?;
         
         Ok(AmiResponse::success(credentials))
     }
@@ -203,7 +201,8 @@ impl StsClient {
             assumed_role_arn: None,
         };
         
-        self.sessions.insert(session_token, session);
+        let store = self.sts_store().await?;
+        store.create_session(session).await?;
         
         Ok(AmiResponse::success(credentials))
     }
@@ -224,12 +223,16 @@ impl StsClient {
     }
 
     /// Get caller identity
-    pub async fn get_caller_identity(&self) -> Result<AmiResponse<CallerIdentity>> {
-        let identity = CallerIdentity {
-            user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
-            account: "123456789012".to_string(),
-            arn: "arn:aws:iam::123456789012:user/example-user".to_string(),
-        };
+    pub async fn get_caller_identity(&mut self) -> Result<AmiResponse<CallerIdentity>> {
+        let store = self.sts_store().await?;
+        
+        // Try to get existing identity, or create a default one
+        let identity = store.get_identity("arn:aws:iam::123456789012:user/example-user").await?
+            .unwrap_or_else(|| CallerIdentity {
+                user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
+                account: "123456789012".to_string(),
+                arn: "arn:aws:iam::123456789012:user/example-user".to_string(),
+            });
         
         Ok(AmiResponse::success(identity))
     }
