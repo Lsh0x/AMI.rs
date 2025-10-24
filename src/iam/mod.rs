@@ -16,40 +16,25 @@ pub mod reports;
 pub mod signing_certificates;
 
 use crate::error::Result;
-use crate::types::{AmiResponse, PaginationParams};
-use std::collections::HashMap;
+use crate::types::{AmiResponse, AwsConfig};
+use crate::store::{IamStore, Store};
 use serde::{Deserialize, Serialize};
 
-/// In-memory IAM client that simulates AWS IAM operations
-#[derive(Debug, Clone)]
-pub struct IamClient {
-    // In-memory storage for all IAM resources
-    users: HashMap<String, User>,
-    groups: HashMap<String, Group>,
-    roles: HashMap<String, Role>,
-    policies: HashMap<String, Policy>,
-    access_keys: HashMap<String, AccessKey>,
-    mfa_devices: HashMap<String, MfaDevice>,
-    // Add other resource storage as needed
+/// Generic IAM client that works with any store implementation
+#[derive(Debug)]
+pub struct IamClient<S: Store> {
+    store: S,
 }
 
-impl IamClient {
-    /// Create a new in-memory IAM client
-    pub async fn new() -> Result<Self> {
-        Ok(Self {
-            users: HashMap::new(),
-            groups: HashMap::new(),
-            roles: HashMap::new(),
-            policies: HashMap::new(),
-            access_keys: HashMap::new(),
-            mfa_devices: HashMap::new(),
-        })
+impl<S: Store> IamClient<S> {
+    /// Create a new IAM client with a store
+    pub fn new(store: S) -> Self {
+        Self { store }
     }
 
-    /// Create a new IAM client with custom configuration
-    pub async fn with_config(_config: crate::types::AwsConfig) -> Result<Self> {
-        // For in-memory implementation, config is not used
-        Self::new().await
+    /// Get mutable reference to the IAM store
+    async fn iam_store(&mut self) -> Result<&mut S::IamStore> {
+        self.store.iam_store().await
     }
 }
 

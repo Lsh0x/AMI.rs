@@ -17,17 +17,18 @@
 //! ## Example
 //!
 //! ```rust
-//! use ami::{IamClient, StsClient, SsoAdminClient};
+//! use ami::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient, InMemoryStore};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Initialize clients
-//!     let mut iam_client = IamClient::new().await?;
-//!     let mut sts_client = StsClient::new().await?;
-//!     let mut sso_client = SsoAdminClient::new().await?;
+//!     // Initialize clients with in-memory storage
+//!     let store = ami::create_memory_store();
+//!     let mut iam_client = MemoryIamClient::new(store);
+//!     let mut sts_client = MemoryStsClient::new(store);
+//!     let mut sso_client = MemorySsoAdminClient::new(store);
 //!     
 //!     // Create a user
-//!     let user_request = ami::iam::users::CreateUserRequest {
+//!     let user_request = ami::CreateUserRequest {
 //!         user_name: "test-user".to_string(),
 //!         path: Some("/".to_string()),
 //!         permissions_boundary: None,
@@ -46,6 +47,7 @@
 
 pub mod error;
 pub mod types;
+pub mod store;
 pub mod iam;
 pub mod sts;
 pub mod sso_admin;
@@ -54,7 +56,11 @@ pub mod sso_admin;
 pub use error::{AmiError, Result};
 pub use types::{AmiResponse, AwsConfig, PaginationParams, Tag, PolicyDocument, PolicyStatement};
 
-// Re-export clients
+// Re-export store traits and implementations
+pub use store::{IamStore, StsStore, SsoAdminStore, Store};
+pub use store::in_memory::InMemoryStore;
+
+// Re-export clients (now generic over stores)
 pub use iam::IamClient;
 pub use sts::StsClient;
 pub use sso_admin::SsoAdminClient;
@@ -75,20 +81,22 @@ pub use iam::groups::{CreateGroupRequest, UpdateGroupRequest, ListGroupsRequest,
 pub use sts::{AssumeRoleRequest, GetSessionTokenRequest, GetFederationTokenRequest};
 pub use sso_admin::{CreatePermissionSetRequest, CreateAccountAssignmentRequest};
 
-/// Initialize all AWS clients with default configuration
-pub async fn initialize_clients() -> Result<(IamClient, StsClient, SsoAdminClient)> {
-    let iam_client = IamClient::new().await?;
-    let sts_client = StsClient::new().await?;
-    let sso_client = SsoAdminClient::new().await?;
+/// Initialize all AWS clients with in-memory storage
+pub fn initialize_clients_with_memory_store() -> (IamClient<InMemoryStore>, StsClient<InMemoryStore>, SsoAdminClient<InMemoryStore>) {
+    let store = InMemoryStore::new();
+    let iam_client = IamClient::new(store);
+    let sts_client = StsClient::new(store);
+    let sso_client = SsoAdminClient::new(store);
     
-    Ok((iam_client, sts_client, sso_client))
+    (iam_client, sts_client, sso_client)
 }
 
-/// Initialize all AWS clients with custom configuration
-pub async fn initialize_clients_with_config(config: AwsConfig) -> Result<(IamClient, StsClient, SsoAdminClient)> {
-    let iam_client = IamClient::with_config(config.clone()).await?;
-    let sts_client = StsClient::with_config(config.clone()).await?;
-    let sso_client = SsoAdminClient::with_config(config).await?;
-    
-    Ok((iam_client, sts_client, sso_client))
+/// Create a new in-memory store
+pub fn create_memory_store() -> InMemoryStore {
+    InMemoryStore::new()
 }
+
+/// Type alias for convenience when using in-memory storage
+pub type MemoryIamClient = IamClient<InMemoryStore>;
+pub type MemoryStsClient = StsClient<InMemoryStore>;
+pub type MemorySsoAdminClient = SsoAdminClient<InMemoryStore>;
