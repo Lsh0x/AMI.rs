@@ -1,10 +1,18 @@
 [package]
-name = "rbase"
-version = "0.2.0"
+name = "ami"
+version = "0.1.0"
 authors = ["LSH <github@lsh.tech>"]
 edition = "2021"
-description = "Github template to setup the CI and cargo publish"
-license = "GPL-3.0"
-
+description = "AWS IAM, STS, and SSO Admin operations library for Rust"
+license = "MIT"
 
 [dependencies]
+aws-sdk-iam = "1.0"
+aws-sdk-sts = "1.0"
+aws-sdk-sso-admin = "1.0"
+aws-config = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+thiserror = "1.0"
