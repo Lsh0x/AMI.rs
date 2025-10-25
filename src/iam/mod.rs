@@ -371,6 +371,30 @@ pub struct MfaDevice {
     pub enable_date: chrono::DateTime<chrono::Utc>,
 }
 
+/// Represents a login profile (console password) for an IAM user
+///
+/// # Example
+///
+/// ```rust
+/// use rustyiam::LoginProfile;
+/// use chrono::Utc;
+///
+/// let profile = LoginProfile {
+///     user_name: "alice".to_string(),
+///     create_date: Utc::now(),
+///     password_reset_required: false,
+/// };
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoginProfile {
+    /// The user with whom the login profile is associated
+    pub user_name: String,
+    /// The date when the login profile was created
+    pub create_date: chrono::DateTime<chrono::Utc>,
+    /// Whether the user must reset their password on next sign-in
+    pub password_reset_required: bool,
+}
+
 // Re-export all sub-modules for easy access
 pub use access_keys::*;
 pub use groups::*;

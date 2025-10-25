@@ -3,7 +3,7 @@ pub mod memory;
 pub mod memory_sts_sso;
 
 use crate::error::Result;
-use crate::iam::{AccessKey, Group, MfaDevice, Policy, Role, User};
+use crate::iam::{AccessKey, Group, LoginProfile, MfaDevice, Policy, Role, User};
 use crate::types::{PaginationParams, Tag};
 use async_trait::async_trait;
 
@@ -79,6 +79,12 @@ pub trait IamStore: Send + Sync {
     async fn get_mfa_device(&self, serial_number: &str) -> Result<Option<MfaDevice>>;
     async fn delete_mfa_device(&mut self, serial_number: &str) -> Result<()>;
     async fn list_mfa_devices(&self, user_name: &str) -> Result<Vec<MfaDevice>>;
+
+    // Login profile (password) operations
+    async fn create_login_profile(&mut self, profile: LoginProfile) -> Result<LoginProfile>;
+    async fn get_login_profile(&self, user_name: &str) -> Result<Option<LoginProfile>>;
+    async fn update_login_profile(&mut self, profile: LoginProfile) -> Result<LoginProfile>;
+    async fn delete_login_profile(&mut self, user_name: &str) -> Result<()>;
 }
 
 /// Trait for STS data storage operations

@@ -80,7 +80,7 @@ pub use sso_admin::SsoAdminClient;
 pub use sts::StsClient;
 
 // Re-export IAM types
-pub use iam::{AccessKey, Group, MfaDevice, Policy, Role, User};
+pub use iam::{AccessKey, Group, LoginProfile, MfaDevice, Policy, Role, User};
 
 // Re-export STS types
 pub use sts::{CallerIdentity, Credentials, StsSession};
@@ -99,6 +99,9 @@ pub use iam::groups::{
     CreateGroupRequest, ListGroupsRequest, ListGroupsResponse, UpdateGroupRequest,
 };
 pub use iam::mfa_devices::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
+pub use iam::passwords::{
+    CreateLoginProfileRequest, GetLoginProfileRequest, UpdateLoginProfileRequest,
+};
 pub use iam::roles::{CreateRoleRequest, ListRolesRequest, ListRolesResponse, UpdateRoleRequest};
 pub use iam::users::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
 pub use sso_admin::{CreateAccountAssignmentRequest, CreatePermissionSetRequest};
