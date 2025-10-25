@@ -1,0 +1,46 @@
+#!/bin/bash
+# Git hook to help create conventional commits
+# This runs after the commit message editor opens
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+
+# Only run for regular commits (not merge, squash, etc.)
+if [ -z "$COMMIT_SOURCE" ]; then
+    # Check if message is empty or just comments
+    if ! grep -q '^[^#]' "$COMMIT_MSG_FILE" 2>/dev/null; then
+        # Provide template with examples
+        cat > "$COMMIT_MSG_FILE" << 'EOF'
+# Conventional Commit Format:
+# <type>(<scope>): <subject>
+#
+# Types:
+#   feat:     New feature (minor version bump)
+#   fix:      Bug fix (patch version bump)
+#   docs:     Documentation changes (patch version bump)
+#   style:    Code style changes (formatting, etc)
+#   refactor: Code refactoring
+#   perf:     Performance improvements
+#   test:     Adding or updating tests
+#   chore:    Maintenance tasks
+#   ci:       CI/CD changes
+#
+# For breaking changes, add ! after type:
+#   feat!: breaking change (major version bump)
+#
+# Or add BREAKING CHANGE: in footer
+#
+# Examples:
+#   feat(iam): add user group management
+#   fix(sts): correct token expiration time
+#   docs(readme): update installation instructions
+#   feat(api)!: redesign authentication flow
+#
+# Scope (optional): iam, sts, sso-admin, api, cli, etc.
+#
+# Write your commit message below:
+
+EOF
+    fi
+fi
+
