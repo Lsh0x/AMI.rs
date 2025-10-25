@@ -32,8 +32,8 @@
 //!     // Print AWS environment variables for export
 //!     ami::print_aws_environment_variables(&store);
 //!     
-//!     let mut iam_client = MemoryIamClient::new(store);
-//!     let mut sts_client = MemoryStsClient::new(store);
+//!     let mut iam_client = MemoryIamClient::new(store.clone());
+//!     let mut sts_client = MemoryStsClient::new(store.clone());
 //!     let mut sso_client = MemorySsoAdminClient::new(store);
 //!     
 //!     // Get account ID from client
@@ -60,48 +60,59 @@
 //! ```
 
 pub mod error;
-pub mod types;
-pub mod store;
 pub mod iam;
-pub mod sts;
 pub mod sso_admin;
+pub mod store;
+pub mod sts;
+pub mod types;
 
 // Re-export main types for convenience
 pub use error::{AmiError, Result};
-pub use types::{AmiResponse, AwsConfig, PaginationParams, Tag, PolicyDocument, PolicyStatement};
+pub use types::{AmiResponse, AwsConfig, PaginationParams, PolicyDocument, PolicyStatement, Tag};
 
 // Re-export store traits and implementations
-pub use store::{IamStore, StsStore, SsoAdminStore, Store};
 pub use store::in_memory::InMemoryStore;
+pub use store::{IamStore, SsoAdminStore, Store, StsStore};
 
 // Re-export clients (now generic over stores)
 pub use iam::IamClient;
-pub use sts::StsClient;
 pub use sso_admin::SsoAdminClient;
+pub use sts::StsClient;
 
 // Re-export IAM types
-pub use iam::{User, Group, Role, Policy, AccessKey, MfaDevice};
+pub use iam::{AccessKey, Group, MfaDevice, Policy, Role, User};
 
 // Re-export STS types
-pub use sts::{StsSession, CallerIdentity, Credentials};
+pub use sts::{CallerIdentity, Credentials, StsSession};
 
 // Re-export SSO Admin types
-pub use sso_admin::{PermissionSet, AccountAssignment, SsoInstance, Application, TrustedTokenIssuer};
+pub use sso_admin::{
+    AccountAssignment, Application, PermissionSet, SsoInstance, TrustedTokenIssuer,
+};
 
 // Re-export request/response types
-pub use iam::users::{CreateUserRequest, UpdateUserRequest, ListUsersRequest, ListUsersResponse};
-pub use iam::access_keys::{CreateAccessKeyRequest, UpdateAccessKeyRequest, ListAccessKeysRequest, ListAccessKeysResponse, AccessKeyLastUsed};
-pub use iam::groups::{CreateGroupRequest, UpdateGroupRequest, ListGroupsRequest, ListGroupsResponse};
-pub use sts::{AssumeRoleRequest, GetSessionTokenRequest, GetFederationTokenRequest};
-pub use sso_admin::{CreatePermissionSetRequest, CreateAccountAssignmentRequest};
+pub use iam::access_keys::{
+    AccessKeyLastUsed, CreateAccessKeyRequest, ListAccessKeysRequest, ListAccessKeysResponse,
+    UpdateAccessKeyRequest,
+};
+pub use iam::groups::{
+    CreateGroupRequest, ListGroupsRequest, ListGroupsResponse, UpdateGroupRequest,
+};
+pub use iam::users::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
+pub use sso_admin::{CreateAccountAssignmentRequest, CreatePermissionSetRequest};
+pub use sts::{AssumeRoleRequest, GetFederationTokenRequest, GetSessionTokenRequest};
 
 /// Initialize all AWS clients with in-memory storage
-pub fn initialize_clients_with_memory_store() -> (IamClient<InMemoryStore>, StsClient<InMemoryStore>, SsoAdminClient<InMemoryStore>) {
+pub fn initialize_clients_with_memory_store() -> (
+    IamClient<InMemoryStore>,
+    StsClient<InMemoryStore>,
+    SsoAdminClient<InMemoryStore>,
+) {
     let store = InMemoryStore::new();
-    let iam_client = IamClient::new(store);
-    let sts_client = StsClient::new(store);
+    let iam_client = IamClient::new(store.clone());
+    let sts_client = StsClient::new(store.clone());
     let sso_client = SsoAdminClient::new(store);
-    
+
     (iam_client, sts_client, sso_client)
 }
 
@@ -121,7 +132,9 @@ pub fn get_account_id_from_store(store: &InMemoryStore) -> &str {
 }
 
 /// Get AWS environment variables from a store
-pub fn get_aws_environment_variables(store: &InMemoryStore) -> std::collections::HashMap<String, String> {
+pub fn get_aws_environment_variables(
+    store: &InMemoryStore,
+) -> std::collections::HashMap<String, String> {
     store.aws_environment_variables()
 }
 

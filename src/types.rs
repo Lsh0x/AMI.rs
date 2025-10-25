@@ -16,7 +16,7 @@ impl<T> AmiResponse<T> {
             error: None,
         }
     }
-    
+
     pub fn error(error: String) -> Self {
         Self {
             success: false,
@@ -49,15 +49,18 @@ impl AwsConfig {
     pub fn generate_account_id() -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
-        chrono::Utc::now().timestamp_nanos().hash(&mut hasher);
+        chrono::Utc::now()
+            .timestamp_nanos_opt()
+            .unwrap_or(0)
+            .hash(&mut hasher);
         let hash = hasher.finish();
-        
+
         // Generate 12-digit account ID
         format!("{:012}", hash % 1_000_000_000_000)
     }
-    
+
     /// Create a new config with a specific account ID
     pub fn with_account_id(account_id: String) -> Self {
         Self {
