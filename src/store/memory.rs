@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::iam::{AccessKey, Group, MfaDevice, Policy, Role, User};
+use crate::iam::{AccessKey, Group, LoginProfile, MfaDevice, Policy, Role, User};
 use crate::store::IamStore;
 use crate::types::{PaginationParams, Tag};
 use async_trait::async_trait;
@@ -15,6 +15,7 @@ pub struct InMemoryIamStore {
     roles: HashMap<String, Role>,
     policies: HashMap<String, Policy>,
     mfa_devices: HashMap<String, MfaDevice>,
+    login_profiles: HashMap<String, LoginProfile>,
     user_groups: HashMap<String, Vec<String>>, // user_name -> group_names
 }
 
@@ -34,6 +35,7 @@ impl InMemoryIamStore {
             roles: HashMap::new(),
             policies: HashMap::new(),
             mfa_devices: HashMap::new(),
+            login_profiles: HashMap::new(),
             user_groups: HashMap::new(),
         }
     }
@@ -47,6 +49,7 @@ impl InMemoryIamStore {
             roles: HashMap::new(),
             policies: HashMap::new(),
             mfa_devices: HashMap::new(),
+            login_profiles: HashMap::new(),
             user_groups: HashMap::new(),
         }
     }
@@ -381,5 +384,26 @@ impl IamStore for InMemoryIamStore {
             .cloned()
             .collect();
         Ok(devices)
+    }
+
+    async fn create_login_profile(&mut self, profile: LoginProfile) -> Result<LoginProfile> {
+        self.login_profiles
+            .insert(profile.user_name.clone(), profile.clone());
+        Ok(profile)
+    }
+
+    async fn get_login_profile(&self, user_name: &str) -> Result<Option<LoginProfile>> {
+        Ok(self.login_profiles.get(user_name).cloned())
+    }
+
+    async fn update_login_profile(&mut self, profile: LoginProfile) -> Result<LoginProfile> {
+        self.login_profiles
+            .insert(profile.user_name.clone(), profile.clone());
+        Ok(profile)
+    }
+
+    async fn delete_login_profile(&mut self, user_name: &str) -> Result<()> {
+        self.login_profiles.remove(user_name);
+        Ok(())
     }
 }
