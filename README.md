@@ -33,6 +33,7 @@ AMI.rs is a comprehensive Rust library that provides easy-to-use interfaces for 
 - [SSO Admin Operations](#sso-admin-operations)
 - [Account ID Management](#account-id-management)
 - [AWS Environment Variables](#aws-environment-variables)
+- [Contributing](#contributing)
 - [License](#license)
 
 ---
@@ -542,6 +543,46 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Development Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/lsh0x/AMI.rs.git
+   cd AMI.rs
+   ```
+
+2. **Install Git hooks** (recommended to catch issues before committing):
+   ```bash
+   git config core.hooksPath .githooks
+   ```
+   
+   This will automatically run `cargo fmt` and `cargo clippy` checks before each commit.
+   See [.githooks/README.md](.githooks/README.md) for more details.
+
+3. **Run tests:**
+   ```bash
+   cargo test
+   ```
+
+4. **Check formatting:**
+   ```bash
+   cargo fmt --all
+   ```
+
+5. **Run clippy:**
+   ```bash
+   cargo clippy --all-targets --all-features -- -D warnings
+   ```
+
+### Code Quality Standards
+
+All pull requests must:
+- ✅ Pass all tests
+- ✅ Have no clippy warnings
+- ✅ Be properly formatted with `rustfmt`
+- ✅ Include documentation for public APIs
+- ✅ Add tests for new functionality
 
 ---
 
