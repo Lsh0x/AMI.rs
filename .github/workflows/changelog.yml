@@ -2,25 +2,37 @@ name: Changelog
 
 on:
   push:
-    branches:
-      - main
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   changelog:
-    runs-on: ubuntu-20.04
+    name: Update Changelog
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v2
-
-      - name: "✏️ Generate release changelog"
-        uses: heinrichreimer/github-changelog-generator-action@v2.3
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }} 
+          fetch-depth: 0
 
-      - name: Commit changes
-        uses: EndBug/add-and-commit@v9
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v3
         with:
-          author_name: bot-changelog
-          author_email: changelog@bot.com
-          message: 'chore: update changelog'
-          add: '*'
+          config: cliff.toml
+          args: --verbose
+        env:
+          OUTPUT: CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Commit changelog
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: update changelog'
+          file_pattern: CHANGELOG.md
+          commit_user_name: github-actions[bot]
+          commit_user_email: github-actions[bot]@users.noreply.github.com
+          commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>

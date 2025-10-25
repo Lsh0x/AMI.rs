@@ -1,0 +1,55 @@
+# Configuration for the PR labeler
+# See: https://github.com/actions/labeler
+
+'documentation':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**/*'
+      - 'src/**/*.rs' # For rustdoc changes
+
+'ci/cd':
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**/*'
+      - '*.yml'
+      - '*.yaml'
+
+'dependencies':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+'iam':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/iam/**/*'
+
+'sts':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/sts/**/*'
+
+'sso-admin':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/sso_admin/**/*'
+
+'tests':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'tests/**/*'
+      - '**/*_test.rs'
+      - '**/test_*.rs'
+
+'bug':
+  - head-branch: ['^fix', 'fix-', 'bugfix']
+
+'enhancement':
+  - head-branch: ['^feat', 'feature-', 'feature/']
+
+'breaking-change':
+  - head-branch: ['^breaking', 'breaking-']
+  - body-contains: ['BREAKING CHANGE', 'breaking change']
+
