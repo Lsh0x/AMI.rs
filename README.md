@@ -540,6 +540,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
+## Versioning
+
+This project follows [Semantic Versioning](https://semver.org/) and uses [Conventional Commits](https://www.conventionalcommits.org/) for automatic version bumping:
+
+- `feat:` → Minor version bump (0.X.0)
+- `fix:`, `perf:`, `refactor:` → Patch version bump (0.0.X)
+- `BREAKING CHANGE:` or `!` → Major version bump (X.0.0)
+
+Version bumps and releases are automated via GitHub Actions when changes are merged to `main`.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
