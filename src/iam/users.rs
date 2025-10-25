@@ -1,7 +1,7 @@
 use crate::error::Result;
-use crate::types::{AmiResponse, PaginationParams, Tag};
 use crate::iam::{IamClient, User};
-use crate::store::Store;
+use crate::store::{IamStore, Store};
+use crate::types::{AmiResponse, PaginationParams, Tag};
 use serde::{Deserialize, Serialize};
 
 /// Parameters for creating a user
@@ -41,10 +41,18 @@ impl<S: Store> IamClient<S> {
     pub async fn create_user(&mut self, request: CreateUserRequest) -> Result<AmiResponse<User>> {
         let store = self.iam_store().await?;
         let account_id = store.account_id();
-        
-        let user_id = format!("AID{}", uuid::Uuid::new_v4().to_string().replace('-', "").chars().take(17).collect::<String>());
+
+        let user_id = format!(
+            "AID{}",
+            uuid::Uuid::new_v4()
+                .to_string()
+                .replace('-', "")
+                .chars()
+                .take(17)
+                .collect::<String>()
+        );
         let arn = format!("arn:aws:iam::{}:user/{}", account_id, request.user_name);
-        
+
         let user = User {
             user_name: request.user_name.clone(),
             user_id: user_id.clone(),
@@ -55,9 +63,9 @@ impl<S: Store> IamClient<S> {
             permissions_boundary: request.permissions_boundary,
             tags: request.tags.unwrap_or_default(),
         };
-        
+
         let created_user = store.create_user(user).await?;
-        
+
         Ok(AmiResponse::success(created_user))
     }
 
@@ -73,22 +81,23 @@ impl<S: Store> IamClient<S> {
         let store = self.iam_store().await?;
         match store.get_user(&user_name).await? {
             Some(user) => Ok(AmiResponse::success(user)),
-            None => Err(crate::error::AmiError::ResourceNotFound { 
-                resource: format!("User: {}", user_name) 
-            })
+            None => Err(crate::error::AmiError::ResourceNotFound {
+                resource: format!("User: {}", user_name),
+            }),
         }
     }
 
     /// Update an IAM user
     pub async fn update_user(&mut self, request: UpdateUserRequest) -> Result<AmiResponse<User>> {
         let store = self.iam_store().await?;
-        
+
         // Get existing user
-        let mut user = store.get_user(&request.user_name).await?
-            .ok_or_else(|| crate::error::AmiError::ResourceNotFound { 
-                resource: format!("User: {}", request.user_name) 
-            })?;
-        
+        let mut user = store.get_user(&request.user_name).await?.ok_or_else(|| {
+            crate::error::AmiError::ResourceNotFound {
+                resource: format!("User: {}", request.user_name),
+            }
+        })?;
+
         // Update user properties
         if let Some(new_name) = request.new_user_name {
             user.user_name = new_name.clone();
@@ -97,26 +106,29 @@ impl<S: Store> IamClient<S> {
         if let Some(new_path) = request.new_path {
             user.path = new_path;
         }
-        
+
         let updated_user = store.update_user(user).await?;
         Ok(AmiResponse::success(updated_user))
     }
 
     /// List all IAM users
-    pub async fn list_users(&mut self, request: Option<ListUsersRequest>) -> Result<AmiResponse<ListUsersResponse>> {
+    pub async fn list_users(
+        &mut self,
+        request: Option<ListUsersRequest>,
+    ) -> Result<AmiResponse<ListUsersResponse>> {
         let store = self.iam_store().await?;
-        
+
         let path_prefix = request.as_ref().and_then(|r| r.path_prefix.as_deref());
         let pagination = request.as_ref().and_then(|r| r.pagination.as_ref());
-        
+
         let (users, is_truncated, marker) = store.list_users(path_prefix, pagination).await?;
-        
+
         let response = ListUsersResponse {
             users,
             is_truncated,
             marker,
         };
-        
+
         Ok(AmiResponse::success(response))
     }
 
@@ -135,7 +147,11 @@ impl<S: Store> IamClient<S> {
     }
 
     /// Untag a user
-    pub async fn untag_user(&mut self, user_name: String, tag_keys: Vec<String>) -> Result<AmiResponse<()>> {
+    pub async fn untag_user(
+        &mut self,
+        user_name: String,
+        tag_keys: Vec<String>,
+    ) -> Result<AmiResponse<()>> {
         let store = self.iam_store().await?;
         store.untag_user(&user_name, tag_keys).await?;
         Ok(AmiResponse::success(()))

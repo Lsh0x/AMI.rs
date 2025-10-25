@@ -1,9 +1,11 @@
 use crate::error::Result;
-use crate::store::{IamStore, StsStore, SsoAdminStore, Store};
-use crate::store::memory::{InMemoryIamStore, InMemoryStsStore, InMemorySsoAdminStore};
+use crate::store::memory::InMemoryIamStore;
+use crate::store::memory_sts_sso::{InMemorySsoAdminStore, InMemoryStsStore};
+use crate::store::Store;
+use async_trait::async_trait;
 
 /// Main store implementation that combines all sub-stores
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InMemoryStore {
     pub account_id: String,
     pub iam_store: InMemoryIamStore,
@@ -29,7 +31,7 @@ impl InMemoryStore {
             sso_admin_store: InMemorySsoAdminStore::default(),
         }
     }
-    
+
     pub fn with_account_id(account_id: String) -> Self {
         log::info!("Using provided AWS account ID: {}", account_id);
         Self::log_aws_environment_variables(&account_id);
@@ -40,7 +42,7 @@ impl InMemoryStore {
             sso_admin_store: InMemorySsoAdminStore::default(),
         }
     }
-    
+
     /// Log AWS environment variables for export
     fn log_aws_environment_variables(account_id: &str) {
         log::info!("AWS Environment Variables for export:");
@@ -54,17 +56,17 @@ impl InMemoryStore {
         log::info!("  export AWS_DEFAULT_REGION=us-east-1");
         log::info!("");
     }
-    
+
     /// Get the current AWS account ID
     pub fn account_id(&self) -> &str {
         &self.account_id
     }
-    
+
     /// Get the current AWS account ID as a String
     pub fn account_id_string(&self) -> String {
         self.account_id.clone()
     }
-    
+
     /// Get AWS environment variables as a HashMap for easy export
     pub fn aws_environment_variables(&self) -> std::collections::HashMap<String, String> {
         let mut env_vars = std::collections::HashMap::new();
@@ -74,7 +76,7 @@ impl InMemoryStore {
         env_vars.insert("AWS_PROFILE".to_string(), "default".to_string());
         env_vars
     }
-    
+
     /// Print AWS environment variables to stdout for easy copying
     pub fn print_aws_environment_variables(&self) {
         println!("AWS Environment Variables:");

@@ -1,12 +1,12 @@
 use crate::error::Result;
+use crate::iam::{AccessKey, Group, MfaDevice, Policy, Role, User};
+use crate::store::IamStore;
 use crate::types::{PaginationParams, Tag};
-use crate::iam::{User, Group, Role, Policy, AccessKey, MfaDevice};
-use crate::store::{IamStore, StsStore, SsoAdminStore, Store};
 use async_trait::async_trait;
 use std::collections::HashMap;
 
 /// In-memory implementation of IAM store
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InMemoryIamStore {
     account_id: String,
     users: HashMap<String, User>,
@@ -37,7 +37,7 @@ impl InMemoryIamStore {
             user_groups: HashMap::new(),
         }
     }
-    
+
     pub fn with_account_id(account_id: String) -> Self {
         Self {
             account_id,
@@ -57,7 +57,7 @@ impl IamStore for InMemoryIamStore {
     fn account_id(&self) -> &str {
         &self.account_id
     }
-    
+
     async fn create_user(&mut self, user: User) -> Result<User> {
         self.users.insert(user.user_name.clone(), user.clone());
         Ok(user)
@@ -81,21 +81,25 @@ impl IamStore for InMemoryIamStore {
         Ok(())
     }
 
-    async fn list_users(&self, path_prefix: Option<&str>, pagination: Option<&PaginationParams>) -> Result<(Vec<User>, bool, Option<String>)> {
+    async fn list_users(
+        &self,
+        path_prefix: Option<&str>,
+        pagination: Option<&PaginationParams>,
+    ) -> Result<(Vec<User>, bool, Option<String>)> {
         let mut users: Vec<User> = self.users.values().cloned().collect();
-        
+
         // Apply path prefix filter
         if let Some(prefix) = path_prefix {
             users.retain(|user| user.path.starts_with(prefix));
         }
-        
+
         // Sort by user name
         users.sort_by(|a, b| a.user_name.cmp(&b.user_name));
-        
+
         // Apply pagination
         let mut is_truncated = false;
         let mut marker = None;
-        
+
         if let Some(pagination) = pagination {
             if let Some(max_items) = pagination.max_items {
                 if users.len() > max_items as usize {
@@ -105,7 +109,7 @@ impl IamStore for InMemoryIamStore {
                 }
             }
         }
-        
+
         Ok((users, is_truncated, marker))
     }
 
@@ -124,11 +128,16 @@ impl IamStore for InMemoryIamStore {
     }
 
     async fn list_user_tags(&self, user_name: &str) -> Result<Vec<Tag>> {
-        Ok(self.users.get(user_name).map(|u| u.tags.clone()).unwrap_or_default())
+        Ok(self
+            .users
+            .get(user_name)
+            .map(|u| u.tags.clone())
+            .unwrap_or_default())
     }
 
     async fn create_access_key(&mut self, access_key: AccessKey) -> Result<AccessKey> {
-        self.access_keys.insert(access_key.access_key_id.clone(), access_key.clone());
+        self.access_keys
+            .insert(access_key.access_key_id.clone(), access_key.clone());
         Ok(access_key)
     }
 
@@ -137,7 +146,8 @@ impl IamStore for InMemoryIamStore {
     }
 
     async fn update_access_key(&mut self, access_key: AccessKey) -> Result<AccessKey> {
-        self.access_keys.insert(access_key.access_key_id.clone(), access_key.clone());
+        self.access_keys
+            .insert(access_key.access_key_id.clone(), access_key.clone());
         Ok(access_key)
     }
 
@@ -146,18 +156,23 @@ impl IamStore for InMemoryIamStore {
         Ok(())
     }
 
-    async fn list_access_keys(&self, user_name: &str, pagination: Option<&PaginationParams>) -> Result<(Vec<AccessKey>, bool, Option<String>)> {
-        let mut access_keys: Vec<AccessKey> = self.access_keys
+    async fn list_access_keys(
+        &self,
+        user_name: &str,
+        pagination: Option<&PaginationParams>,
+    ) -> Result<(Vec<AccessKey>, bool, Option<String>)> {
+        let mut access_keys: Vec<AccessKey> = self
+            .access_keys
             .values()
             .filter(|key| key.user_name == user_name)
             .cloned()
             .collect();
-        
+
         access_keys.sort_by(|a, b| a.access_key_id.cmp(&b.access_key_id));
-        
+
         let mut is_truncated = false;
         let mut marker = None;
-        
+
         if let Some(pagination) = pagination {
             if let Some(max_items) = pagination.max_items {
                 if access_keys.len() > max_items as usize {
@@ -167,7 +182,7 @@ impl IamStore for InMemoryIamStore {
                 }
             }
         }
-        
+
         Ok((access_keys, is_truncated, marker))
     }
 
@@ -194,18 +209,22 @@ impl IamStore for InMemoryIamStore {
         Ok(())
     }
 
-    async fn list_groups(&self, path_prefix: Option<&str>, pagination: Option<&PaginationParams>) -> Result<(Vec<Group>, bool, Option<String>)> {
+    async fn list_groups(
+        &self,
+        path_prefix: Option<&str>,
+        pagination: Option<&PaginationParams>,
+    ) -> Result<(Vec<Group>, bool, Option<String>)> {
         let mut groups: Vec<Group> = self.groups.values().cloned().collect();
-        
+
         if let Some(prefix) = path_prefix {
             groups.retain(|group| group.path.starts_with(prefix));
         }
-        
+
         groups.sort_by(|a, b| a.group_name.cmp(&b.group_name));
-        
+
         let mut is_truncated = false;
         let mut marker = None;
-        
+
         if let Some(pagination) = pagination {
             if let Some(max_items) = pagination.max_items {
                 if groups.len() > max_items as usize {
@@ -215,7 +234,7 @@ impl IamStore for InMemoryIamStore {
                 }
             }
         }
-        
+
         Ok((groups, is_truncated, marker))
     }
 
@@ -262,18 +281,22 @@ impl IamStore for InMemoryIamStore {
         Ok(())
     }
 
-    async fn list_roles(&self, path_prefix: Option<&str>, pagination: Option<&PaginationParams>) -> Result<(Vec<Role>, bool, Option<String>)> {
+    async fn list_roles(
+        &self,
+        path_prefix: Option<&str>,
+        pagination: Option<&PaginationParams>,
+    ) -> Result<(Vec<Role>, bool, Option<String>)> {
         let mut roles: Vec<Role> = self.roles.values().cloned().collect();
-        
+
         if let Some(prefix) = path_prefix {
             roles.retain(|role| role.path.starts_with(prefix));
         }
-        
+
         roles.sort_by(|a, b| a.role_name.cmp(&b.role_name));
-        
+
         let mut is_truncated = false;
         let mut marker = None;
-        
+
         if let Some(pagination) = pagination {
             if let Some(max_items) = pagination.max_items {
                 if roles.len() > max_items as usize {
@@ -283,7 +306,7 @@ impl IamStore for InMemoryIamStore {
                 }
             }
         }
-        
+
         Ok((roles, is_truncated, marker))
     }
 
@@ -306,18 +329,22 @@ impl IamStore for InMemoryIamStore {
         Ok(())
     }
 
-    async fn list_policies(&self, scope: Option<&str>, pagination: Option<&PaginationParams>) -> Result<(Vec<Policy>, bool, Option<String>)> {
+    async fn list_policies(
+        &self,
+        scope: Option<&str>,
+        pagination: Option<&PaginationParams>,
+    ) -> Result<(Vec<Policy>, bool, Option<String>)> {
         let mut policies: Vec<Policy> = self.policies.values().cloned().collect();
-        
+
         if let Some(scope) = scope {
             policies.retain(|policy| policy.path.starts_with(scope));
         }
-        
+
         policies.sort_by(|a, b| a.policy_name.cmp(&b.policy_name));
-        
+
         let mut is_truncated = false;
         let mut marker = None;
-        
+
         if let Some(pagination) = pagination {
             if let Some(max_items) = pagination.max_items {
                 if policies.len() > max_items as usize {
@@ -327,12 +354,13 @@ impl IamStore for InMemoryIamStore {
                 }
             }
         }
-        
+
         Ok((policies, is_truncated, marker))
     }
 
     async fn create_mfa_device(&mut self, mfa_device: MfaDevice) -> Result<MfaDevice> {
-        self.mfa_devices.insert(mfa_device.serial_number.clone(), mfa_device.clone());
+        self.mfa_devices
+            .insert(mfa_device.serial_number.clone(), mfa_device.clone());
         Ok(mfa_device)
     }
 
@@ -346,7 +374,8 @@ impl IamStore for InMemoryIamStore {
     }
 
     async fn list_mfa_devices(&self, user_name: &str) -> Result<Vec<MfaDevice>> {
-        let devices: Vec<MfaDevice> = self.mfa_devices
+        let devices: Vec<MfaDevice> = self
+            .mfa_devices
             .values()
             .filter(|device| device.user_name == user_name)
             .cloned()

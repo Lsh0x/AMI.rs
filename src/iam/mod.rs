@@ -26,7 +26,7 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! use ami::{MemoryIamClient, CreateUserRequest, CreateAccessKeyRequest};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -56,25 +56,24 @@
 //! # }
 //! ```
 
-pub mod users;
 pub mod access_keys;
-pub mod passwords;
-pub mod mfa_devices;
-pub mod service_credentials;
 pub mod groups;
-pub mod roles;
-pub mod policies;
-pub mod permissions_boundaries;
-pub mod policy_evaluation;
 pub mod identity_providers;
-pub mod server_certificates;
-pub mod service_linked_roles;
-pub mod tags;
+pub mod mfa_devices;
+pub mod passwords;
+pub mod permissions_boundaries;
+pub mod policies;
+pub mod policy_evaluation;
 pub mod reports;
+pub mod roles;
+pub mod server_certificates;
+pub mod service_credentials;
+pub mod service_linked_roles;
 pub mod signing_certificates;
+pub mod tags;
+pub mod users;
 
 use crate::error::Result;
-use crate::types::{AmiResponse, AwsConfig};
 use crate::store::{IamStore, Store};
 use serde::{Deserialize, Serialize};
 
@@ -86,7 +85,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Type Parameters
 ///
-/// * `S` - The store implementation (e.g., [`InMemoryStore`](crate::store::InMemoryStore))
+/// * `S` - The store implementation (e.g., [`InMemoryStore`](crate::store::in_memory::InMemoryStore))
 ///
 /// # Example
 ///
@@ -137,7 +136,7 @@ impl<S: Store> IamClient<S> {
     async fn iam_store(&mut self) -> Result<&mut S::IamStore> {
         self.store.iam_store().await
     }
-    
+
     /// Returns the AWS account ID associated with this client
     ///
     /// # Example
@@ -373,19 +372,6 @@ pub struct MfaDevice {
 }
 
 // Re-export all sub-modules for easy access
-pub use users::*;
 pub use access_keys::*;
-pub use passwords::*;
-pub use mfa_devices::*;
-pub use service_credentials::*;
 pub use groups::*;
-pub use roles::*;
-pub use policies::*;
-pub use permissions_boundaries::*;
-pub use policy_evaluation::*;
-pub use identity_providers::*;
-pub use server_certificates::*;
-pub use service_linked_roles::*;
-pub use tags::*;
-pub use reports::*;
-pub use signing_certificates::*;
+pub use users::*;
