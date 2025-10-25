@@ -1,16 +1,93 @@
+//! AWS Security Token Service (STS) Operations
+//!
+//! This module provides functionality for requesting temporary, limited-privilege credentials
+//! for AWS Identity and Access Management (IAM) users or federated users.
+//!
+//! # Overview
+//!
+//! The STS module enables you to:
+//!
+//! - **Assume Roles**: Request temporary credentials to assume an IAM role
+//! - **Get Session Tokens**: Obtain temporary credentials for IAM users with MFA
+//! - **Get Federation Tokens**: Provide temporary credentials for federated users
+//! - **Identity Inspection**: Get information about the calling identity
+//!
+//! # Example
+//!
+//! ```rust
+//! use ami::{MemoryStsClient, AssumeRoleRequest};
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let store = ami::create_memory_store();
+//! let mut sts_client = MemoryStsClient::new(store);
+//!
+//! // Get caller identity
+//! let identity = sts_client.get_caller_identity().await?;
+//! println!("Account: {}", identity.data.unwrap().account);
+//!
+//! // Assume a role
+//! let assume_role_request = AssumeRoleRequest {
+//!     role_arn: "arn:aws:iam::123456789012:role/MyRole".to_string(),
+//!     role_session_name: "my-session".to_string(),
+//!     duration_seconds: Some(3600),
+//!     external_id: None,
+//!     policy: None,
+//! };
+//! let credentials = sts_client.assume_role(assume_role_request).await?;
+//! println!("Temporary credentials: {:?}", credentials.data);
+//! # Ok(())
+//! # }
+//! ```
+
 use crate::error::Result;
 use crate::types::{AmiResponse, AwsConfig};
 use crate::store::{StsStore, Store};
 use serde::{Deserialize, Serialize};
 
-/// Generic STS client that works with any store implementation
+/// STS client for managing temporary AWS credentials and identity operations
+///
+/// The STS client provides methods for requesting temporary credentials,
+/// assuming roles, and inspecting caller identity. It works with any store
+/// implementation that implements the [`Store`] trait.
+///
+/// # Type Parameters
+///
+/// * `S` - The store implementation (e.g., [`InMemoryStore`](crate::store::InMemoryStore))
+///
+/// # Example
+///
+/// ```rust
+/// use ami::MemoryStsClient;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let store = ami::create_memory_store();
+/// let mut sts_client = MemoryStsClient::new(store);
+///
+/// let identity = sts_client.get_caller_identity().await?;
+/// println!("Caller identity: {:?}", identity.data);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct StsClient<S: Store> {
     store: S,
 }
 
 impl<S: Store> StsClient<S> {
-    /// Create a new STS client with a store
+    /// Creates a new STS client with the specified store
+    ///
+    /// # Arguments
+    ///
+    /// * `store` - The storage backend for STS resources
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ami::{StsClient, InMemoryStore};
+    ///
+    /// let store = InMemoryStore::new();
+    /// let sts_client = StsClient::new(store);
+    /// ```
     pub fn new(store: S) -> Self {
         Self { store }
     }
@@ -20,68 +97,217 @@ impl<S: Store> StsClient<S> {
         self.store.sts_store().await
     }
     
-    /// Get the AWS account ID for this client
+    /// Returns the AWS account ID associated with this client
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ami::MemoryStsClient;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = ami::create_memory_store();
+    /// let mut sts_client = MemoryStsClient::new(store);
+    ///
+    /// let account_id = sts_client.account_id().await?;
+    /// println!("Account ID: {}", account_id);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn account_id(&mut self) -> Result<String> {
         let store = self.sts_store().await?;
         Ok(store.account_id().to_string())
     }
 }
 
-/// STS session information
+/// Represents an STS session with temporary credentials
+///
+/// # Example
+///
+/// ```rust
+/// use ami::StsSession;
+/// use chrono::Utc;
+///
+/// let session = StsSession {
+///     session_token: "FwoGZXIvYXdzEBYaDH...".to_string(),
+///     access_key_id: "ASIAIOSFODNN7EXAMPLE".to_string(),
+///     secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_string(),
+///     expiration: Utc::now() + chrono::Duration::hours(1),
+///     assumed_role_arn: Some("arn:aws:iam::123456789012:role/MyRole".to_string()),
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StsSession {
+    /// The session token for temporary credentials
     pub session_token: String,
+    /// The access key ID
     pub access_key_id: String,
+    /// The secret access key
     pub secret_access_key: String,
+    /// When the credentials expire
     pub expiration: chrono::DateTime<chrono::Utc>,
+    /// The ARN of the assumed role (if any)
     pub assumed_role_arn: Option<String>,
 }
 
-/// Caller identity information
+/// Information about the caller's identity
+///
+/// # Example
+///
+/// ```rust
+/// use ami::CallerIdentity;
+///
+/// let identity = CallerIdentity {
+///     user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
+///     account: "123456789012".to_string(),
+///     arn: "arn:aws:iam::123456789012:user/alice".to_string(),
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CallerIdentity {
+    /// The unique identifier of the calling entity
     pub user_id: String,
+    /// The AWS account ID
     pub account: String,
+    /// The ARN of the calling entity
     pub arn: String,
 }
 
-/// Parameters for assuming a role
+/// Request to assume an IAM role
+///
+/// # Example
+///
+/// ```rust
+/// use ami::AssumeRoleRequest;
+///
+/// let request = AssumeRoleRequest {
+///     role_arn: "arn:aws:iam::123456789012:role/S3Access".to_string(),
+///     role_session_name: "my-app-session".to_string(),
+///     duration_seconds: Some(3600),
+///     external_id: Some("unique-external-id".to_string()),
+///     policy: None,
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssumeRoleRequest {
+    /// The ARN of the role to assume
     pub role_arn: String,
+    /// An identifier for the assumed role session
     pub role_session_name: String,
+    /// The duration of the session in seconds (default: 3600, max: 43200)
     pub duration_seconds: Option<i32>,
+    /// A unique identifier used by third parties for assuming a role
     pub external_id: Option<String>,
+    /// An IAM policy in JSON format to further restrict permissions
     pub policy: Option<String>,
 }
 
-/// Parameters for getting session token
+/// Request to get a session token
+///
+/// # Example
+///
+/// ```rust
+/// use ami::GetSessionTokenRequest;
+///
+/// let request = GetSessionTokenRequest {
+///     duration_seconds: Some(3600),
+///     serial_number: Some("arn:aws:iam::123456789012:mfa/alice".to_string()),
+///     token_code: Some("123456".to_string()),
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetSessionTokenRequest {
+    /// The duration of the session in seconds
     pub duration_seconds: Option<i32>,
+    /// The identification number of the MFA device
     pub serial_number: Option<String>,
+    /// The value provided by the MFA device
     pub token_code: Option<String>,
 }
 
-/// Parameters for getting federation token
+/// Request to get a federation token
+///
+/// # Example
+///
+/// ```rust
+/// use ami::GetFederationTokenRequest;
+///
+/// let request = GetFederationTokenRequest {
+///     name: "federated-user".to_string(),
+///     duration_seconds: Some(3600),
+///     policy: Some(r#"{"Version":"2012-10-17","Statement":[]}"#.to_string()),
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetFederationTokenRequest {
+    /// The name of the federated user
     pub name: String,
+    /// The duration of the session in seconds
     pub duration_seconds: Option<i32>,
+    /// An IAM policy in JSON format
     pub policy: Option<String>,
 }
 
-/// Response for credential operations
+/// Temporary AWS credentials
+///
+/// # Example
+///
+/// ```rust
+/// use ami::Credentials;
+/// use chrono::Utc;
+///
+/// let credentials = Credentials {
+///     access_key_id: "ASIAIOSFODNN7EXAMPLE".to_string(),
+///     secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_string(),
+///     session_token: "FwoGZXIvYXdzEBYaDH...".to_string(),
+///     expiration: Utc::now() + chrono::Duration::hours(1),
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Credentials {
+    /// The access key ID
     pub access_key_id: String,
+    /// The secret access key
     pub secret_access_key: String,
+    /// The session token
     pub session_token: String,
+    /// When the credentials expire
     pub expiration: chrono::DateTime<chrono::Utc>,
 }
 
 impl<S: Store> StsClient<S> {
-    /// Assume a role
+    /// Assumes an IAM role and returns temporary security credentials
+    ///
+    /// Returns temporary security credentials that you can use to access AWS resources.
+    /// These credentials consist of an access key ID, a secret access key, and a security token.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The assume role request parameters
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ami::{MemoryStsClient, AssumeRoleRequest};
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = ami::create_memory_store();
+    /// let mut sts_client = MemoryStsClient::new(store);
+    ///
+    /// let request = AssumeRoleRequest {
+    ///     role_arn: "arn:aws:iam::123456789012:role/DataScientist".to_string(),
+    ///     role_session_name: "analytics-session".to_string(),
+    ///     duration_seconds: Some(3600),
+    ///     external_id: None,
+    ///     policy: None,
+    /// };
+    ///
+    /// let response = sts_client.assume_role(request).await?;
+    /// let credentials = response.data.unwrap();
+    /// println!("Access Key: {}", credentials.access_key_id);
+    /// println!("Expires: {}", credentials.expiration);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn assume_role(&mut self, request: AssumeRoleRequest) -> Result<AmiResponse<Credentials>> {
         let session_token = format!("{}", uuid::Uuid::new_v4());
         let access_key_id = format!("ASIA{}", uuid::Uuid::new_v4().to_string().replace('-', "").chars().take(17).collect::<String>());
@@ -228,7 +454,26 @@ impl<S: Store> StsClient<S> {
         Ok(AmiResponse::success(account_id.to_string()))
     }
 
-    /// Get caller identity
+    /// Returns details about the IAM identity whose credentials are used to call this operation
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ami::MemoryStsClient;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let store = ami::create_memory_store();
+    /// let mut sts_client = MemoryStsClient::new(store);
+    ///
+    /// let response = sts_client.get_caller_identity().await?;
+    /// let identity = response.data.unwrap();
+    ///
+    /// println!("User ID: {}", identity.user_id);
+    /// println!("Account: {}", identity.account);
+    /// println!("ARN: {}", identity.arn);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn get_caller_identity(&mut self) -> Result<AmiResponse<CallerIdentity>> {
         let store = self.sts_store().await?;
         let account_id = store.account_id();
