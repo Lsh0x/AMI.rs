@@ -102,6 +102,9 @@ pub use iam::mfa_devices::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
 pub use iam::passwords::{
     CreateLoginProfileRequest, GetLoginProfileRequest, UpdateLoginProfileRequest,
 };
+pub use iam::policies::{
+    CreatePolicyRequest, ListPoliciesRequest, ListPoliciesResponse, UpdatePolicyRequest,
+};
 pub use iam::roles::{CreateRoleRequest, ListRolesRequest, ListRolesResponse, UpdateRoleRequest};
 pub use iam::users::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
 pub use sso_admin::{CreateAccountAssignmentRequest, CreatePermissionSetRequest};

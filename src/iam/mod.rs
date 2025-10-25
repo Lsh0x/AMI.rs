@@ -299,6 +299,8 @@ pub struct Policy {
     pub path: String,
     /// The identifier for the default version of the policy
     pub default_version_id: String,
+    /// The policy document in JSON format
+    pub policy_document: String,
     /// The number of entities (users, groups, and roles) that the policy is attached to
     pub attachment_count: i32,
     /// The number of entities that have the policy set as a permissions boundary
