@@ -17,6 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pre-commit hooks for code quality
 
 ### Changed
-- Set MSRV to Rust 1.86.0 (required by AWS SDK dependencies)
+- Set MSRV to Rust 1.90.0
 
 [Unreleased]: https://github.com/Lsh0x/AMI.rs/commits/main
