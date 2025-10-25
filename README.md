@@ -594,6 +594,17 @@ All pull requests must:
 - ✅ Be properly formatted with `rustfmt`
 - ✅ Include documentation for public APIs
 - ✅ Add tests for new functionality
+- ✅ Follow [Conventional Commits](https://www.conventionalcommits.org/) format
+
+The pre-commit hooks will automatically check formatting and linting before each commit.
+
+### First-Time Repository Setup
+
+For maintainers setting up the repository for the first time, see [.github/SETUP.md](.github/SETUP.md) for:
+- Enabling GitHub Pages for documentation deployment
+- Configuring crates.io publishing token
+- Setting up branch protection rules
+- Troubleshooting common issues
 
 ---
 
