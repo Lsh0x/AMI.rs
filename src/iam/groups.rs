@@ -1,5 +1,7 @@
+use crate::error::Result;
 use crate::iam::Group;
-use crate::types::Tag;
+use crate::store::{IamStore, Store};
+use crate::types::{AmiResponse, Tag};
 use serde::{Deserialize, Serialize};
 
 /// Parameters for creating a group
@@ -33,11 +35,7 @@ pub struct ListGroupsResponse {
     pub marker: Option<String>,
 }
 
-// TODO: These implementations need to be refactored to use the Store trait properly
-// For now, these are commented out as they conflict with the generic Store implementation
-
-/*
-impl<S: Store> IamClient<S> {
+impl<S: Store> crate::iam::IamClient<S> {
     /// Create a new group
     pub async fn create_group(
         &mut self,
@@ -76,43 +74,54 @@ impl<S: Store> IamClient<S> {
         &mut self,
         request: UpdateGroupRequest,
     ) -> Result<AmiResponse<Group>> {
-        if let Some(mut group) = self.groups.remove(&request.group_name) {
-            // Update group properties
-            if let Some(new_name) = request.new_group_name {
-                group.group_name = new_name.clone();
-                group.arn = format!("arn:aws:iam::123456789012:group/{}", new_name);
-            }
-            if let Some(new_path) = request.new_path {
-                group.path = new_path;
-            }
+        let store = self.iam_store().await?;
+        let account_id = store.account_id();
 
-            let updated_group = group.clone();
-            self.groups
-                .insert(updated_group.group_name.clone(), updated_group.clone());
+        // Get the existing group
+        let mut group = match store.get_group(&request.group_name).await? {
+            Some(group) => group,
+            None => {
+                return Err(crate::error::AmiError::ResourceNotFound {
+                    resource: format!("Group: {}", request.group_name),
+                })
+            }
+        };
 
-            Ok(AmiResponse::success(updated_group))
-        } else {
-            Err(crate::error::AmiError::ResourceNotFound {
-                resource: format!("Group: {}", request.group_name),
-            })
+        // Update group properties
+        if let Some(new_name) = request.new_group_name {
+            group.group_name = new_name.clone();
+            group.arn = format!("arn:aws:iam::{}:group/{}", account_id, new_name);
         }
+        if let Some(new_path) = request.new_path {
+            group.path = new_path;
+        }
+
+        let updated_group = store.update_group(group).await?;
+
+        Ok(AmiResponse::success(updated_group))
     }
 
     /// Delete a group
     pub async fn delete_group(&mut self, group_name: String) -> Result<AmiResponse<()>> {
-        if self.groups.remove(&group_name).is_some() {
-            Ok(AmiResponse::success(()))
-        } else {
-            Err(crate::error::AmiError::ResourceNotFound {
+        let store = self.iam_store().await?;
+
+        // Check if group exists before deleting
+        if store.get_group(&group_name).await?.is_none() {
+            return Err(crate::error::AmiError::ResourceNotFound {
                 resource: format!("Group: {}", group_name),
-            })
+            });
         }
+
+        store.delete_group(&group_name).await?;
+        Ok(AmiResponse::success(()))
     }
 
     /// Get group information
-    pub async fn get_group(&self, group_name: String) -> Result<AmiResponse<Group>> {
-        match self.groups.get(&group_name) {
-            Some(group) => Ok(AmiResponse::success(group.clone())),
+    pub async fn get_group(&mut self, group_name: String) -> Result<AmiResponse<Group>> {
+        let store = self.iam_store().await?;
+
+        match store.get_group(&group_name).await? {
+            Some(group) => Ok(AmiResponse::success(group)),
             None => Err(crate::error::AmiError::ResourceNotFound {
                 resource: format!("Group: {}", group_name),
             }),
@@ -121,36 +130,15 @@ impl<S: Store> IamClient<S> {
 
     /// List all groups
     pub async fn list_groups(
-        &self,
+        &mut self,
         request: Option<ListGroupsRequest>,
     ) -> Result<AmiResponse<ListGroupsResponse>> {
-        let mut groups: Vec<Group> = self.groups.values().cloned().collect();
+        let store = self.iam_store().await?;
 
-        // Apply path prefix filter if specified
-        if let Some(req) = &request {
-            if let Some(path_prefix) = &req.path_prefix {
-                groups.retain(|group| group.path.starts_with(path_prefix));
-            }
-        }
+        let path_prefix = request.as_ref().and_then(|r| r.path_prefix.as_deref());
+        let pagination = request.as_ref().and_then(|r| r.pagination.as_ref());
 
-        // Sort by group name
-        groups.sort_by(|a, b| a.group_name.cmp(&b.group_name));
-
-        // Apply pagination
-        let mut is_truncated = false;
-        let mut marker = None;
-
-        if let Some(req) = &request {
-            if let Some(pagination) = &req.pagination {
-                if let Some(max_items) = pagination.max_items {
-                    if groups.len() > max_items as usize {
-                        groups.truncate(max_items as usize);
-                        is_truncated = true;
-                        marker = Some(groups.last().unwrap().group_name.clone());
-                    }
-                }
-            }
-        }
+        let (groups, is_truncated, marker) = store.list_groups(path_prefix, pagination).await?;
 
         let response = ListGroupsResponse {
             groups,
@@ -162,10 +150,14 @@ impl<S: Store> IamClient<S> {
     }
 
     /// List groups for a user
-    pub async fn list_groups_for_user(&self, user_name: String) -> Result<AmiResponse<Vec<Group>>> {
-        // In a real implementation, this would maintain user-group relationships
-        // For now, return empty list
-        Ok(AmiResponse::success(vec![]))
+    pub async fn list_groups_for_user(
+        &mut self,
+        user_name: String,
+    ) -> Result<AmiResponse<Vec<Group>>> {
+        let store = self.iam_store().await?;
+
+        let groups = store.list_groups_for_user(&user_name).await?;
+        Ok(AmiResponse::success(groups))
     }
 
     /// Add user to group
@@ -174,21 +166,23 @@ impl<S: Store> IamClient<S> {
         group_name: String,
         user_name: String,
     ) -> Result<AmiResponse<()>> {
+        let store = self.iam_store().await?;
+
         // Check if group exists
-        if !self.groups.contains_key(&group_name) {
+        if store.get_group(&group_name).await?.is_none() {
             return Err(crate::error::AmiError::ResourceNotFound {
                 resource: format!("Group: {}", group_name),
             });
         }
 
         // Check if user exists
-        if !self.users.contains_key(&user_name) {
+        if store.get_user(&user_name).await?.is_none() {
             return Err(crate::error::AmiError::ResourceNotFound {
                 resource: format!("User: {}", user_name),
             });
         }
 
-        // In a real implementation, this would maintain user-group relationships
+        store.add_user_to_group(&group_name, &user_name).await?;
         Ok(AmiResponse::success(()))
     }
 
@@ -198,22 +192,237 @@ impl<S: Store> IamClient<S> {
         group_name: String,
         user_name: String,
     ) -> Result<AmiResponse<()>> {
+        let store = self.iam_store().await?;
+
         // Check if group exists
-        if !self.groups.contains_key(&group_name) {
+        if store.get_group(&group_name).await?.is_none() {
             return Err(crate::error::AmiError::ResourceNotFound {
                 resource: format!("Group: {}", group_name),
             });
         }
 
         // Check if user exists
-        if !self.users.contains_key(&user_name) {
+        if store.get_user(&user_name).await?.is_none() {
             return Err(crate::error::AmiError::ResourceNotFound {
                 resource: format!("User: {}", user_name),
             });
         }
 
-        // In a real implementation, this would maintain user-group relationships
+        store
+            .remove_user_from_group(&group_name, &user_name)
+            .await?;
         Ok(AmiResponse::success(()))
     }
 }
-*/
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::iam::{CreateUserRequest, IamClient};
+    use crate::store::in_memory::InMemoryStore;
+
+    fn create_test_client() -> IamClient<InMemoryStore> {
+        let store = InMemoryStore::new();
+        IamClient::new(store)
+    }
+
+    async fn create_test_user(client: &mut IamClient<InMemoryStore>, user_name: &str) {
+        let request = CreateUserRequest {
+            user_name: user_name.to_string(),
+            path: Some("/".to_string()),
+            permissions_boundary: None,
+            tags: None,
+        };
+        client.create_user(request).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_create_group() {
+        let mut client = create_test_client();
+
+        let request = CreateGroupRequest {
+            group_name: "Developers".to_string(),
+            path: Some("/engineering/".to_string()),
+            tags: None,
+        };
+
+        let response = client.create_group(request).await.unwrap();
+        assert!(response.success);
+
+        let group = response.data.unwrap();
+        assert_eq!(group.group_name, "Developers");
+        assert_eq!(group.path, "/engineering/");
+        assert!(group.group_id.starts_with("AGPA"));
+    }
+
+    #[tokio::test]
+    async fn test_get_group() {
+        let mut client = create_test_client();
+
+        let create_request = CreateGroupRequest {
+            group_name: "Admins".to_string(),
+            path: Some("/".to_string()),
+            tags: None,
+        };
+        client.create_group(create_request).await.unwrap();
+
+        let response = client.get_group("Admins".to_string()).await.unwrap();
+        let group = response.data.unwrap();
+        assert_eq!(group.group_name, "Admins");
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_group() {
+        let mut client = create_test_client();
+
+        let result = client.get_group("NonExistent".to_string()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_group() {
+        let mut client = create_test_client();
+
+        let create_request = CreateGroupRequest {
+            group_name: "OldName".to_string(),
+            path: Some("/old/".to_string()),
+            tags: None,
+        };
+        client.create_group(create_request).await.unwrap();
+
+        let update_request = UpdateGroupRequest {
+            group_name: "OldName".to_string(),
+            new_group_name: Some("NewName".to_string()),
+            new_path: Some("/new/".to_string()),
+        };
+
+        let response = client.update_group(update_request).await.unwrap();
+        let group = response.data.unwrap();
+        assert_eq!(group.group_name, "NewName");
+        assert_eq!(group.path, "/new/");
+    }
+
+    #[tokio::test]
+    async fn test_delete_group() {
+        let mut client = create_test_client();
+
+        let create_request = CreateGroupRequest {
+            group_name: "ToDelete".to_string(),
+            path: Some("/".to_string()),
+            tags: None,
+        };
+        client.create_group(create_request).await.unwrap();
+
+        let result = client.delete_group("ToDelete".to_string()).await;
+        assert!(result.is_ok());
+
+        // Verify it's deleted
+        let get_result = client.get_group("ToDelete".to_string()).await;
+        assert!(get_result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_groups() {
+        let mut client = create_test_client();
+
+        // Create multiple groups
+        for i in 1..=3 {
+            let request = CreateGroupRequest {
+                group_name: format!("Group{}", i),
+                path: Some("/".to_string()),
+                tags: None,
+            };
+            client.create_group(request).await.unwrap();
+        }
+
+        let response = client.list_groups(None).await.unwrap();
+        let list_response = response.data.unwrap();
+
+        assert_eq!(list_response.groups.len(), 3);
+        assert!(!list_response.is_truncated);
+    }
+
+    #[tokio::test]
+    async fn test_add_user_to_group() {
+        let mut client = create_test_client();
+
+        // Create user and group
+        create_test_user(&mut client, "testuser").await;
+        let group_request = CreateGroupRequest {
+            group_name: "TestGroup".to_string(),
+            path: Some("/".to_string()),
+            tags: None,
+        };
+        client.create_group(group_request).await.unwrap();
+
+        // Add user to group
+        let result = client
+            .add_user_to_group("TestGroup".to_string(), "testuser".to_string())
+            .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_add_user_to_nonexistent_group() {
+        let mut client = create_test_client();
+        create_test_user(&mut client, "testuser").await;
+
+        let result = client
+            .add_user_to_group("NonExistent".to_string(), "testuser".to_string())
+            .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_remove_user_from_group() {
+        let mut client = create_test_client();
+
+        // Create user and group
+        create_test_user(&mut client, "testuser").await;
+        let group_request = CreateGroupRequest {
+            group_name: "TestGroup".to_string(),
+            path: Some("/".to_string()),
+            tags: None,
+        };
+        client.create_group(group_request).await.unwrap();
+
+        // Add user to group
+        client
+            .add_user_to_group("TestGroup".to_string(), "testuser".to_string())
+            .await
+            .unwrap();
+
+        // Remove user from group
+        let result = client
+            .remove_user_from_group("TestGroup".to_string(), "testuser".to_string())
+            .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_groups_for_user() {
+        let mut client = create_test_client();
+
+        // Create user and groups
+        create_test_user(&mut client, "testuser").await;
+        for i in 1..=2 {
+            let request = CreateGroupRequest {
+                group_name: format!("Group{}", i),
+                path: Some("/".to_string()),
+                tags: None,
+            };
+            client.create_group(request).await.unwrap();
+            client
+                .add_user_to_group(format!("Group{}", i), "testuser".to_string())
+                .await
+                .unwrap();
+        }
+
+        let response = client
+            .list_groups_for_user("testuser".to_string())
+            .await
+            .unwrap();
+        let groups = response.data.unwrap();
+        assert_eq!(groups.len(), 2);
+    }
+}
