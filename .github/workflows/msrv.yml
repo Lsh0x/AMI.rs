@@ -1,0 +1,46 @@
+name: MSRV
+
+on:
+  push:
+    branches: [main, master, feature/**]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: '0 0 * * 1' # Run weekly on Monday
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  msrv:
+    name: Check Minimum Supported Rust Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get MSRV from Cargo.toml
+        id: msrv
+        run: |
+          MSRV=$(grep -m1 'rust-version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          if [ -z "$MSRV" ]; then
+            echo "No rust-version specified in Cargo.toml, defaulting to 1.70.0"
+            MSRV="1.70.0"
+          fi
+          echo "msrv=$MSRV" >> $GITHUB_OUTPUT
+          echo "Minimum Supported Rust Version: $MSRV"
+
+      - name: Install Rust toolchain ${{ steps.msrv.outputs.msrv }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.msrv.outputs.msrv }}
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check with MSRV
+        run: cargo check --all-features --verbose
+
+      - name: Test with MSRV
+        run: cargo test --all-features --verbose
+
