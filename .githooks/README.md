@@ -11,6 +11,14 @@ Runs before each commit to ensure:
 - ✅ No clippy warnings (`cargo clippy -- -D warnings`)
 - 🧪 Optionally run tests (disabled by default for speed)
 
+### prepare-commit-msg
+
+Runs when you start writing a commit message:
+- 📝 Provides conventional commit format template
+- 📚 Shows examples of commit types (feat, fix, docs, etc.)
+- 🔄 Helps ensure proper versioning through conventional commits
+- 💡 Includes guidance for breaking changes
+
 ## Installation
 
 ### Option 1: Configure Git to Use These Hooks (Recommended)
