@@ -34,6 +34,13 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
+        continue-on-error: true
+        
+      - name: Note if token missing
+        if: secrets.CODECOV_TOKEN == ''
+        run: |
+          echo "::notice::CODECOV_TOKEN not configured - coverage upload skipped"
+          echo "To enable coverage upload, add CODECOV_TOKEN to repository secrets"
 
