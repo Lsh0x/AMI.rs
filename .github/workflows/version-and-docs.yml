@@ -108,14 +108,12 @@ jobs:
 
       - name: Update CHANGELOG
         if: steps.bump.outputs.version_changed == 'true'
-        run: |
-          NEW_VERSION="${{ steps.bump.outputs.version }}"
-          
-          # Generate changelog using git-cliff
-          docker run --rm -v "$PWD":/app -w /app \
-            ghcr.io/orhun/git-cliff:latest \
-            --tag "v$NEW_VERSION" \
-            --output CHANGELOG.md
+        uses: orhun/git-cliff-action@v3
+        with:
+          config: cliff.toml
+          args: --tag "v${{ steps.bump.outputs.version }}" --output CHANGELOG.md
+        env:
+          OUTPUT: CHANGELOG.md
 
       - name: Commit version bump
         if: steps.bump.outputs.version_changed == 'true'
@@ -155,7 +153,9 @@ jobs:
           echo "<meta http-equiv=\"refresh\" content=\"0; url=rustyiam\">" > target/doc/index.html
 
       - name: Setup Pages
+        id: setup-pages
         uses: actions/configure-pages@v4
+        continue-on-error: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -165,6 +165,18 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+        
+      - name: Pages deployment status
+        run: |
+          if [ "${{ steps.deployment.outcome }}" = "failure" ]; then
+            echo "⚠️ GitHub Pages deployment failed."
+            echo "Make sure GitHub Pages is enabled in repository settings:"
+            echo "Settings → Pages → Source: GitHub Actions"
+          else
+            echo "✅ Documentation deployed successfully!"
+            echo "URL: ${{ steps.deployment.outputs.page_url }}"
+          fi
 
   create-release:
     needs: [version-bump, deploy-docs]
@@ -205,14 +217,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-crate:
-    needs: [version-bump, deploy-docs]
-    if: needs.version-bump.outputs.version_changed == 'true' && github.event_name != 'workflow_dispatch'
+    needs: [version-bump, create-release]
+    if: needs.version-bump.outputs.version_changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -220,10 +233,23 @@ jobs:
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Run tests before publish
+        run: cargo test --all-features
+
+      - name: Verify package
+        run: cargo package --allow-dirty
+
       - name: Publish to crates.io
-        if: env.CARGO_REGISTRY_TOKEN != ''
-        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
+        if: secrets.CARGO_REGISTRY_TOKEN != ''
+        run: |
+          echo "Publishing version ${{ needs.version-bump.outputs.version }} to crates.io..."
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        continue-on-error: false
+        
+      - name: Note if token missing
+        if: secrets.CARGO_REGISTRY_TOKEN == ''
+        run: |
+          echo "⚠️ CARGO_REGISTRY_TOKEN secret not configured"
+          echo "To publish to crates.io, add your token as a repository secret"
+          echo "Generate token at: https://crates.io/settings/tokens"
 

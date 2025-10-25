@@ -562,10 +562,11 @@ Contributions are welcome! Please feel free to submit a Pull Request.
    cd AMI.rs
    ```
 
-2. **Install Git hooks** (recommended to catch issues before committing):
+2. **Install Git hooks** (required for all contributors):
    ```bash
    git config core.hooksPath .githooks
    ```
+   This enables pre-commit checks and conventional commit templates.
    
    This will automatically run `cargo fmt` and `cargo clippy` checks before each commit.
    See [.githooks/README.md](.githooks/README.md) for more details.
