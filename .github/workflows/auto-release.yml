@@ -1,0 +1,264 @@
+name: Auto Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  check-and-release:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      bump_type: ${{ steps.check.outputs.bump_type }}
+      new_version: ${{ steps.version.outputs.new_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if should release
+        id: check
+        run: |
+          # Skip if commit message contains [skip ci] or [skip release]
+          if git log -1 --pretty=%B | grep -qE '\[skip (ci|release)\]'; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "Skipping release (found skip marker)"
+            exit 0
+          fi
+          
+          # Check for existing tag on current commit
+          if git describe --exact-match --tags HEAD 2>/dev/null; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "Skipping release (commit already tagged)"
+            exit 0
+          fi
+          
+          # Determine bump type from commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"%s" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"%s" ${LAST_TAG}..HEAD)
+          fi
+          
+          echo "Recent commits:"
+          echo "$COMMITS"
+          
+          # Manual override from workflow_dispatch
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BUMP_TYPE="${{ github.event.inputs.bump_type }}"
+            echo "Manual release requested: $BUMP_TYPE"
+          # Check for breaking changes (major)
+          elif echo "$COMMITS" | grep -qE "^[a-z]+(\(.+\))?!:|BREAKING CHANGE:"; then
+            BUMP_TYPE="major"
+          # Check for features (minor)
+          elif echo "$COMMITS" | grep -qE "^feat(\(.+\))?:"; then
+            BUMP_TYPE="minor"
+          # Check for fixes (patch)
+          elif echo "$COMMITS" | grep -qE "^(fix|perf|refactor|docs|style|test|chore)(\(.+\))?:"; then
+            BUMP_TYPE="patch"
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "No conventional commits found - skipping release"
+            exit 0
+          fi
+          
+          echo "should_release=true" >> $GITHUB_OUTPUT
+          echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+          echo "Will create $BUMP_TYPE release"
+
+      - name: Calculate new version
+        if: steps.check.outputs.should_release == 'true'
+        id: version
+        run: |
+          CURRENT=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "Current version: $CURRENT"
+          
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          
+          case "${{ steps.check.outputs.bump_type }}" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Update version in Cargo.toml
+        if: steps.check.outputs.should_release == 'true'
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          sed -i.bak "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
+          rm Cargo.toml.bak
+          
+          echo "Updated Cargo.toml:"
+          grep "^version" Cargo.toml
+
+      - name: Update Cargo.lock
+        if: steps.check.outputs.should_release == 'true'
+        run: cargo update -p rustyiam --precise ${{ steps.version.outputs.new_version }}
+
+      - name: Generate changelog
+        if: steps.check.outputs.should_release == 'true'
+        uses: orhun/git-cliff-action@v3
+        with:
+          config: cliff.toml
+          args: --tag "v${{ steps.version.outputs.new_version }}"
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Commit and tag
+        if: steps.check.outputs.should_release == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          
+          git add Cargo.toml Cargo.lock CHANGELOG.md
+          git commit -m "chore(release): v$NEW_VERSION [skip ci]"
+          git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
+          git push origin main
+          git push origin "v$NEW_VERSION"
+
+  build-docs:
+    needs: check-and-release
+    if: needs.check-and-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.check-and-release.outputs.new_version }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build docs
+        run: |
+          cargo doc --no-deps --all-features
+          echo '<meta http-equiv="refresh" content="0; url=rustyiam">' > target/doc/index.html
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        continue-on-error: true
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'target/doc'
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+  create-release:
+    needs: [check-and-release, build-docs]
+    if: needs.check-and-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.check-and-release.outputs.new_version }}
+          fetch-depth: 0
+
+      - name: Extract changelog
+        run: |
+          VERSION="${{ needs.check-and-release.outputs.new_version }}"
+          
+          # Extract release notes from CHANGELOG
+          awk '/^## \['"$VERSION"'\]/,/^## \[/' CHANGELOG.md | \
+            sed '1d;$d' | \
+            sed '/^$/d' > release-notes.md
+          
+          if [ ! -s release-notes.md ]; then
+            echo "Release v$VERSION" > release-notes.md
+            echo "" >> release-notes.md
+            echo "See [CHANGELOG.md](./CHANGELOG.md) for details." >> release-notes.md
+          fi
+          
+          echo "Release notes:"
+          cat release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check-and-release.outputs.new_version }}
+          name: v${{ needs.check-and-release.outputs.new_version }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+
+  publish-crate:
+    needs: [check-and-release, create-release]
+    if: needs.check-and-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.check-and-release.outputs.new_version }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Test
+        run: cargo test --all-features
+
+      - name: Package
+        run: cargo package
+
+      - name: Publish
+        if: env.CARGO_TOKEN != ''
+        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        env:
+          CARGO_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        continue-on-error: false
+
+      - name: Note
+        if: env.CARGO_TOKEN == ''
+        run: echo "::warning::CARGO_REGISTRY_TOKEN not set - skipping crates.io publish"
+        env:
+          CARGO_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
