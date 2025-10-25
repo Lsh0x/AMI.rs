@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] - 2025-10-25
+
+### 🚜 Refactor
+
+- Implement groups methods using IamStore trait
+
 ## [0.2.1] - 2025-10-25
 
 ### 🚜 Refactor
 
 - Implement access_keys methods using IamStore trait
+
+### ⚙️ Miscellaneous Tasks
+
+- **release:** V0.2.1 [skip ci]
 
 ## [0.2.0] - 2025-10-25
 
