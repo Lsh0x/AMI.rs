@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.7] - 2025-10-25
+
+### 🚜 Refactor
+
+- Implement IAM resource tagging using IamStore trait
+
 ## [0.2.6] - 2025-10-25
 
 ### 🚜 Refactor
 
 - Implement IAM policy methods using IamStore trait
+
+### ⚙️ Miscellaneous Tasks
+
+- **release:** V0.2.6 [skip ci]
 
 ## [0.2.5] - 2025-10-25
 
