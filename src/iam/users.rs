@@ -157,3 +157,193 @@ impl<S: Store> IamClient<S> {
         Ok(AmiResponse::success(()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::store::in_memory::InMemoryStore;
+
+    fn create_test_client() -> IamClient<InMemoryStore> {
+        let store = InMemoryStore::new();
+        IamClient::new(store)
+    }
+
+    #[tokio::test]
+    async fn test_create_user() {
+        let mut client = create_test_client();
+
+        let request = CreateUserRequest {
+            user_name: "test-user".to_string(),
+            path: Some("/test/".to_string()),
+            permissions_boundary: None,
+            tags: None,
+        };
+
+        let response = client.create_user(request).await.unwrap();
+        assert!(response.success);
+
+        let user = response.data.unwrap();
+        assert_eq!(user.user_name, "test-user");
+        assert_eq!(user.path, "/test/");
+        assert!(user.arn.contains("test-user"));
+        assert!(user.user_id.starts_with("AID"));
+    }
+
+    #[tokio::test]
+    async fn test_get_user() {
+        let mut client = create_test_client();
+
+        // Create a user first
+        let create_request = CreateUserRequest {
+            user_name: "alice".to_string(),
+            path: Some("/".to_string()),
+            permissions_boundary: None,
+            tags: None,
+        };
+        client.create_user(create_request).await.unwrap();
+
+        // Get the user
+        let response = client.get_user("alice".to_string()).await.unwrap();
+        assert!(response.success);
+
+        let user = response.data.unwrap();
+        assert_eq!(user.user_name, "alice");
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_user() {
+        let mut client = create_test_client();
+
+        let result = client.get_user("nonexistent".to_string()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_user() {
+        let mut client = create_test_client();
+
+        // Create a user
+        let create_request = CreateUserRequest {
+            user_name: "bob".to_string(),
+            path: None,
+            permissions_boundary: None,
+            tags: None,
+        };
+        client.create_user(create_request).await.unwrap();
+
+        // Delete the user
+        let response = client.delete_user("bob".to_string()).await.unwrap();
+        assert!(response.success);
+
+        // Verify user is deleted
+        let result = client.get_user("bob".to_string()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_user() {
+        let mut client = create_test_client();
+
+        // Create a user
+        let create_request = CreateUserRequest {
+            user_name: "charlie".to_string(),
+            path: Some("/old/".to_string()),
+            permissions_boundary: None,
+            tags: None,
+        };
+        client.create_user(create_request).await.unwrap();
+
+        // Update the user
+        let update_request = UpdateUserRequest {
+            user_name: "charlie".to_string(),
+            new_user_name: None,
+            new_path: Some("/new/".to_string()),
+        };
+        let response = client.update_user(update_request).await.unwrap();
+        assert!(response.success);
+
+        let user = response.data.unwrap();
+        assert_eq!(user.path, "/new/");
+    }
+
+    #[tokio::test]
+    async fn test_list_users() {
+        let mut client = create_test_client();
+
+        // Create multiple users
+        for name in &["user1", "user2", "user3"] {
+            let request = CreateUserRequest {
+                user_name: name.to_string(),
+                path: Some("/".to_string()),
+                permissions_boundary: None,
+                tags: None,
+            };
+            client.create_user(request).await.unwrap();
+        }
+
+        // List users
+        let response = client.list_users(None).await.unwrap();
+        assert!(response.success);
+
+        let list_response = response.data.unwrap();
+        assert_eq!(list_response.users.len(), 3);
+        assert!(!list_response.is_truncated);
+    }
+
+    #[tokio::test]
+    async fn test_user_tags() {
+        let mut client = create_test_client();
+
+        // Create a user
+        let create_request = CreateUserRequest {
+            user_name: "tagged-user".to_string(),
+            path: None,
+            permissions_boundary: None,
+            tags: None,
+        };
+        client.create_user(create_request).await.unwrap();
+
+        // Add tags
+        let tags = vec![
+            Tag {
+                key: "Environment".to_string(),
+                value: "Production".to_string(),
+            },
+            Tag {
+                key: "Team".to_string(),
+                value: "Engineering".to_string(),
+            },
+        ];
+        let response = client
+            .tag_user("tagged-user".to_string(), tags)
+            .await
+            .unwrap();
+        assert!(response.success);
+
+        // List tags
+        let response = client
+            .list_user_tags("tagged-user".to_string())
+            .await
+            .unwrap();
+        assert!(response.success);
+
+        let tags = response.data.unwrap();
+        assert_eq!(tags.len(), 2);
+
+        // Remove a tag
+        let response = client
+            .untag_user("tagged-user".to_string(), vec!["Environment".to_string()])
+            .await
+            .unwrap();
+        assert!(response.success);
+
+        // Verify tag was removed
+        let response = client
+            .list_user_tags("tagged-user".to_string())
+            .await
+            .unwrap();
+        let tags = response.data.unwrap();
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0].key, "Team");
+    }
+}

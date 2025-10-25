@@ -54,6 +54,9 @@ use crate::store::{SsoAdminStore, Store};
 use crate::types::AmiResponse;
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+mod tests;
+
 /// SSO Admin client for managing AWS Single Sign-On resources
 ///
 /// The SSO Admin client provides methods for managing permission sets, account assignments,

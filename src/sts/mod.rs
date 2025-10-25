@@ -44,6 +44,9 @@ use crate::store::{Store, StsStore};
 use crate::types::AmiResponse;
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+mod tests;
+
 /// STS client for managing temporary AWS credentials and identity operations
 ///
 /// The STS client provides methods for requesting temporary credentials,
