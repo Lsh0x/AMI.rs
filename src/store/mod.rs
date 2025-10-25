@@ -51,6 +51,9 @@ pub trait IamStore: Send + Sync {
     async fn list_groups_for_user(&self, user_name: &str) -> Result<Vec<Group>>;
     async fn add_user_to_group(&mut self, group_name: &str, user_name: &str) -> Result<()>;
     async fn remove_user_from_group(&mut self, group_name: &str, user_name: &str) -> Result<()>;
+    async fn tag_group(&mut self, group_name: &str, tags: Vec<Tag>) -> Result<()>;
+    async fn untag_group(&mut self, group_name: &str, tag_keys: Vec<String>) -> Result<()>;
+    async fn list_group_tags(&self, group_name: &str) -> Result<Vec<Tag>>;
 
     // Role operations
     async fn create_role(&mut self, role: Role) -> Result<Role>;
@@ -62,6 +65,9 @@ pub trait IamStore: Send + Sync {
         path_prefix: Option<&str>,
         pagination: Option<&PaginationParams>,
     ) -> Result<(Vec<Role>, bool, Option<String>)>;
+    async fn tag_role(&mut self, role_name: &str, tags: Vec<Tag>) -> Result<()>;
+    async fn untag_role(&mut self, role_name: &str, tag_keys: Vec<String>) -> Result<()>;
+    async fn list_role_tags(&self, role_name: &str) -> Result<Vec<Tag>>;
 
     // Policy operations
     async fn create_policy(&mut self, policy: Policy) -> Result<Policy>;
@@ -73,6 +79,9 @@ pub trait IamStore: Send + Sync {
         scope: Option<&str>,
         pagination: Option<&PaginationParams>,
     ) -> Result<(Vec<Policy>, bool, Option<String>)>;
+    async fn tag_policy(&mut self, policy_arn: &str, tags: Vec<Tag>) -> Result<()>;
+    async fn untag_policy(&mut self, policy_arn: &str, tag_keys: Vec<String>) -> Result<()>;
+    async fn list_policy_tags(&self, policy_arn: &str) -> Result<Vec<Tag>>;
 
     // MFA device operations
     async fn create_mfa_device(&mut self, mfa_device: MfaDevice) -> Result<MfaDevice>;

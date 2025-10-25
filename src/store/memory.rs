@@ -265,6 +265,28 @@ impl IamStore for InMemoryIamStore {
         Ok(())
     }
 
+    async fn tag_group(&mut self, group_name: &str, tags: Vec<Tag>) -> Result<()> {
+        if let Some(group) = self.groups.get_mut(group_name) {
+            group.tags.extend(tags);
+        }
+        Ok(())
+    }
+
+    async fn untag_group(&mut self, group_name: &str, tag_keys: Vec<String>) -> Result<()> {
+        if let Some(group) = self.groups.get_mut(group_name) {
+            group.tags.retain(|tag| !tag_keys.contains(&tag.key));
+        }
+        Ok(())
+    }
+
+    async fn list_group_tags(&self, group_name: &str) -> Result<Vec<Tag>> {
+        Ok(self
+            .groups
+            .get(group_name)
+            .map(|g| g.tags.clone())
+            .unwrap_or_default())
+    }
+
     async fn create_role(&mut self, role: Role) -> Result<Role> {
         self.roles.insert(role.role_name.clone(), role.clone());
         Ok(role)
@@ -313,6 +335,28 @@ impl IamStore for InMemoryIamStore {
         Ok((roles, is_truncated, marker))
     }
 
+    async fn tag_role(&mut self, role_name: &str, tags: Vec<Tag>) -> Result<()> {
+        if let Some(role) = self.roles.get_mut(role_name) {
+            role.tags.extend(tags);
+        }
+        Ok(())
+    }
+
+    async fn untag_role(&mut self, role_name: &str, tag_keys: Vec<String>) -> Result<()> {
+        if let Some(role) = self.roles.get_mut(role_name) {
+            role.tags.retain(|tag| !tag_keys.contains(&tag.key));
+        }
+        Ok(())
+    }
+
+    async fn list_role_tags(&self, role_name: &str) -> Result<Vec<Tag>> {
+        Ok(self
+            .roles
+            .get(role_name)
+            .map(|r| r.tags.clone())
+            .unwrap_or_default())
+    }
+
     async fn create_policy(&mut self, policy: Policy) -> Result<Policy> {
         self.policies.insert(policy.arn.clone(), policy.clone());
         Ok(policy)
@@ -359,6 +403,28 @@ impl IamStore for InMemoryIamStore {
         }
 
         Ok((policies, is_truncated, marker))
+    }
+
+    async fn tag_policy(&mut self, policy_arn: &str, tags: Vec<Tag>) -> Result<()> {
+        if let Some(policy) = self.policies.get_mut(policy_arn) {
+            policy.tags.extend(tags);
+        }
+        Ok(())
+    }
+
+    async fn untag_policy(&mut self, policy_arn: &str, tag_keys: Vec<String>) -> Result<()> {
+        if let Some(policy) = self.policies.get_mut(policy_arn) {
+            policy.tags.retain(|tag| !tag_keys.contains(&tag.key));
+        }
+        Ok(())
+    }
+
+    async fn list_policy_tags(&self, policy_arn: &str) -> Result<Vec<Tag>> {
+        Ok(self
+            .policies
+            .get(policy_arn)
+            .map(|p| p.tags.clone())
+            .unwrap_or_default())
     }
 
     async fn create_mfa_device(&mut self, mfa_device: MfaDevice) -> Result<MfaDevice> {
