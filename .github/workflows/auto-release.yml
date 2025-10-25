@@ -128,14 +128,19 @@ jobs:
         if: steps.check.outputs.should_release == 'true'
         run: cargo update -p rustyiam --precise ${{ steps.version.outputs.new_version }}
 
+      - name: Install git-cliff
+        if: steps.check.outputs.should_release == 'true'
+        run: |
+          wget https://github.com/orhun/git-cliff/releases/download/v2.4.0/git-cliff-2.4.0-x86_64-unknown-linux-gnu.tar.gz
+          tar -xzf git-cliff-2.4.0-x86_64-unknown-linux-gnu.tar.gz
+          sudo mv git-cliff-2.4.0/git-cliff /usr/local/bin/
+          git-cliff --version
+
       - name: Generate changelog
         if: steps.check.outputs.should_release == 'true'
-        uses: orhun/git-cliff-action@v3
-        with:
-          config: cliff.toml
-          args: --tag "v${{ steps.version.outputs.new_version }}"
-        env:
-          OUTPUT: CHANGELOG.md
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          git-cliff --config cliff.toml --tag "v$NEW_VERSION" --output CHANGELOG.md
 
       - name: Commit and tag
         if: steps.check.outputs.should_release == 'true'
