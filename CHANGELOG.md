@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.5] - 2025-10-25
+
+### 🚜 Refactor
+
+- Implement login profile (password) methods using IamStore trait
+
 ## [0.2.4] - 2025-10-25
 
 ### 🚜 Refactor
 
 - Implement roles methods using IamStore trait
+
+### ⚙️ Miscellaneous Tasks
+
+- **release:** V0.2.4 [skip ci]
 
 ## [0.2.3] - 2025-10-25
 
