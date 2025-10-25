@@ -88,14 +88,20 @@ pub struct Tag {
 /// Policy document representation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyDocument {
+    #[serde(rename = "Version")]
     pub version: String,
+    #[serde(rename = "Statement")]
     pub statement: Vec<PolicyStatement>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyStatement {
+    #[serde(rename = "Effect")]
     pub effect: String,
+    #[serde(rename = "Action")]
     pub action: Vec<String>,
+    #[serde(rename = "Resource")]
     pub resource: Vec<String>,
+    #[serde(rename = "Condition", skip_serializing_if = "Option::is_none")]
     pub condition: Option<serde_json::Value>,
 }

@@ -105,6 +105,10 @@ pub use iam::passwords::{
 pub use iam::policies::{
     CreatePolicyRequest, ListPoliciesRequest, ListPoliciesResponse, UpdatePolicyRequest,
 };
+pub use iam::policy_evaluation::{
+    ContextEntry, EvaluationResult, SimulateCustomPolicyRequest, SimulatePolicyResponse,
+    SimulatePrincipalPolicyRequest, StatementMatch,
+};
 pub use iam::roles::{CreateRoleRequest, ListRolesRequest, ListRolesResponse, UpdateRoleRequest};
 pub use iam::tags::{ListResourceTagsRequest, TagResourceRequest, UntagResourceRequest};
 pub use iam::users::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
