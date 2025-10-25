@@ -98,6 +98,7 @@ pub use iam::access_keys::{
 pub use iam::groups::{
     CreateGroupRequest, ListGroupsRequest, ListGroupsResponse, UpdateGroupRequest,
 };
+pub use iam::mfa_devices::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
 pub use iam::users::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
 pub use sso_admin::{CreateAccountAssignmentRequest, CreatePermissionSetRequest};
 pub use sts::{AssumeRoleRequest, GetFederationTokenRequest, GetSessionTokenRequest};
