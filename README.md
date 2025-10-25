@@ -562,10 +562,11 @@ Contributions are welcome! Please feel free to submit a Pull Request.
    cd AMI.rs
    ```
 
-2. **Install Git hooks** (recommended to catch issues before committing):
+2. **Install Git hooks** (required for all contributors):
    ```bash
    git config core.hooksPath .githooks
    ```
+   This enables pre-commit checks and conventional commit templates.
    
    This will automatically run `cargo fmt` and `cargo clippy` checks before each commit.
    See [.githooks/README.md](.githooks/README.md) for more details.
@@ -593,6 +594,17 @@ All pull requests must:
 - ✅ Be properly formatted with `rustfmt`
 - ✅ Include documentation for public APIs
 - ✅ Add tests for new functionality
+- ✅ Follow [Conventional Commits](https://www.conventionalcommits.org/) format
+
+The pre-commit hooks will automatically check formatting and linting before each commit.
+
+### First-Time Repository Setup
+
+For maintainers setting up the repository for the first time, see [.github/SETUP.md](.github/SETUP.md) for:
+- Enabling GitHub Pages for documentation deployment
+- Configuring crates.io publishing token
+- Setting up branch protection rules
+- Troubleshooting common issues
 
 ---
 
