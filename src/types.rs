@@ -51,7 +51,10 @@ impl AwsConfig {
         use std::hash::{Hash, Hasher};
 
         let mut hasher = DefaultHasher::new();
-        chrono::Utc::now().timestamp_nanos().hash(&mut hasher);
+        chrono::Utc::now()
+            .timestamp_nanos_opt()
+            .unwrap_or(0)
+            .hash(&mut hasher);
         let hash = hasher.finish();
 
         // Generate 12-digit account ID

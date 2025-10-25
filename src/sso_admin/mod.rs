@@ -374,7 +374,7 @@ impl<S: Store> SsoAdminClient<S> {
     /// Update permission set
     pub async fn update_permission_set(
         &mut self,
-        instance_arn: String,
+        _instance_arn: String,
         permission_set_arn: String,
         name: Option<String>,
         description: Option<String>,
@@ -402,7 +402,7 @@ impl<S: Store> SsoAdminClient<S> {
     /// Delete permission set
     pub async fn delete_permission_set(
         &mut self,
-        instance_arn: String,
+        _instance_arn: String,
         permission_set_arn: String,
     ) -> Result<AmiResponse<()>> {
         let store = self.sso_admin_store().await?;
@@ -413,7 +413,7 @@ impl<S: Store> SsoAdminClient<S> {
     /// Describe permission set
     pub async fn describe_permission_set(
         &mut self,
-        instance_arn: String,
+        _instance_arn: String,
         permission_set_arn: String,
     ) -> Result<AmiResponse<PermissionSet>> {
         let store = self.sso_admin_store().await?;
@@ -499,11 +499,11 @@ impl<S: Store> SsoAdminClient<S> {
     /// Delete account assignment
     pub async fn delete_account_assignment(
         &mut self,
-        instance_arn: String,
+        _instance_arn: String,
         target_id: String,
-        target_type: String,
+        _target_type: String,
         permission_set_arn: String,
-        principal_type: String,
+        _principal_type: String,
         principal_id: String,
     ) -> Result<AmiResponse<()>> {
         let store = self.sso_admin_store().await?;
@@ -518,7 +518,7 @@ impl<S: Store> SsoAdminClient<S> {
     /// List account assignments
     pub async fn list_account_assignments(
         &mut self,
-        instance_arn: String,
+        _instance_arn: String,
         account_id: String,
         permission_set_arn: String,
     ) -> Result<AmiResponse<Vec<AccountAssignment>>> {
@@ -549,7 +549,7 @@ impl<S: Store> SsoAdminClient<S> {
     /// Create trusted token issuer
     pub async fn create_trusted_token_issuer(
         &mut self,
-        instance_arn: String,
+        _instance_arn: String,
         name: String,
         issuer_url: String,
     ) -> Result<AmiResponse<TrustedTokenIssuer>> {
@@ -574,7 +574,7 @@ impl<S: Store> SsoAdminClient<S> {
     /// Delete trusted token issuer
     pub async fn delete_trusted_token_issuer(
         &mut self,
-        instance_arn: String,
+        _instance_arn: String,
         trusted_token_issuer_arn: String,
     ) -> Result<AmiResponse<()>> {
         let store = self.sso_admin_store().await?;
@@ -597,7 +597,7 @@ impl<S: Store> SsoAdminClient<S> {
     /// Describe trusted token issuer
     pub async fn describe_trusted_token_issuer(
         &mut self,
-        instance_arn: String,
+        _instance_arn: String,
         trusted_token_issuer_arn: String,
     ) -> Result<AmiResponse<TrustedTokenIssuer>> {
         let store = self.sso_admin_store().await?;

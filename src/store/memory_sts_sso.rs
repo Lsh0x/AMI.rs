@@ -60,7 +60,7 @@ impl StsStore for InMemoryStsStore {
         Ok(())
     }
 
-    async fn list_sessions(&self, user_id: Option<&str>) -> Result<Vec<StsSession>> {
+    async fn list_sessions(&self, _user_id: Option<&str>) -> Result<Vec<StsSession>> {
         let sessions: Vec<StsSession> = self.sessions.values().cloned().collect();
         Ok(sessions)
     }
@@ -123,7 +123,7 @@ impl SsoAdminStore for InMemorySsoAdminStore {
         Ok(())
     }
 
-    async fn list_permission_sets(&self, instance_arn: &str) -> Result<Vec<PermissionSet>> {
+    async fn list_permission_sets(&self, _instance_arn: &str) -> Result<Vec<PermissionSet>> {
         Ok(self.permission_sets.values().cloned().collect())
     }
 
@@ -193,7 +193,7 @@ impl SsoAdminStore for InMemorySsoAdminStore {
         Ok(self.applications.get(application_arn).cloned())
     }
 
-    async fn list_applications(&self, instance_arn: &str) -> Result<Vec<Application>> {
+    async fn list_applications(&self, _instance_arn: &str) -> Result<Vec<Application>> {
         Ok(self.applications.values().cloned().collect())
     }
 
@@ -220,7 +220,7 @@ impl SsoAdminStore for InMemorySsoAdminStore {
 
     async fn list_trusted_token_issuers(
         &self,
-        instance_arn: &str,
+        _instance_arn: &str,
     ) -> Result<Vec<TrustedTokenIssuer>> {
         Ok(self.trusted_token_issuers.values().cloned().collect())
     }

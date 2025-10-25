@@ -322,7 +322,7 @@ impl<S: Store> StsClient<S> {
                 .take(17)
                 .collect::<String>()
         );
-        let secret_access_key = format!("{}", uuid::Uuid::new_v4().to_string().replace('-', ""));
+        let secret_access_key = uuid::Uuid::new_v4().to_string().replace('-', "");
 
         let duration = request.duration_seconds.unwrap_or(3600);
         let expiration = chrono::Utc::now() + chrono::Duration::seconds(duration as i64);
@@ -352,8 +352,8 @@ impl<S: Store> StsClient<S> {
     pub async fn assume_role_with_saml(
         &mut self,
         role_arn: String,
-        principal_arn: String,
-        saml_assertion: String,
+        _principal_arn: String,
+        _saml_assertion: String,
     ) -> Result<AmiResponse<Credentials>> {
         // In a real implementation, this would validate the SAML assertion
         let request = AssumeRoleRequest {
@@ -371,7 +371,7 @@ impl<S: Store> StsClient<S> {
     pub async fn assume_role_with_web_identity(
         &mut self,
         role_arn: String,
-        web_identity_token: String,
+        _web_identity_token: String,
         role_session_name: String,
     ) -> Result<AmiResponse<Credentials>> {
         // In a real implementation, this would validate the web identity token
@@ -390,7 +390,7 @@ impl<S: Store> StsClient<S> {
     pub async fn assume_role_with_client_grants(
         &mut self,
         role_arn: String,
-        client_grant_token: String,
+        _client_grant_token: String,
     ) -> Result<AmiResponse<Credentials>> {
         // In a real implementation, this would validate the client grant token
         let request = AssumeRoleRequest {
@@ -419,7 +419,7 @@ impl<S: Store> StsClient<S> {
                 .take(17)
                 .collect::<String>()
         );
-        let secret_access_key = format!("{}", uuid::Uuid::new_v4().to_string().replace('-', ""));
+        let secret_access_key = uuid::Uuid::new_v4().to_string().replace('-', "");
 
         let duration = request.duration_seconds.unwrap_or(3600);
         let expiration = chrono::Utc::now() + chrono::Duration::seconds(duration as i64);
@@ -460,7 +460,7 @@ impl<S: Store> StsClient<S> {
                 .take(17)
                 .collect::<String>()
         );
-        let secret_access_key = format!("{}", uuid::Uuid::new_v4().to_string().replace('-', ""));
+        let secret_access_key = uuid::Uuid::new_v4().to_string().replace('-', "");
 
         let duration = request
             .as_ref()
@@ -503,7 +503,7 @@ impl<S: Store> StsClient<S> {
     /// Get access key info
     pub async fn get_access_key_info(
         &mut self,
-        access_key_id: String,
+        _access_key_id: String,
     ) -> Result<AmiResponse<String>> {
         let store = self.sts_store().await?;
         let account_id = store.account_id();

@@ -250,7 +250,7 @@ impl IamStore for InMemoryIamStore {
     async fn add_user_to_group(&mut self, group_name: &str, user_name: &str) -> Result<()> {
         self.user_groups
             .entry(user_name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(group_name.to_string());
         Ok(())
     }
