@@ -15,10 +15,10 @@
 //! # Example
 //!
 //! ```rust
-//! use ami::{MemoryStsClient, AssumeRoleRequest};
+//! use rustyiam::{MemoryStsClient, AssumeRoleRequest};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let store = ami::create_memory_store();
+//! let store = rustyiam::create_memory_store();
 //! let mut sts_client = MemoryStsClient::new(store);
 //!
 //! // Get caller identity
@@ -57,10 +57,10 @@ use serde::{Deserialize, Serialize};
 /// # Example
 ///
 /// ```rust
-/// use ami::MemoryStsClient;
+/// use rustyiam::MemoryStsClient;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let store = ami::create_memory_store();
+/// let store = rustyiam::create_memory_store();
 /// let mut sts_client = MemoryStsClient::new(store);
 ///
 /// let identity = sts_client.get_caller_identity().await?;
@@ -83,7 +83,7 @@ impl<S: Store> StsClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::{StsClient, InMemoryStore};
+    /// use rustyiam::{StsClient, InMemoryStore};
     ///
     /// let store = InMemoryStore::new();
     /// let sts_client = StsClient::new(store);
@@ -102,10 +102,10 @@ impl<S: Store> StsClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::MemoryStsClient;
+    /// use rustyiam::MemoryStsClient;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = ami::create_memory_store();
+    /// let store = rustyiam::create_memory_store();
     /// let mut sts_client = MemoryStsClient::new(store);
     ///
     /// let account_id = sts_client.account_id().await?;
@@ -124,7 +124,7 @@ impl<S: Store> StsClient<S> {
 /// # Example
 ///
 /// ```rust
-/// use ami::StsSession;
+/// use rustyiam::StsSession;
 /// use chrono::Utc;
 ///
 /// let session = StsSession {
@@ -154,7 +154,7 @@ pub struct StsSession {
 /// # Example
 ///
 /// ```rust
-/// use ami::CallerIdentity;
+/// use rustyiam::CallerIdentity;
 ///
 /// let identity = CallerIdentity {
 ///     user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
@@ -177,7 +177,7 @@ pub struct CallerIdentity {
 /// # Example
 ///
 /// ```rust
-/// use ami::AssumeRoleRequest;
+/// use rustyiam::AssumeRoleRequest;
 ///
 /// let request = AssumeRoleRequest {
 ///     role_arn: "arn:aws:iam::123456789012:role/S3Access".to_string(),
@@ -206,7 +206,7 @@ pub struct AssumeRoleRequest {
 /// # Example
 ///
 /// ```rust
-/// use ami::GetSessionTokenRequest;
+/// use rustyiam::GetSessionTokenRequest;
 ///
 /// let request = GetSessionTokenRequest {
 ///     duration_seconds: Some(3600),
@@ -229,7 +229,7 @@ pub struct GetSessionTokenRequest {
 /// # Example
 ///
 /// ```rust
-/// use ami::GetFederationTokenRequest;
+/// use rustyiam::GetFederationTokenRequest;
 ///
 /// let request = GetFederationTokenRequest {
 ///     name: "federated-user".to_string(),
@@ -252,7 +252,7 @@ pub struct GetFederationTokenRequest {
 /// # Example
 ///
 /// ```rust
-/// use ami::Credentials;
+/// use rustyiam::Credentials;
 /// use chrono::Utc;
 ///
 /// let credentials = Credentials {
@@ -287,10 +287,10 @@ impl<S: Store> StsClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::{MemoryStsClient, AssumeRoleRequest};
+    /// use rustyiam::{MemoryStsClient, AssumeRoleRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = ami::create_memory_store();
+    /// let store = rustyiam::create_memory_store();
     /// let mut sts_client = MemoryStsClient::new(store);
     ///
     /// let request = AssumeRoleRequest {
@@ -515,10 +515,10 @@ impl<S: Store> StsClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::MemoryStsClient;
+    /// use rustyiam::MemoryStsClient;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = ami::create_memory_store();
+    /// let store = rustyiam::create_memory_store();
     /// let mut sts_client = MemoryStsClient::new(store);
     ///
     /// let response = sts_client.get_caller_identity().await?;

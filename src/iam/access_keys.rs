@@ -7,10 +7,10 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use ami::{MemoryIamClient, CreateAccessKeyRequest, CreateUserRequest};
+//! use rustyiam::{MemoryIamClient, CreateAccessKeyRequest, CreateUserRequest};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let store = ami::create_memory_store();
+//! let store = rustyiam::create_memory_store();
 //! let mut iam_client = MemoryIamClient::new(store);
 //!
 //! // First, create a user
@@ -44,7 +44,7 @@ use serde::{Deserialize, Serialize};
 /// # Example
 ///
 /// ```rust
-/// use ami::CreateAccessKeyRequest;
+/// use rustyiam::CreateAccessKeyRequest;
 ///
 /// let request = CreateAccessKeyRequest {
 ///     user_name: "my-user".to_string(),
@@ -61,7 +61,7 @@ pub struct CreateAccessKeyRequest {
 /// # Example
 ///
 /// ```rust
-/// use ami::UpdateAccessKeyRequest;
+/// use rustyiam::UpdateAccessKeyRequest;
 ///
 /// let request = UpdateAccessKeyRequest {
 ///     user_name: "my-user".to_string(),
@@ -84,7 +84,7 @@ pub struct UpdateAccessKeyRequest {
 /// # Example
 ///
 /// ```rust
-/// use ami::{ListAccessKeysRequest, PaginationParams};
+/// use rustyiam::{ListAccessKeysRequest, PaginationParams};
 ///
 /// let request = ListAccessKeysRequest {
 ///     user_name: "my-user".to_string(),
@@ -118,7 +118,7 @@ pub struct ListAccessKeysResponse {
 /// # Example
 ///
 /// ```rust
-/// use ami::AccessKeyLastUsed;
+/// use rustyiam::AccessKeyLastUsed;
 /// use chrono::Utc;
 ///
 /// let last_used = AccessKeyLastUsed {
@@ -164,10 +164,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::{MemoryIamClient, CreateAccessKeyRequest, CreateUserRequest};
+    /// use rustyiam::{MemoryIamClient, CreateAccessKeyRequest, CreateUserRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = ami::create_memory_store();
+    /// let store = rustyiam::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Create a user first
@@ -243,10 +243,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::{MemoryIamClient, CreateAccessKeyRequest, CreateUserRequest};
+    /// use rustyiam::{MemoryIamClient, CreateAccessKeyRequest, CreateUserRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = ami::create_memory_store();
+    /// let store = rustyiam::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Setup: create user and access key
@@ -309,10 +309,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::{MemoryIamClient, CreateAccessKeyRequest, UpdateAccessKeyRequest, CreateUserRequest};
+    /// use rustyiam::{MemoryIamClient, CreateAccessKeyRequest, UpdateAccessKeyRequest, CreateUserRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = ami::create_memory_store();
+    /// let store = rustyiam::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Setup
@@ -373,10 +373,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::{MemoryIamClient, CreateAccessKeyRequest, ListAccessKeysRequest, CreateUserRequest};
+    /// use rustyiam::{MemoryIamClient, CreateAccessKeyRequest, ListAccessKeysRequest, CreateUserRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = ami::create_memory_store();
+    /// let store = rustyiam::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Setup
@@ -464,10 +464,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::{MemoryIamClient, CreateAccessKeyRequest, CreateUserRequest};
+    /// use rustyiam::{MemoryIamClient, CreateAccessKeyRequest, CreateUserRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = ami::create_memory_store();
+    /// let store = rustyiam::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Setup

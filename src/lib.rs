@@ -17,7 +17,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use ami::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient, InMemoryStore};
+//! use rustyiam::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient, InMemoryStore};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,12 +25,12 @@
 //!     env_logger::init();
 //!     
 //!     // Initialize clients with in-memory storage
-//!     let store = ami::create_memory_store();
-//!     let account_id = ami::get_account_id_from_store(&store);
+//!     let store = rustyiam::create_memory_store();
+//!     let account_id = rustyiam::get_account_id_from_store(&store);
 //!     println!("Using AWS account ID: {}", account_id);
 //!     
 //!     // Print AWS environment variables for export
-//!     ami::print_aws_environment_variables(&store);
+//!     rustyiam::print_aws_environment_variables(&store);
 //!     
 //!     let mut iam_client = MemoryIamClient::new(store.clone());
 //!     let mut sts_client = MemoryStsClient::new(store.clone());
@@ -41,7 +41,7 @@
 //!     println!("Account ID from IAM client: {}", client_account_id);
 //!     
 //!     // Create a user
-//!     let user_request = ami::CreateUserRequest {
+//!     let user_request = rustyiam::CreateUserRequest {
 //!         user_name: "test-user".to_string(),
 //!         path: Some("/".to_string()),
 //!         permissions_boundary: None,

@@ -27,11 +27,11 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use ami::{MemoryIamClient, CreateUserRequest, CreateAccessKeyRequest};
+//! use rustyiam::{MemoryIamClient, CreateUserRequest, CreateAccessKeyRequest};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Initialize the IAM client with in-memory storage
-//! let store = ami::create_memory_store();
+//! let store = rustyiam::create_memory_store();
 //! let mut iam_client = MemoryIamClient::new(store);
 //!
 //! // Create a new IAM user
@@ -90,10 +90,10 @@ use serde::{Deserialize, Serialize};
 /// # Example
 ///
 /// ```rust
-/// use ami::{MemoryIamClient, CreateUserRequest};
+/// use rustyiam::{MemoryIamClient, CreateUserRequest};
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let store = ami::create_memory_store();
+/// let store = rustyiam::create_memory_store();
 /// let mut iam_client = MemoryIamClient::new(store);
 ///
 /// let request = CreateUserRequest {
@@ -123,7 +123,7 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::{IamClient, InMemoryStore};
+    /// use rustyiam::{IamClient, InMemoryStore};
     ///
     /// let store = InMemoryStore::new();
     /// let iam_client = IamClient::new(store);
@@ -142,10 +142,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::MemoryIamClient;
+    /// use rustyiam::MemoryIamClient;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = ami::create_memory_store();
+    /// let store = rustyiam::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// let account_id = iam_client.account_id().await?;
@@ -168,7 +168,7 @@ impl<S: Store> IamClient<S> {
 /// # Example
 ///
 /// ```rust
-/// use ami::User;
+/// use rustyiam::User;
 /// use chrono::Utc;
 ///
 /// let user = User {
@@ -209,7 +209,7 @@ pub struct User {
 /// # Example
 ///
 /// ```rust
-/// use ami::Group;
+/// use rustyiam::Group;
 /// use chrono::Utc;
 ///
 /// let group = Group {
@@ -244,7 +244,7 @@ pub struct Group {
 /// # Example
 ///
 /// ```rust
-/// use ami::Role;
+/// use rustyiam::Role;
 /// use chrono::Utc;
 ///
 /// let role = Role {
@@ -322,7 +322,7 @@ pub struct Policy {
 /// # Example
 ///
 /// ```rust
-/// use ami::AccessKey;
+/// use rustyiam::AccessKey;
 /// use chrono::Utc;
 ///
 /// let access_key = AccessKey {
@@ -352,7 +352,7 @@ pub struct AccessKey {
 /// # Example
 ///
 /// ```rust
-/// use ami::MfaDevice;
+/// use rustyiam::MfaDevice;
 /// use chrono::Utc;
 ///
 /// let mfa_device = MfaDevice {

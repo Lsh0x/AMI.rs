@@ -1,17 +1,17 @@
-# AMI.rs
+# RustyIAM
 
 AWS IAM, STS, and SSO Admin operations library for Rust
 
 [![GitHub last commit](https://img.shields.io/github/last-commit/lsh0x/AMI.rs)](https://github.com/lsh0x/AMI.rs/commits/main)
 [![CI](https://github.com/lsh0x/AMI.rs/workflows/CI/badge.svg)](https://github.com/lsh0x/AMI.rs/actions)
 [![Codecov](https://codecov.io/gh/lsh0x/AMI.rs/branch/main/graph/badge.svg)](https://codecov.io/gh/lsh0x/AMI.rs)
-[![Docs](https://docs.rs/ami/badge.svg)](https://docs.rs/ami)
-[![Crates.io](https://img.shields.io/crates/v/ami.svg)](https://crates.io/crates/ami)
-[![crates.io](https://img.shields.io/crates/d/ami)](https://crates.io/crates/ami)
+[![Docs](https://docs.rs/rustyiam/badge.svg)](https://docs.rs/rustyiam)
+[![Crates.io](https://img.shields.io/crates/v/rustyiam.svg)](https://crates.io/crates/rustyiam)
+[![crates.io](https://img.shields.io/crates/d/rustyiam)](https://crates.io/crates/rustyiam)
 
 ## Overview
 
-AMI.rs is a comprehensive Rust library that provides easy-to-use interfaces for AWS Identity and Access Management (IAM), Security Token Service (STS), and Single Sign-On Admin operations. This library abstracts the complexity of AWS SDK calls and provides a clean, type-safe API for managing AWS identities and permissions.
+RustyIAM is a comprehensive Rust library that provides easy-to-use interfaces for AWS Identity and Access Management (IAM), Security Token Service (STS), and Single Sign-On Admin operations. This library abstracts the complexity of AWS SDK calls and provides a clean, type-safe API for managing AWS identities and permissions.
 
 **Key Features:**
 - 🔐 **Complete IAM Management** - Users, groups, roles, policies, and access controls
@@ -44,7 +44,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ami = "0.1.0"
+rustyiam = "0.1.0"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
@@ -53,8 +53,8 @@ tokio = { version = "1.0", features = ["full"] }
 ## Quick Start
 
 ```rust
-use ami::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient};
-use ami::{CreateUserRequest, AssumeRoleRequest, CreatePermissionSetRequest};
+use rustyiam::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient};
+use rustyiam::{CreateUserRequest, AssumeRoleRequest, CreatePermissionSetRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -62,8 +62,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     
     // Create shared store with auto-generated account ID
-    let store = ami::create_memory_store();
-    let account_id = ami::get_account_id_from_store(&store);
+    let store = rustyiam::create_memory_store();
+    let account_id = rustyiam::get_account_id_from_store(&store);
     println!("Using AWS account ID: {}", account_id);
     
     // Initialize clients
@@ -109,11 +109,11 @@ AWS Identity and Access Management (IAM) operations for managing users, groups, 
 ### Example: User Management
 
 ```rust
-use ami::{MemoryIamClient, CreateUserRequest, CreateAccessKeyRequest};
+use rustyiam::{MemoryIamClient, CreateUserRequest, CreateAccessKeyRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let store = ami::create_memory_store();
+    let store = rustyiam::create_memory_store();
     let mut iam_client = MemoryIamClient::new(store);
     
     // Create a user
@@ -260,11 +260,11 @@ AWS Security Token Service (STS) operations for requesting temporary, limited-pr
 ### Example: Assume Role
 
 ```rust
-use ami::{MemoryStsClient, AssumeRoleRequest};
+use rustyiam::{MemoryStsClient, AssumeRoleRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let store = ami::create_memory_store();
+    let store = rustyiam::create_memory_store();
     let mut sts_client = MemoryStsClient::new(store);
     
     // Assume a role
@@ -324,11 +324,11 @@ AWS Single Sign-On Admin operations for managing permission sets, account assign
 ### Example: Permission Sets & Assignments
 
 ```rust
-use ami::{MemorySsoAdminClient, CreatePermissionSetRequest, CreateAccountAssignmentRequest};
+use rustyiam::{MemorySsoAdminClient, CreatePermissionSetRequest, CreateAccountAssignmentRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let store = ami::create_memory_store();
+    let store = rustyiam::create_memory_store();
     let mut sso_client = MemorySsoAdminClient::new(store);
     
     // Create a permission set
@@ -403,20 +403,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Auto-Generated Account ID
 
 ```rust
-use ami::MemoryIamClient;
+use rustyiam::MemoryIamClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     
-    let store = ami::create_memory_store();
-    let account_id = ami::get_account_id_from_store(&store);
+    let store = rustyiam::create_memory_store();
+    let account_id = rustyiam::get_account_id_from_store(&store);
     println!("Using AWS account ID: {}", account_id);
     
     let mut iam_client = MemoryIamClient::new(store);
     
     // All ARNs will use the auto-generated account ID
-    let user_request = ami::CreateUserRequest {
+    let user_request = rustyiam::CreateUserRequest {
         user_name: "test-user".to_string(),
         path: Some("/".to_string()),
         permissions_boundary: None,
@@ -432,16 +432,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Custom Account ID
 
 ```rust
-use ami::MemoryIamClient;
+use rustyiam::MemoryIamClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Use a specific account ID
-    let store = ami::create_memory_store_with_account_id("123456789012".to_string());
+    let store = rustyiam::create_memory_store_with_account_id("123456789012".to_string());
     let mut iam_client = MemoryIamClient::new(store);
     
     // All ARNs will use the specified account ID
-    let user_request = ami::CreateUserRequest {
+    let user_request = rustyiam::CreateUserRequest {
         user_name: "my-user".to_string(),
         path: Some("/".to_string()),
         permissions_boundary: None,
@@ -475,7 +475,7 @@ AMI.rs provides AWS environment variables for compatibility with AWS CLI and oth
 ### Example
 
 ```rust
-use ami::create_memory_store;
+use rustyiam::create_memory_store;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -484,7 +484,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let store = create_memory_store();
     
     // Print environment variables to console
-    ami::print_aws_environment_variables(&store);
+    rustyiam::print_aws_environment_variables(&store);
     
     // Or get them programmatically
     let env_vars = store.aws_environment_variables();
@@ -498,7 +498,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Output
 
 ```
-INFO ami::store::in_memory: Generated AWS account ID: 847392847392
+INFO rustyiam::store::in_memory: Generated AWS account ID: 847392847392
 
 AWS Environment Variables:
   export AWS_ACCOUNT_ID=847392847392

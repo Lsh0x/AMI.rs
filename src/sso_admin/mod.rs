@@ -16,10 +16,10 @@
 //! # Example
 //!
 //! ```rust
-//! use ami::{MemorySsoAdminClient, CreatePermissionSetRequest, CreateAccountAssignmentRequest};
+//! use rustyiam::{MemorySsoAdminClient, CreatePermissionSetRequest, CreateAccountAssignmentRequest};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let store = ami::create_memory_store();
+//! let store = rustyiam::create_memory_store();
 //! let mut sso_client = MemorySsoAdminClient::new(store);
 //!
 //! // Create a permission set
@@ -67,10 +67,10 @@ use serde::{Deserialize, Serialize};
 /// # Example
 ///
 /// ```rust
-/// use ami::MemorySsoAdminClient;
+/// use rustyiam::MemorySsoAdminClient;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let store = ami::create_memory_store();
+/// let store = rustyiam::create_memory_store();
 /// let mut sso_client = MemorySsoAdminClient::new(store);
 ///
 /// let instances = sso_client.list_instances().await?;
@@ -93,7 +93,7 @@ impl<S: Store> SsoAdminClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::{SsoAdminClient, InMemoryStore};
+    /// use rustyiam::{SsoAdminClient, InMemoryStore};
     ///
     /// let store = InMemoryStore::new();
     /// let sso_client = SsoAdminClient::new(store);
@@ -115,7 +115,7 @@ impl<S: Store> SsoAdminClient<S> {
 /// # Example
 ///
 /// ```rust
-/// use ami::PermissionSet;
+/// use rustyiam::PermissionSet;
 /// use chrono::Utc;
 ///
 /// let permission_set = PermissionSet {
@@ -150,7 +150,7 @@ pub struct PermissionSet {
 /// # Example
 ///
 /// ```rust
-/// use ami::AccountAssignment;
+/// use rustyiam::AccountAssignment;
 /// use chrono::Utc;
 ///
 /// let assignment = AccountAssignment {
@@ -180,7 +180,7 @@ pub struct AccountAssignment {
 /// # Example
 ///
 /// ```rust
-/// use ami::SsoInstance;
+/// use rustyiam::SsoInstance;
 /// use chrono::Utc;
 ///
 /// let instance = SsoInstance {
@@ -207,7 +207,7 @@ pub struct SsoInstance {
 /// # Example
 ///
 /// ```rust
-/// use ami::Application;
+/// use rustyiam::Application;
 /// use chrono::Utc;
 ///
 /// let application = Application {
@@ -234,7 +234,7 @@ pub struct Application {
 /// # Example
 ///
 /// ```rust
-/// use ami::TrustedTokenIssuer;
+/// use rustyiam::TrustedTokenIssuer;
 /// use chrono::Utc;
 ///
 /// let issuer = TrustedTokenIssuer {
@@ -261,7 +261,7 @@ pub struct TrustedTokenIssuer {
 /// # Example
 ///
 /// ```rust
-/// use ami::CreatePermissionSetRequest;
+/// use rustyiam::CreatePermissionSetRequest;
 ///
 /// let request = CreatePermissionSetRequest {
 ///     instance_arn: "arn:aws:sso:::instance/ssoins-1234".to_string(),
@@ -290,7 +290,7 @@ pub struct CreatePermissionSetRequest {
 /// # Example
 ///
 /// ```rust
-/// use ami::CreateAccountAssignmentRequest;
+/// use rustyiam::CreateAccountAssignmentRequest;
 ///
 /// let request = CreateAccountAssignmentRequest {
 ///     instance_arn: "arn:aws:sso:::instance/ssoins-1234".to_string(),
@@ -327,10 +327,10 @@ impl<S: Store> SsoAdminClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::{MemorySsoAdminClient, CreatePermissionSetRequest};
+    /// use rustyiam::{MemorySsoAdminClient, CreatePermissionSetRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = ami::create_memory_store();
+    /// let store = rustyiam::create_memory_store();
     /// let mut sso_client = MemorySsoAdminClient::new(store);
     ///
     /// let request = CreatePermissionSetRequest {
@@ -446,10 +446,10 @@ impl<S: Store> SsoAdminClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use ami::{MemorySsoAdminClient, CreateAccountAssignmentRequest, CreatePermissionSetRequest};
+    /// use rustyiam::{MemorySsoAdminClient, CreateAccountAssignmentRequest, CreatePermissionSetRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = ami::create_memory_store();
+    /// let store = rustyiam::create_memory_store();
     /// let mut sso_client = MemorySsoAdminClient::new(store);
     ///
     /// // First, create a permission set
