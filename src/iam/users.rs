@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::iam::{IamClient, User};
+use crate::provider::ResourceType;
 use crate::store::{IamStore, Store};
 use crate::types::{AmiResponse, PaginationParams, Tag};
 use serde::{Deserialize, Serialize};
@@ -41,23 +42,23 @@ impl<S: Store> IamClient<S> {
     pub async fn create_user(&mut self, request: CreateUserRequest) -> Result<AmiResponse<User>> {
         let store = self.iam_store().await?;
         let account_id = store.account_id();
+        let provider = store.cloud_provider();
 
-        let user_id = format!(
-            "AID{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(17)
-                .collect::<String>()
+        // Use provider for ID and ARN generation
+        let user_id = provider.generate_resource_id(ResourceType::User);
+        let path = request.path.unwrap_or_else(|| "/".to_string());
+        let arn = provider.generate_resource_identifier(
+            ResourceType::User,
+            account_id,
+            &path,
+            &request.user_name,
         );
-        let arn = format!("arn:aws:iam::{}:user/{}", account_id, request.user_name);
 
         let user = User {
             user_name: request.user_name.clone(),
             user_id: user_id.clone(),
             arn: arn.clone(),
-            path: request.path.unwrap_or_else(|| "/".to_string()),
+            path,
             create_date: chrono::Utc::now(),
             password_last_used: None,
             permissions_boundary: request.permissions_boundary,
@@ -90,6 +91,8 @@ impl<S: Store> IamClient<S> {
     /// Update an IAM user
     pub async fn update_user(&mut self, request: UpdateUserRequest) -> Result<AmiResponse<User>> {
         let store = self.iam_store().await?;
+        let provider = store.cloud_provider();
+        let account_id = store.account_id();
 
         // Get existing user
         let mut user = store.get_user(&request.user_name).await?.ok_or_else(|| {
@@ -101,7 +104,13 @@ impl<S: Store> IamClient<S> {
         // Update user properties
         if let Some(new_name) = request.new_user_name {
             user.user_name = new_name.clone();
-            user.arn = format!("arn:aws:iam::{}:user/{}", store.account_id(), new_name);
+            // Use provider for ARN generation
+            user.arn = provider.generate_resource_identifier(
+                ResourceType::User,
+                account_id,
+                &user.path,
+                &new_name,
+            );
         }
         if let Some(new_path) = request.new_path {
             user.path = new_path;

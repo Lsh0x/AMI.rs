@@ -37,6 +37,7 @@
 
 use crate::error::Result;
 use crate::iam::AccessKey;
+use crate::provider::ResourceType;
 use crate::store::{IamStore, Store};
 use crate::types::{AmiResponse, PaginationParams};
 use serde::{Deserialize, Serialize};
@@ -195,6 +196,7 @@ impl<S: Store> crate::iam::IamClient<S> {
         request: CreateAccessKeyRequest,
     ) -> Result<AmiResponse<AccessKey>> {
         let store = self.iam_store().await?;
+        let provider = store.cloud_provider();
 
         // Check if user exists
         if store.get_user(&request.user_name).await?.is_none() {
@@ -203,27 +205,20 @@ impl<S: Store> crate::iam::IamClient<S> {
             });
         }
 
-        // Check if user already has 2 access keys (AWS limit)
+        // Check if user already has maximum number of access keys (provider-specific limit)
         let (existing_keys, _, _) = store.list_access_keys(&request.user_name, None).await?;
-        if existing_keys.len() >= 2 {
+        let max_keys = provider.resource_limits().max_access_keys_per_user;
+        if existing_keys.len() >= max_keys {
             return Err(crate::error::AmiError::InvalidParameter {
                 message: format!(
-                    "User {} already has the maximum number of access keys (2)",
-                    request.user_name
+                    "User {} already has the maximum number of access keys ({})",
+                    request.user_name, max_keys
                 ),
             });
         }
 
-        // Generate access key ID (AKIA + 16 random chars)
-        let access_key_id = format!(
-            "AKIA{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(16)
-                .collect::<String>()
-        );
+        // Use provider for access key ID generation
+        let access_key_id = provider.generate_resource_id(ResourceType::AccessKey);
 
         // Generate secret access key (40 random chars)
         let secret_access_key = uuid::Uuid::new_v4().to_string().replace('-', "")

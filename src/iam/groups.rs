@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::iam::Group;
+use crate::provider::ResourceType;
 use crate::store::{IamStore, Store};
 use crate::types::{AmiResponse, Tag};
 use serde::{Deserialize, Serialize};
@@ -43,23 +44,23 @@ impl<S: Store> crate::iam::IamClient<S> {
     ) -> Result<AmiResponse<Group>> {
         let store = self.iam_store().await?;
         let account_id = store.account_id();
+        let provider = store.cloud_provider();
 
-        let group_id = format!(
-            "AGPA{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(17)
-                .collect::<String>()
+        // Use provider for ID and ARN generation
+        let group_id = provider.generate_resource_id(ResourceType::Group);
+        let path = request.path.unwrap_or_else(|| "/".to_string());
+        let arn = provider.generate_resource_identifier(
+            ResourceType::Group,
+            account_id,
+            &path,
+            &request.group_name,
         );
-        let arn = format!("arn:aws:iam::{}:group/{}", account_id, request.group_name);
 
         let group = Group {
             group_name: request.group_name.clone(),
             group_id: group_id.clone(),
             arn: arn.clone(),
-            path: request.path.unwrap_or_else(|| "/".to_string()),
+            path,
             create_date: chrono::Utc::now(),
             tags: request.tags.unwrap_or_default(),
         };
@@ -75,6 +76,7 @@ impl<S: Store> crate::iam::IamClient<S> {
         request: UpdateGroupRequest,
     ) -> Result<AmiResponse<Group>> {
         let store = self.iam_store().await?;
+        let provider = store.cloud_provider();
         let account_id = store.account_id();
 
         // Get the existing group
@@ -90,7 +92,13 @@ impl<S: Store> crate::iam::IamClient<S> {
         // Update group properties
         if let Some(new_name) = request.new_group_name {
             group.group_name = new_name.clone();
-            group.arn = format!("arn:aws:iam::{}:group/{}", account_id, new_name);
+            // Use provider for ARN generation
+            group.arn = provider.generate_resource_identifier(
+                ResourceType::Group,
+                account_id,
+                &group.path,
+                &new_name,
+            );
         }
         if let Some(new_path) = request.new_path {
             group.path = new_path;
