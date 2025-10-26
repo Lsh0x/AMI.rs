@@ -7,22 +7,22 @@
 //!
 //! The IAM module is organized into several sub-modules:
 //!
-//! - [`users`] - User management operations
-//! - [`access_keys`] - Access key management for programmatic access
-//! - [`passwords`] - Password and login profile management
-//! - [`mfa_devices`] - Multi-factor authentication device management
-//! - [`groups`] - User group management
-//! - [`roles`] - IAM role management for AWS services and federated users
-//! - [`policies`] - Managed and inline policy management
-//! - [`permissions_boundaries`] - Permissions boundary management
+//! - [`user`] - User management operations
+//! - [`access_key`] - Access key management for programmatic access
+//! - [`login_profile`] - Password and login profile management
+//! - [`mfa_device`] - Multi-factor authentication device management
+//! - [`group`] - User group management
+//! - [`role`] - IAM role management for AWS services and federated users
+//! - [`policy`] - Managed and inline policy management
+//! - [`permissions_boundary`] - Permissions boundary management
 //! - [`policy_evaluation`] - Policy simulation and evaluation
-//! - [`identity_providers`] - SAML and OIDC identity provider management
-//! - [`server_certificates`] - SSL/TLS certificate management
-//! - [`service_linked_roles`] - Service-linked role management
-//! - [`service_credentials`] - Service-specific credential management
-//! - [`signing_certificates`] - X.509 signing certificate management
-//! - [`tags`] - Resource tagging operations
-//! - [`reports`] - Credential and access reports
+//! - [`identity_provider`] - SAML and OIDC identity provider management
+//! - [`server_certificate`] - SSL/TLS certificate management
+//! - [`service_linked_role`] - Service-linked role management
+//! - [`service_credential`] - Service-specific credential management
+//! - [`signing_certificate`] - X.509 signing certificate management
+//! - [`tag`] - Resource tagging operations
+//! - [`report`] - Credential and access reports
 //!
 //! # Example
 //!
@@ -84,7 +84,7 @@ use crate::store::{IamStore, Store};
 ///
 /// # Type Parameters
 ///
-/// * `S` - The store implementation (e.g., [`InMemoryStore`](crate::store::in_memory::InMemoryStore))
+/// * `S` - The store implementation (e.g., [`InMemoryStore`](crate::store::memory::InMemoryStore))
 ///
 /// # Example
 ///
