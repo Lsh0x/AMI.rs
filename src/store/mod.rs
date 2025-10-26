@@ -94,6 +94,13 @@ pub trait IamStore: Send + Sync {
     async fn get_login_profile(&self, user_name: &str) -> Result<Option<LoginProfile>>;
     async fn update_login_profile(&mut self, profile: LoginProfile) -> Result<LoginProfile>;
     async fn delete_login_profile(&mut self, user_name: &str) -> Result<()>;
+
+    // Credential report operations
+    async fn store_credential_report(
+        &mut self,
+        report: crate::iam::reports::CredentialReport,
+    ) -> Result<()>;
+    async fn get_credential_report(&self) -> Result<Option<crate::iam::reports::CredentialReport>>;
 }
 
 /// Trait for STS data storage operations

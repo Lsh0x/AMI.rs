@@ -17,6 +17,7 @@ pub struct InMemoryIamStore {
     mfa_devices: HashMap<String, MfaDevice>,
     login_profiles: HashMap<String, LoginProfile>,
     user_groups: HashMap<String, Vec<String>>, // user_name -> group_names
+    credential_report: Option<crate::iam::reports::CredentialReport>,
 }
 
 impl Default for InMemoryIamStore {
@@ -37,6 +38,7 @@ impl InMemoryIamStore {
             mfa_devices: HashMap::new(),
             login_profiles: HashMap::new(),
             user_groups: HashMap::new(),
+            credential_report: None,
         }
     }
 
@@ -51,6 +53,7 @@ impl InMemoryIamStore {
             mfa_devices: HashMap::new(),
             login_profiles: HashMap::new(),
             user_groups: HashMap::new(),
+            credential_report: None,
         }
     }
 }
@@ -471,5 +474,17 @@ impl IamStore for InMemoryIamStore {
     async fn delete_login_profile(&mut self, user_name: &str) -> Result<()> {
         self.login_profiles.remove(user_name);
         Ok(())
+    }
+
+    async fn store_credential_report(
+        &mut self,
+        report: crate::iam::reports::CredentialReport,
+    ) -> Result<()> {
+        self.credential_report = Some(report);
+        Ok(())
+    }
+
+    async fn get_credential_report(&self) -> Result<Option<crate::iam::reports::CredentialReport>> {
+        Ok(self.credential_report.clone())
     }
 }

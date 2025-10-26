@@ -1719,6 +1719,7 @@ dependencies = [
  "aws-sdk-iam",
  "aws-sdk-ssoadmin",
  "aws-sdk-sts",
+ "base64 0.22.1",
  "chrono",
  "env_logger",
  "log",
