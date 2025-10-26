@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2025-10-26
+
+### 🚀 Features
+
+- Implement signing certificates module
+
 ## [0.7.0] - 2025-10-26
 
 ### 🚀 Features
 
 - Implement service-linked roles module
+
+### ⚙️ Miscellaneous Tasks
+
+- **release:** V0.7.0 [skip ci]
 
 ## [0.6.0] - 2025-10-26
 
