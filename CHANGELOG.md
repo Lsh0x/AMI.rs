@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2025-10-26
+
+### 🚀 Features
+
+- Implement service-linked roles module
+
 ## [0.6.0] - 2025-10-26
 
 ### 🚀 Features
 
 - Implement service-specific credentials module
+
+### ⚙️ Miscellaneous Tasks
+
+- **release:** V0.6.0 [skip ci]
 
 ## [0.5.0] - 2025-10-26
 
