@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::iam::Role;
+use crate::provider::ResourceType;
 use crate::store::{IamStore, Store};
 use crate::types::{AmiResponse, PaginationParams, Tag};
 use serde::{Deserialize, Serialize};
@@ -108,15 +109,11 @@ impl<S: Store> crate::iam::IamClient<S> {
     pub async fn create_role(&mut self, request: CreateRoleRequest) -> Result<AmiResponse<Role>> {
         let store = self.iam_store().await?;
         let account_id = store.account_id();
+        let provider = store.cloud_provider();
 
-        // Validate max session duration (1 hour to 12 hours)
+        // Validate max session duration using provider
         if let Some(duration) = request.max_session_duration {
-            if !(3600..=43200).contains(&duration) {
-                return Err(crate::error::AmiError::InvalidParameter {
-                    message: "Max session duration must be between 3600 and 43200 seconds"
-                        .to_string(),
-                });
-            }
+            provider.validate_session_duration(duration)?;
         }
 
         // Validate that assume_role_policy_document is valid JSON
@@ -127,21 +124,14 @@ impl<S: Store> crate::iam::IamClient<S> {
             });
         }
 
-        // Generate role ID and ARN
-        let role_id = format!(
-            "AROA{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(17)
-                .collect::<String>()
-        );
-
+        // Use provider for role ID and ARN generation
+        let role_id = provider.generate_resource_id(ResourceType::Role);
         let path = request.path.unwrap_or_else(|| "/".to_string());
-        let arn = format!(
-            "arn:aws:iam::{}:role{}{}",
-            account_id, path, request.role_name
+        let arn = provider.generate_resource_identifier(
+            ResourceType::Role,
+            account_id,
+            &path,
+            &request.role_name,
         );
 
         let role = Role {
@@ -201,15 +191,11 @@ impl<S: Store> crate::iam::IamClient<S> {
     /// ```
     pub async fn update_role(&mut self, request: UpdateRoleRequest) -> Result<AmiResponse<Role>> {
         let store = self.iam_store().await?;
+        let provider = store.cloud_provider();
 
-        // Validate max session duration if provided
+        // Validate max session duration if provided using provider
         if let Some(duration) = request.max_session_duration {
-            if !(3600..=43200).contains(&duration) {
-                return Err(crate::error::AmiError::InvalidParameter {
-                    message: "Max session duration must be between 3600 and 43200 seconds"
-                        .to_string(),
-                });
-            }
+            provider.validate_session_duration(duration)?;
         }
 
         // Get existing role
