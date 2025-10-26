@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::iam::IamClient;
+use crate::provider::ResourceType;
 use crate::store::{IamStore, Store};
 use crate::types::AmiResponse;
 use chrono::{DateTime, Utc};
@@ -36,6 +37,12 @@ pub struct SigningCertificate {
     /// The date and time when the signing certificate was uploaded
     #[serde(rename = "UploadDate")]
     pub upload_date: DateTime<Utc>,
+
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Request to upload a signing certificate
@@ -134,10 +141,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateUserRequest, UploadSigningCertificateRequest};
+    /// use wami::{MemoryIamClient, CreateUserRequest, UploadSigningCertificateRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::InMemoryStore::new();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // First create a user
@@ -183,28 +190,34 @@ where
             });
         }
 
-        // Check certificate limit (2 per user, like access keys)
+        let provider = store.cloud_provider();
+
+        // Check certificate limit (use same limit as access keys)
         let existing_certs = store
             .list_signing_certificates(Some(&request.user_name))
             .await?;
-        if existing_certs.len() >= 2 {
+        let max_certs = provider.resource_limits().max_access_keys_per_user; // Reuse access key limit (typically 2)
+        if existing_certs.len() >= max_certs {
             return Err(crate::error::AmiError::InvalidParameter {
                 message: format!(
-                    "User {} already has the maximum number of signing certificates (2)",
-                    request.user_name
+                    "User {} already has the maximum number of signing certificates ({})",
+                    request.user_name, max_certs
                 ),
             });
         }
 
-        // Generate certificate ID (ASCA + 17 random chars)
-        let certificate_id = format!(
-            "ASCA{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(17)
-                .collect::<String>()
+        // Use provider for certificate ID generation
+        let certificate_id = provider.generate_resource_id(ResourceType::SigningCertificate);
+
+        // Get account ID for WAMI ARN generation
+        let account_id = store.account_id();
+
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = provider.generate_wami_arn(
+            ResourceType::SigningCertificate,
+            account_id,
+            "/",
+            &certificate_id,
         );
 
         let certificate = SigningCertificate {
@@ -213,6 +226,8 @@ where
             certificate_body: request.certificate_body,
             status: CertificateStatus::Active,
             upload_date: Utc::now(),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let created_cert = store.create_signing_certificate(certificate).await?;
@@ -233,10 +248,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, DeleteSigningCertificateRequest};
+    /// use wami::{MemoryIamClient, DeleteSigningCertificateRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let store = rustyiam::create_memory_store();
+    /// # let store = wami::InMemoryStore::new();
     /// # let mut client = MemoryIamClient::new(store);
     /// # let certificate_id = "ASCA1234567890ABCDEF".to_string();
     /// let request = DeleteSigningCertificateRequest {
@@ -295,10 +310,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, ListSigningCertificatesRequest};
+    /// use wami::{MemoryIamClient, ListSigningCertificatesRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let store = rustyiam::create_memory_store();
+    /// # let store = wami::InMemoryStore::new();
     /// # let mut client = MemoryIamClient::new(store);
     /// let request = ListSigningCertificatesRequest {
     ///     user_name: Some("alice".to_string()),
@@ -349,10 +364,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, UpdateSigningCertificateRequest, CertificateStatus};
+    /// use wami::{MemoryIamClient, UpdateSigningCertificateRequest, CertificateStatus};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let store = rustyiam::create_memory_store();
+    /// # let store = wami::InMemoryStore::new();
     /// # let mut client = MemoryIamClient::new(store);
     /// # let certificate_id = "ASCA1234567890ABCDEF".to_string();
     /// let request = UpdateSigningCertificateRequest {

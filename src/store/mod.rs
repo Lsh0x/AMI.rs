@@ -4,6 +4,7 @@ pub mod memory_sts_sso;
 
 use crate::error::Result;
 use crate::iam::{AccessKey, Group, LoginProfile, MfaDevice, Policy, Role, User};
+use crate::provider::CloudProvider;
 use crate::types::{PaginationParams, Tag};
 use async_trait::async_trait;
 
@@ -13,6 +14,9 @@ use async_trait::async_trait;
 pub trait IamStore: Send + Sync {
     /// Get the account ID for this store
     fn account_id(&self) -> &str;
+
+    /// Get the cloud provider for this store
+    fn cloud_provider(&self) -> &dyn CloudProvider;
     // User operations
     async fn create_user(&mut self, user: User) -> Result<User>;
     async fn get_user(&self, user_name: &str) -> Result<Option<User>>;
@@ -277,6 +281,9 @@ pub trait Store: Send + Sync {
     type IamStore: IamStore;
     type StsStore: StsStore;
     type SsoAdminStore: SsoAdminStore;
+
+    /// Get the cloud provider for this store
+    fn cloud_provider(&self) -> &dyn CloudProvider;
 
     async fn iam_store(&mut self) -> Result<&mut Self::IamStore>;
     async fn sts_store(&mut self) -> Result<&mut Self::StsStore>;

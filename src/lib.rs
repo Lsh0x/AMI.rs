@@ -62,6 +62,7 @@
 
 pub mod error;
 pub mod iam;
+pub mod provider;
 pub mod sso_admin;
 pub mod store;
 pub mod sts;
@@ -74,6 +75,9 @@ pub use types::{AmiResponse, AwsConfig, PaginationParams, PolicyDocument, Policy
 // Re-export store traits and implementations
 pub use store::in_memory::InMemoryStore;
 pub use store::{IamStore, SsoAdminStore, Store, StsStore};
+
+// Re-export provider types
+pub use provider::ProviderConfig;
 
 // Re-export clients (now generic over stores)
 pub use iam::IamClient;

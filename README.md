@@ -29,6 +29,7 @@ Multicloud Identity, IAM, STS, and SSO operations library for Rust
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Multicloud Providers](#multicloud-providers)
 - [IAM Operations](#iam-operations)
 - [STS Operations](#sts-operations)
 - [SSO Admin Operations](#sso-admin-operations)
@@ -53,26 +54,21 @@ tokio = { version = "1.0", features = ["full"] }
 
 ## Quick Start
 
+### AWS (Default Provider)
+
 ```rust
-use wami::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient};
-use wami::{CreateUserRequest, AssumeRoleRequest, CreatePermissionSetRequest};
+use wami::{MemoryIamClient, CreateUserRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
     env_logger::init();
     
-    // Create shared store with auto-generated account ID
-    let store = wami::create_memory_store();
-    let account_id = wami::get_account_id_from_store(&store);
-    println!("Using AWS account ID: {}", account_id);
+    // Create store with AWS provider (default)
+    let store = wami::InMemoryStore::new();
+    let mut iam_client = MemoryIamClient::new(store);
     
-    // Initialize clients
-    let mut iam_client = MemoryIamClient::new(store.clone());
-    let mut sts_client = MemoryStsClient::new(store.clone());
-    let mut sso_client = MemorySsoAdminClient::new(store);
-    
-    // IAM: Create a user
+    // Create a user
     let user_request = CreateUserRequest {
         user_name: "alice".to_string(),
         path: Some("/engineering/".to_string()),
@@ -81,25 +77,227 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let user = iam_client.create_user(user_request).await?;
     println!("Created user: {}", user.data.unwrap().arn);
-    
-    // STS: Get caller identity
-    let identity = sts_client.get_caller_identity().await?;
-    println!("Caller: {}", identity.data.unwrap().arn);
-    
-    // SSO: Create permission set
-    let ps_request = CreatePermissionSetRequest {
-        instance_arn: "arn:aws:sso:::instance/ssoins-1234".to_string(),
-        name: "DeveloperAccess".to_string(),
-        description: Some("Developer permissions".to_string()),
-        session_duration: Some("PT8H".to_string()),
-        relay_state: None,
-    };
-    let permission_set = sso_client.create_permission_set(ps_request).await?;
-    println!("Created permission set: {}", permission_set.data.unwrap().permission_set_arn);
+    // Output: arn:aws:iam::123456789012:user/engineering/alice
     
     Ok(())
 }
 ```
+
+### Multicloud Support
+
+```rust
+use wami::{MemoryIamClient, CreateUserRequest};
+use wami::provider::{AwsProvider, GcpProvider, AzureProvider, CustomProvider};
+use wami::InMemoryStore;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // AWS Provider
+    let aws_provider = Arc::new(AwsProvider::default());
+    let aws_store = InMemoryStore::with_account_and_provider(
+        "123456789012".to_string(),
+        aws_provider,
+    );
+    let mut aws_client = MemoryIamClient::new(aws_store);
+    
+    // GCP Provider
+    let gcp_provider = Arc::new(GcpProvider::new("my-project-id"));
+    let gcp_store = InMemoryStore::with_account_and_provider(
+        "my-project-id".to_string(),
+        gcp_provider,
+    );
+    let mut gcp_client = MemoryIamClient::new(gcp_store);
+    
+    // Azure Provider
+    let azure_provider = Arc::new(AzureProvider::new("subscription-id", "resource-group"));
+    let azure_store = InMemoryStore::with_account_and_provider(
+        "subscription-id".to_string(),
+        azure_provider,
+    );
+    let mut azure_client = MemoryIamClient::new(azure_store);
+    
+    // Custom Provider (your own cloud)
+    let custom_provider = Arc::new(
+        CustomProvider::builder()
+            .name("mycloud")
+            .arn_template("mycloud://{account}/user/{name}")
+            .id_prefix("MYC")
+            .build()
+    );
+    let custom_store = InMemoryStore::with_account_and_provider(
+        "tenant-123".to_string(),
+        custom_provider,
+    );
+    let mut custom_client = MemoryIamClient::new(custom_store);
+    
+    let request = CreateUserRequest {
+        user_name: "alice".to_string(),
+        path: None,
+        permissions_boundary: None,
+        tags: None,
+    };
+    
+    // Each provider generates cloud-specific IDs and identifiers
+    let aws_user = aws_client.create_user(request.clone()).await?;
+    println!("AWS ARN: {}", aws_user.data.as_ref().unwrap().arn);
+    // Output: arn:aws:iam::123456789012:user/alice
+    
+    let gcp_user = gcp_client.create_user(request.clone()).await?;
+    println!("GCP URN: {}", gcp_user.data.as_ref().unwrap().arn);
+    // Output: projects/my-project-id/serviceAccounts/alice@my-project-id.iam.gserviceaccount.com
+    
+    let azure_user = azure_client.create_user(request.clone()).await?;
+    println!("Azure ID: {}", azure_user.data.as_ref().unwrap().arn);
+    // Output: /subscriptions/subscription-id/resourceGroups/resource-group/providers/Microsoft.Authorization/users/alice
+    
+    let custom_user = custom_client.create_user(request.clone()).await?;
+    println!("Custom ID: {}", custom_user.data.as_ref().unwrap().arn);
+    // Output: mycloud://tenant-123/user/alice
+    
+    Ok(())
+}
+```
+
+---
+
+## Multicloud Providers
+
+WAMI supports multiple cloud providers out of the box, allowing you to manage identities across AWS, GCP, Azure, or your own custom cloud infrastructure.
+
+### AWS Provider (Default)
+
+```rust
+use wami::{MemoryIamClient, CreateUserRequest};
+use wami::provider::AwsProvider;
+use wami::InMemoryStore;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let provider = Arc::new(AwsProvider::default());
+    let store = InMemoryStore::with_account_and_provider("123456789012".to_string(), provider);
+    let mut client = MemoryIamClient::new(store);
+    
+    let request = CreateUserRequest {
+        user_name: "alice".to_string(),
+        path: Some("/engineering/".to_string()),
+        permissions_boundary: None,
+        tags: None,
+    };
+    
+    let user = client.create_user(request).await?;
+    println!("User ID: {}", user.data.as_ref().unwrap().user_id);
+    // Output: AIDAEXAMPLEID12345 (AWS-style ID with AIDA prefix)
+    
+    println!("ARN: {}", user.data.unwrap().arn);
+    // Output: arn:aws:iam::123456789012:user/engineering/alice
+    
+    Ok(())
+}
+```
+
+**AWS Provider Features:**
+- ✅ AWS-style IDs: `AIDA` (users), `AGPA` (groups), `AROA` (roles), `AKIA` (access keys)
+- ✅ ARN format: `arn:aws:iam::account-id:resource-type/path/name`
+- ✅ Resource limits: 2 access keys per user, 50 tags per resource
+- ✅ Session duration: 1-12 hours
+- ✅ Path validation and service-linked role support
+
+### GCP Provider
+
+```rust
+use wami::provider::GcpProvider;
+use wami::InMemoryStore;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let provider = Arc::new(GcpProvider::new("my-gcp-project"));
+    let store = InMemoryStore::with_account_and_provider("my-gcp-project".to_string(), provider);
+    // ... use store with clients
+    
+    // GCP-specific features:
+    // - Numeric IDs (e.g., "123456789012345678")
+    // - Service account URNs: projects/{project}/serviceAccounts/{email}
+    // - 10 keys per service account (vs AWS's 2)
+    // - 64 labels per resource (vs AWS's 50 tags)
+    
+    Ok(())
+}
+```
+
+### Azure Provider
+
+```rust
+use wami::provider::AzureProvider;
+use wami::InMemoryStore;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let provider = Arc::new(AzureProvider::new("subscription-id", "resource-group"));
+    let store = InMemoryStore::with_account_and_provider("subscription-id".to_string(), provider);
+    // ... use store with clients
+    
+    // Azure-specific features:
+    // - GUID-based IDs (e.g., "550e8400-e29b-41d4-a716-446655440000")
+    // - Resource IDs: /subscriptions/{sub}/resourceGroups/{rg}/providers/{ns}/{type}/{name}
+    // - 50 tags per resource
+    
+    Ok(())
+}
+```
+
+### Custom Provider
+
+Build your own cloud provider with custom ID formats, ARN templates, and resource limits:
+
+```rust
+use wami::provider::{CustomProvider, ResourceLimits};
+use wami::InMemoryStore;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let limits = ResourceLimits {
+        max_access_keys_per_user: 5,
+        max_service_credentials_per_user_per_service: 3,
+        max_tags_per_resource: 100,
+        session_duration_min: 1800,  // 30 minutes
+        session_duration_max: 7200,  // 2 hours
+        max_mfa_devices_per_user: 5,
+        max_signing_certificates_per_user: 2,
+    };
+    
+    let provider = Arc::new(
+        CustomProvider::builder()
+            .name("mycloud")
+            .arn_template("mycloud://{account}/{type}/{name}")
+            .id_prefix("MYCLOUD")
+            .limits(limits)
+            .build()
+    );
+    
+    let store = InMemoryStore::with_account_and_provider("tenant-42".to_string(), provider);
+    // ... use store with clients
+    
+    // Custom provider generates IDs like: MYCLOUD12345678901234567
+    // And ARNs like: mycloud://tenant-42/user/alice
+    
+    Ok(())
+}
+```
+
+### Provider Comparison
+
+| Feature | AWS | GCP | Azure | Custom |
+|---------|-----|-----|-------|--------|
+| ID Format | AIDA/AGPA/AROA prefixes | Numeric | GUID | Configurable |
+| ARN Format | `arn:aws:iam::...` | `projects/.../serviceAccounts/...` | `/subscriptions/.../` | Template-based |
+| Max Keys | 2 per user | 10 per user | 2 per user | Configurable |
+| Max Tags | 50 | 64 | 50 | Configurable |
+| Session Duration | 1-12h | 1h | 1h | Configurable |
 
 ---
 

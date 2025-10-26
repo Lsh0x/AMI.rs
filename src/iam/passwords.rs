@@ -109,12 +109,23 @@ impl<S: Store> IamClient<S> {
             });
         }
 
+        // Get account ID for WAMI ARN generation
+        let account_id = store.account_id();
+
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = format!(
+            "arn:wami:iam::{}:login-profile/{}",
+            account_id, request.user_name
+        );
+
         // Note: In a real implementation, you would hash the password before storing
         // For now, we'll just store it as-is (this is for mock/testing purposes)
         let profile = LoginProfile {
             user_name: request.user_name.clone(),
             create_date: chrono::Utc::now(),
             password_reset_required: request.password_reset_required,
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let created_profile = store.create_login_profile(profile).await?;

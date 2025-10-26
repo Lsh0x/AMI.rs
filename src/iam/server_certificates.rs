@@ -5,6 +5,7 @@
 
 use crate::error::{AmiError, Result};
 use crate::iam::IamClient;
+use crate::provider::ResourceType;
 use crate::store::{IamStore, Store};
 use crate::types::AmiResponse;
 use chrono::{DateTime, Utc};
@@ -56,6 +57,12 @@ pub struct ServerCertificate {
     /// Tags associated with the certificate
     #[serde(rename = "Tags", skip_serializing_if = "Vec::is_empty", default)]
     pub tags: Vec<crate::types::Tag>,
+
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Request to upload a server certificate
@@ -262,32 +269,29 @@ impl<S: Store> IamClient<S> {
             }
         }
 
+        let provider = store.cloud_provider();
+        let account_id = store.account_id();
         let path = request.path.unwrap_or_else(|| "/".to_string());
         let tags = request.tags.unwrap_or_default();
 
-        // Validate path
-        if !path.starts_with('/') || !path.ends_with('/') {
-            return Err(AmiError::InvalidParameter {
-                message: "Path must start and end with /".to_string(),
-            });
-        }
+        // Validate path using provider
+        provider.validate_path(&path)?;
 
-        // Generate certificate ID (format: ASCA + 17 random chars from UUID)
-        let cert_id = format!(
-            "ASCA{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(17)
-                .collect::<String>()
+        // Use provider for certificate ID and ARN generation
+        let cert_id = provider.generate_resource_id(ResourceType::ServerCertificate);
+        let arn = provider.generate_resource_identifier(
+            ResourceType::ServerCertificate,
+            account_id,
+            &path,
+            &request.server_certificate_name,
         );
 
-        // Generate ARN
-        let account_id = store.account_id();
-        let arn = format!(
-            "arn:aws:iam::{}:server-certificate{}{}",
-            account_id, path, request.server_certificate_name
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = provider.generate_wami_arn(
+            ResourceType::ServerCertificate,
+            account_id,
+            &path,
+            &request.server_certificate_name,
         );
 
         let metadata = ServerCertificateMetadata {
@@ -304,6 +308,8 @@ impl<S: Store> IamClient<S> {
             certificate_body: request.certificate_body,
             certificate_chain: request.certificate_chain,
             tags: tags.clone(),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         store.create_server_certificate(certificate).await?;
@@ -536,35 +542,47 @@ impl<S: Store> IamClient<S> {
                 .server_certificate_metadata
                 .server_certificate_name = new_name.clone();
 
-            // Update ARN if name changed
-            let account_id = store.account_id();
-            certificate.server_certificate_metadata.arn = format!(
-                "arn:aws:iam::{}:server-certificate{}{}",
-                account_id, certificate.server_certificate_metadata.path, new_name
-            );
+            // Update ARN if name changed using provider
+            {
+                let provider = store.cloud_provider();
+                let account_id = store.account_id();
+                let path = certificate.server_certificate_metadata.path.clone();
+                certificate.server_certificate_metadata.arn = provider
+                    .generate_resource_identifier(
+                        ResourceType::ServerCertificate,
+                        account_id,
+                        &path,
+                        &new_name,
+                    );
+            }
         }
 
         // Update path if provided
         if let Some(new_path) = request.new_path {
-            // Validate path
-            if !new_path.starts_with('/') || !new_path.ends_with('/') {
-                return Err(AmiError::InvalidParameter {
-                    message: "Path must start and end with /".to_string(),
-                });
+            {
+                let provider = store.cloud_provider();
+                // Validate path using provider
+                provider.validate_path(&new_path)?;
             }
 
             certificate.server_certificate_metadata.path = new_path.clone();
 
-            // Update ARN with new path
-            let account_id = store.account_id();
-            certificate.server_certificate_metadata.arn = format!(
-                "arn:aws:iam::{}:server-certificate{}{}",
-                account_id,
-                new_path,
-                certificate
+            // Update ARN with new path using provider
+            {
+                let provider = store.cloud_provider();
+                let account_id = store.account_id();
+                let cert_name = certificate
                     .server_certificate_metadata
                     .server_certificate_name
-            );
+                    .clone();
+                certificate.server_certificate_metadata.arn = provider
+                    .generate_resource_identifier(
+                        ResourceType::ServerCertificate,
+                        account_id,
+                        &new_path,
+                        &cert_name,
+                    );
+            }
         }
 
         // Save updated certificate
