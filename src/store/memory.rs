@@ -21,6 +21,8 @@ pub struct InMemoryIamStore {
     server_certificates: HashMap<String, crate::iam::ServerCertificate>, // cert_name -> certificate
     service_specific_credentials:
         HashMap<String, crate::iam::service_credentials::ServiceSpecificCredential>, // cred_id -> credential
+    service_linked_role_deletion_tasks:
+        HashMap<String, crate::iam::service_linked_roles::DeletionTaskInfo>, // task_id -> task info
 }
 
 impl Default for InMemoryIamStore {
@@ -44,6 +46,7 @@ impl InMemoryIamStore {
             credential_report: None,
             server_certificates: HashMap::new(),
             service_specific_credentials: HashMap::new(),
+            service_linked_role_deletion_tasks: HashMap::new(),
         }
     }
 
@@ -61,6 +64,7 @@ impl InMemoryIamStore {
             credential_report: None,
             server_certificates: HashMap::new(),
             service_specific_credentials: HashMap::new(),
+            service_linked_role_deletion_tasks: HashMap::new(),
         }
     }
 }
@@ -644,5 +648,36 @@ impl IamStore for InMemoryIamStore {
         });
 
         Ok(credentials)
+    }
+
+    // Service-linked role deletion task operations
+    async fn create_service_linked_role_deletion_task(
+        &mut self,
+        task: crate::iam::service_linked_roles::DeletionTaskInfo,
+    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo> {
+        self.service_linked_role_deletion_tasks
+            .insert(task.deletion_task_id.clone(), task.clone());
+        Ok(task)
+    }
+
+    async fn get_service_linked_role_deletion_task(
+        &self,
+        task_id: &str,
+    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo> {
+        self.service_linked_role_deletion_tasks
+            .get(task_id)
+            .cloned()
+            .ok_or_else(|| crate::error::AmiError::ResourceNotFound {
+                resource: format!("Deletion task {} not found", task_id),
+            })
+    }
+
+    async fn update_service_linked_role_deletion_task(
+        &mut self,
+        task: crate::iam::service_linked_roles::DeletionTaskInfo,
+    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo> {
+        self.service_linked_role_deletion_tasks
+            .insert(task.deletion_task_id.clone(), task.clone());
+        Ok(task)
     }
 }

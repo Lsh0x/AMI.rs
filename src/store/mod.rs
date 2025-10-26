@@ -141,6 +141,20 @@ pub trait IamStore: Send + Sync {
         user_name: Option<&str>,
         service_name: Option<&str>,
     ) -> Result<Vec<crate::iam::service_credentials::ServiceSpecificCredential>>;
+
+    // Service-linked role deletion task operations
+    async fn create_service_linked_role_deletion_task(
+        &mut self,
+        task: crate::iam::service_linked_roles::DeletionTaskInfo,
+    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo>;
+    async fn get_service_linked_role_deletion_task(
+        &self,
+        task_id: &str,
+    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo>;
+    async fn update_service_linked_role_deletion_task(
+        &mut self,
+        task: crate::iam::service_linked_roles::DeletionTaskInfo,
+    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo>;
 }
 
 /// Trait for STS data storage operations
