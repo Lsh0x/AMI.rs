@@ -134,10 +134,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateUserRequest, UploadSigningCertificateRequest};
+    /// use wami::{MemoryIamClient, CreateUserRequest, UploadSigningCertificateRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::InMemoryStore::new();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // First create a user
@@ -233,10 +233,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, DeleteSigningCertificateRequest};
+    /// use wami::{MemoryIamClient, DeleteSigningCertificateRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let store = rustyiam::create_memory_store();
+    /// # let store = wami::InMemoryStore::new();
     /// # let mut client = MemoryIamClient::new(store);
     /// # let certificate_id = "ASCA1234567890ABCDEF".to_string();
     /// let request = DeleteSigningCertificateRequest {
@@ -295,10 +295,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, ListSigningCertificatesRequest};
+    /// use wami::{MemoryIamClient, ListSigningCertificatesRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let store = rustyiam::create_memory_store();
+    /// # let store = wami::InMemoryStore::new();
     /// # let mut client = MemoryIamClient::new(store);
     /// let request = ListSigningCertificatesRequest {
     ///     user_name: Some("alice".to_string()),
@@ -349,10 +349,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, UpdateSigningCertificateRequest, CertificateStatus};
+    /// use wami::{MemoryIamClient, UpdateSigningCertificateRequest, CertificateStatus};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let store = rustyiam::create_memory_store();
+    /// # let store = wami::InMemoryStore::new();
     /// # let mut client = MemoryIamClient::new(store);
     /// # let certificate_id = "ASCA1234567890ABCDEF".to_string();
     /// let request = UpdateSigningCertificateRequest {
