@@ -174,10 +174,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateServiceSpecificCredentialRequest, CreateUserRequest};
+    /// use wami::{MemoryIamClient, CreateServiceSpecificCredentialRequest, CreateUserRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // Create a user first
@@ -292,10 +292,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, DeleteServiceSpecificCredentialRequest};
+    /// use wami::{MemoryIamClient, DeleteServiceSpecificCredentialRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let request = DeleteServiceSpecificCredentialRequest {
@@ -356,10 +356,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, ListServiceSpecificCredentialsRequest};
+    /// use wami::{MemoryIamClient, ListServiceSpecificCredentialsRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let request = ListServiceSpecificCredentialsRequest {
@@ -428,10 +428,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, ResetServiceSpecificCredentialRequest};
+    /// use wami::{MemoryIamClient, ResetServiceSpecificCredentialRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let request = ResetServiceSpecificCredentialRequest {
@@ -508,10 +508,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, UpdateServiceSpecificCredentialRequest};
+    /// use wami::{MemoryIamClient, UpdateServiceSpecificCredentialRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let request = UpdateServiceSpecificCredentialRequest {

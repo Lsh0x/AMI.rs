@@ -55,10 +55,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateGroupRequest, Tag};
+    /// use wami::{MemoryIamClient, CreateGroupRequest, Tag};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // Create a group

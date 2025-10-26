@@ -44,10 +44,10 @@ impl<S: Store> crate::iam::IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateUserRequest, EnableMfaDeviceRequest};
+    /// use wami::{MemoryIamClient, CreateUserRequest, EnableMfaDeviceRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Create a user first
@@ -119,10 +119,10 @@ impl<S: Store> crate::iam::IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateUserRequest, EnableMfaDeviceRequest};
+    /// use wami::{MemoryIamClient, CreateUserRequest, EnableMfaDeviceRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Setup: create user and enable MFA
@@ -192,10 +192,10 @@ impl<S: Store> crate::iam::IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateUserRequest, EnableMfaDeviceRequest, ListMfaDevicesRequest};
+    /// use wami::{MemoryIamClient, CreateUserRequest, EnableMfaDeviceRequest, ListMfaDevicesRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Setup: create user and enable MFA

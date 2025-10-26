@@ -124,10 +124,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateServiceLinkedRoleRequest};
+    /// use wami::{MemoryIamClient, CreateServiceLinkedRoleRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let request = CreateServiceLinkedRoleRequest {
@@ -242,10 +242,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, DeleteServiceLinkedRoleRequest};
+    /// use wami::{MemoryIamClient, DeleteServiceLinkedRoleRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let store = rustyiam::create_memory_store();
+    /// # let store = wami::create_memory_store();
     /// # let mut client = MemoryIamClient::new(store);
     /// let request = DeleteServiceLinkedRoleRequest {
     ///     role_name: "AWSServiceRoleForElasticBeanstalk".to_string(),
@@ -318,10 +318,10 @@ where
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, GetServiceLinkedRoleDeletionStatusRequest};
+    /// use wami::{MemoryIamClient, GetServiceLinkedRoleDeletionStatusRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let store = rustyiam::create_memory_store();
+    /// # let store = wami::create_memory_store();
     /// # let mut client = MemoryIamClient::new(store);
     /// # let deletion_task_id = "task-123".to_string();
     /// let request = GetServiceLinkedRoleDeletionStatusRequest {

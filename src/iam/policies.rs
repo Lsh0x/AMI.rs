@@ -73,10 +73,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreatePolicyRequest};
+    /// use wami::{MemoryIamClient, CreatePolicyRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let policy_document = r#"{
@@ -168,10 +168,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreatePolicyRequest};
+    /// use wami::{MemoryIamClient, CreatePolicyRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // Create a policy first
@@ -220,10 +220,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreatePolicyRequest, UpdatePolicyRequest};
+    /// use wami::{MemoryIamClient, CreatePolicyRequest, UpdatePolicyRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // Create a policy
@@ -299,10 +299,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreatePolicyRequest};
+    /// use wami::{MemoryIamClient, CreatePolicyRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // Create a policy
@@ -355,10 +355,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreatePolicyRequest, ListPoliciesRequest};
+    /// use wami::{MemoryIamClient, CreatePolicyRequest, ListPoliciesRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // Create a few policies

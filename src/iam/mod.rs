@@ -27,11 +27,11 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use rustyiam::{MemoryIamClient, CreateUserRequest, CreateAccessKeyRequest};
+//! use wami::{MemoryIamClient, CreateUserRequest, CreateAccessKeyRequest};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Initialize the IAM client with in-memory storage
-//! let store = rustyiam::create_memory_store();
+//! let store = wami::create_memory_store();
 //! let mut iam_client = MemoryIamClient::new(store);
 //!
 //! // Create a new IAM user
@@ -90,10 +90,10 @@ use serde::{Deserialize, Serialize};
 /// # Example
 ///
 /// ```rust
-/// use rustyiam::{MemoryIamClient, CreateUserRequest};
+/// use wami::{MemoryIamClient, CreateUserRequest};
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let store = rustyiam::create_memory_store();
+/// let store = wami::create_memory_store();
 /// let mut iam_client = MemoryIamClient::new(store);
 ///
 /// let request = CreateUserRequest {
@@ -123,7 +123,7 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{IamClient, InMemoryStore};
+    /// use wami::{IamClient, InMemoryStore};
     ///
     /// let store = InMemoryStore::new();
     /// let iam_client = IamClient::new(store);
@@ -142,10 +142,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::MemoryIamClient;
+    /// use wami::MemoryIamClient;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// let account_id = iam_client.account_id().await?;
@@ -168,7 +168,7 @@ impl<S: Store> IamClient<S> {
 /// # Example
 ///
 /// ```rust
-/// use rustyiam::User;
+/// use wami::User;
 /// use chrono::Utc;
 ///
 /// let user = User {
@@ -209,7 +209,7 @@ pub struct User {
 /// # Example
 ///
 /// ```rust
-/// use rustyiam::Group;
+/// use wami::Group;
 /// use chrono::Utc;
 ///
 /// let group = Group {
@@ -244,7 +244,7 @@ pub struct Group {
 /// # Example
 ///
 /// ```rust
-/// use rustyiam::Role;
+/// use wami::Role;
 /// use chrono::Utc;
 ///
 /// let role = Role {
@@ -324,7 +324,7 @@ pub struct Policy {
 /// # Example
 ///
 /// ```rust
-/// use rustyiam::AccessKey;
+/// use wami::AccessKey;
 /// use chrono::Utc;
 ///
 /// let access_key = AccessKey {
@@ -354,7 +354,7 @@ pub struct AccessKey {
 /// # Example
 ///
 /// ```rust
-/// use rustyiam::MfaDevice;
+/// use wami::MfaDevice;
 /// use chrono::Utc;
 ///
 /// let mfa_device = MfaDevice {
@@ -378,7 +378,7 @@ pub struct MfaDevice {
 /// # Example
 ///
 /// ```rust
-/// use rustyiam::LoginProfile;
+/// use wami::LoginProfile;
 /// use chrono::Utc;
 ///
 /// let profile = LoginProfile {

@@ -54,10 +54,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateUserRequest, CreateLoginProfileRequest};
+    /// use wami::{MemoryIamClient, CreateUserRequest, CreateLoginProfileRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // First create a user
@@ -139,10 +139,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateUserRequest, CreateLoginProfileRequest};
+    /// use wami::{MemoryIamClient, CreateUserRequest, CreateLoginProfileRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // Create user and login profile
@@ -199,10 +199,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateUserRequest, CreateLoginProfileRequest, UpdateLoginProfileRequest};
+    /// use wami::{MemoryIamClient, CreateUserRequest, CreateLoginProfileRequest, UpdateLoginProfileRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // Create user and login profile
@@ -283,10 +283,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateUserRequest, CreateLoginProfileRequest};
+    /// use wami::{MemoryIamClient, CreateUserRequest, CreateLoginProfileRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // Create user and login profile

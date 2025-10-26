@@ -1,16 +1,16 @@
 [package]
-name = "rustyiam"
+name = "wami"
 version = "0.8.0"
 authors = ["LSH <github@lsh.tech>"]
 edition = "2021"
 rust-version = "1.90.0"
-description = "AWS IAM, STS, and SSO Admin operations library for Rust"
+description = "Who Am I - Multicloud Identity, IAM, STS, and SSO operations library for Rust"
 license = "MIT"
-repository = "https://github.com/Lsh0x/AMI.rs"
-homepage = "https://github.com/Lsh0x/AMI.rs"
-documentation = "https://docs.rs/rustyiam"
+repository = "https://github.com/Lsh0x/wami"
+homepage = "https://github.com/Lsh0x/wami"
+documentation = "https://docs.rs/wami"
 readme = "README.md"
-keywords = ["aws", "iam", "sts", "sso", "identity"]
+keywords = ["iam", "sso", "identity", "multicloud", "aws"]
 categories = ["api-bindings", "authentication", "development-tools"]
 
 [dependencies]

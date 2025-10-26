@@ -1,4 +1,4 @@
-use rustyiam::{
+use wami::{
     create_memory_store, AssumeRoleRequest, CreateAccountAssignmentRequest,
     CreatePermissionSetRequest, CreateUserRequest, MemoryIamClient, MemorySsoAdminClient,
     MemoryStsClient,
@@ -127,7 +127,7 @@ async fn test_multiple_users_workflow() {
 #[tokio::test]
 async fn test_account_id_consistency() {
     let store = create_memory_store();
-    let account_id = rustyiam::get_account_id_from_store(&store);
+    let account_id = wami::get_account_id_from_store(&store);
 
     let mut iam_client = MemoryIamClient::new(store.clone());
     let mut sts_client = MemoryStsClient::new(store.clone());
@@ -162,7 +162,7 @@ async fn test_error_handling() {
     );
 
     // Try to update a nonexistent user - should return error
-    let update_request = rustyiam::UpdateUserRequest {
+    let update_request = wami::UpdateUserRequest {
         user_name: "nonexistent-user".to_string(),
         new_user_name: None,
         new_path: Some("/new/".to_string()),

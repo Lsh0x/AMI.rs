@@ -1,23 +1,24 @@
-//! AMI.rs - AWS IAM, STS, and SSO Admin operations library for Rust
+//! WAMI - Who Am I: Multicloud Identity and Access Management library for Rust
 //!
-//! This library provides an in-memory implementation of AWS Identity and Access Management (IAM),
-//! Security Token Service (STS), and Single Sign-On Admin operations. It's designed to be
-//! AWS IAM-compatible and can be used by other repositories for testing, development, or
-//! as a lightweight alternative to AWS services.
+//! This library provides a multicloud implementation of Identity and Access Management (IAM),
+//! Security Token Service (STS), and Single Sign-On Admin operations. It's designed to work
+//! across multiple cloud providers (AWS, GCP, Azure, and custom platforms) and can be used
+//! for testing, development, or as a unified identity layer for multicloud environments.
 //!
 //! ## Features
 //!
+//! - **🌐 Multicloud Support**: AWS, GCP, Azure, and custom identity providers
 //! - **IAM Operations**: Complete user, group, role, and policy management
 //! - **STS Operations**: Temporary credentials and identity inspection
 //! - **SSO Admin Operations**: Permission sets, assignments, and instances
-//! - **In-Memory Storage**: All operations are performed in-memory for fast access
+//! - **Pluggable Storage**: In-memory, database, or cloud-native backends
 //! - **Async API**: All operations are asynchronous for better performance
 //! - **Type Safety**: Strongly typed requests and responses
 //!
 //! ## Example
 //!
 //! ```rust
-//! use rustyiam::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient, InMemoryStore};
+//! use wami::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient, InMemoryStore};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,12 +26,12 @@
 //!     env_logger::init();
 //!     
 //!     // Initialize clients with in-memory storage
-//!     let store = rustyiam::create_memory_store();
-//!     let account_id = rustyiam::get_account_id_from_store(&store);
+//!     let store = wami::create_memory_store();
+//!     let account_id = wami::get_account_id_from_store(&store);
 //!     println!("Using AWS account ID: {}", account_id);
 //!     
 //!     // Print AWS environment variables for export
-//!     rustyiam::print_aws_environment_variables(&store);
+//!     wami::print_aws_environment_variables(&store);
 //!     
 //!     let mut iam_client = MemoryIamClient::new(store.clone());
 //!     let mut sts_client = MemoryStsClient::new(store.clone());
@@ -41,7 +42,7 @@
 //!     println!("Account ID from IAM client: {}", client_account_id);
 //!     
 //!     // Create a user
-//!     let user_request = rustyiam::CreateUserRequest {
+//!     let user_request = wami::CreateUserRequest {
 //!         user_name: "test-user".to_string(),
 //!         path: Some("/".to_string()),
 //!         permissions_boundary: None,

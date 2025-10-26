@@ -161,16 +161,16 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, GenerateCredentialReportRequest};
+    /// use wami::{MemoryIamClient, GenerateCredentialReportRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let request = GenerateCredentialReportRequest {};
     /// let response = client.generate_credential_report(request).await?;
     ///
-    /// assert_eq!(response.data.unwrap().state, rustyiam::ReportState::Complete);
+    /// assert_eq!(response.data.unwrap().state, wami::ReportState::Complete);
     /// # Ok(())
     /// # }
     /// ```
@@ -298,10 +298,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, GenerateCredentialReportRequest, GetCredentialReportRequest};
+    /// use wami::{MemoryIamClient, GenerateCredentialReportRequest, GetCredentialReportRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // First generate a report
@@ -363,10 +363,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, GetAccountSummaryRequest, CreateUserRequest};
+    /// use wami::{MemoryIamClient, GetAccountSummaryRequest, CreateUserRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// // Create a user

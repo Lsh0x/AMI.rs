@@ -190,10 +190,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, UploadServerCertificateRequest};
+    /// use wami::{MemoryIamClient, UploadServerCertificateRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let cert_body = "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----";
@@ -329,10 +329,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, GetServerCertificateRequest};
+    /// use wami::{MemoryIamClient, GetServerCertificateRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let request = GetServerCertificateRequest {
@@ -376,10 +376,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, ListServerCertificatesRequest};
+    /// use wami::{MemoryIamClient, ListServerCertificatesRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let request = ListServerCertificatesRequest {
@@ -434,10 +434,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, DeleteServerCertificateRequest};
+    /// use wami::{MemoryIamClient, DeleteServerCertificateRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let request = DeleteServerCertificateRequest {
@@ -487,10 +487,10 @@ impl<S: Store> IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, UpdateServerCertificateRequest};
+    /// use wami::{MemoryIamClient, UpdateServerCertificateRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut client = MemoryIamClient::new(store);
     ///
     /// let request = UpdateServerCertificateRequest {

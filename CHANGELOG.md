@@ -139,7 +139,7 @@ All notable changes to this project will be documented in this file.
 - Implement dynamic AWS account ID generation
 - Add account ID retrieval and logging capabilities
 - Add AWS environment variable logging and export functionality
-- Rename package to rustyiam and set MSRV to 1.81.0
+- Rename package to wami and set MSRV to 1.81.0
 - Add automatic version bumping and docs deployment workflow
 - **hooks:** Add conventional commit template hook
 

@@ -74,10 +74,10 @@ impl<S: Store> crate::iam::IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateRoleRequest};
+    /// use wami::{MemoryIamClient, CreateRoleRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// let trust_policy = r#"{
@@ -171,10 +171,10 @@ impl<S: Store> crate::iam::IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateRoleRequest, UpdateRoleRequest};
+    /// use wami::{MemoryIamClient, CreateRoleRequest, UpdateRoleRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Create a role first
@@ -244,10 +244,10 @@ impl<S: Store> crate::iam::IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateRoleRequest};
+    /// use wami::{MemoryIamClient, CreateRoleRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Create a role
@@ -290,10 +290,10 @@ impl<S: Store> crate::iam::IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateRoleRequest};
+    /// use wami::{MemoryIamClient, CreateRoleRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Create a role
@@ -335,10 +335,10 @@ impl<S: Store> crate::iam::IamClient<S> {
     /// # Example
     ///
     /// ```rust
-    /// use rustyiam::{MemoryIamClient, CreateRoleRequest, ListRolesRequest};
+    /// use wami::{MemoryIamClient, CreateRoleRequest, ListRolesRequest};
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = rustyiam::create_memory_store();
+    /// let store = wami::create_memory_store();
     /// let mut iam_client = MemoryIamClient::new(store);
     ///
     /// // Create some roles

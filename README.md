@@ -1,23 +1,24 @@
-# RustyIAM
+# WAMI - Who Am I
 
-AWS IAM, STS, and SSO Admin operations library for Rust
+Multicloud Identity, IAM, STS, and SSO operations library for Rust
 
-[![GitHub last commit](https://img.shields.io/github/last-commit/lsh0x/AMI.rs)](https://github.com/lsh0x/AMI.rs/commits/main)
-[![CI](https://github.com/lsh0x/AMI.rs/workflows/CI/badge.svg)](https://github.com/lsh0x/AMI.rs/actions)
-[![Codecov](https://codecov.io/gh/lsh0x/AMI.rs/branch/main/graph/badge.svg)](https://codecov.io/gh/lsh0x/AMI.rs)
-[![Docs](https://docs.rs/rustyiam/badge.svg)](https://docs.rs/rustyiam)
-[![Crates.io](https://img.shields.io/crates/v/rustyiam.svg)](https://crates.io/crates/rustyiam)
-[![crates.io](https://img.shields.io/crates/d/rustyiam)](https://crates.io/crates/rustyiam)
+[![GitHub last commit](https://img.shields.io/github/last-commit/lsh0x/wami)](https://github.com/lsh0x/wami/commits/main)
+[![CI](https://github.com/lsh0x/wami/workflows/CI/badge.svg)](https://github.com/lsh0x/wami/actions)
+[![Codecov](https://codecov.io/gh/lsh0x/wami/branch/main/graph/badge.svg)](https://codecov.io/gh/lsh0x/wami)
+[![Docs](https://docs.rs/wami/badge.svg)](https://docs.rs/wami)
+[![Crates.io](https://img.shields.io/crates/v/wami.svg)](https://crates.io/crates/wami)
+[![crates.io](https://img.shields.io/crates/d/wami)](https://crates.io/crates/wami)
 
 ## Overview
 
-RustyIAM is a comprehensive Rust library that provides easy-to-use interfaces for AWS Identity and Access Management (IAM), Security Token Service (STS), and Single Sign-On Admin operations. This library abstracts the complexity of AWS SDK calls and provides a clean, type-safe API for managing AWS identities and permissions.
+**WAMI** (Who Am I) is a comprehensive Rust library that provides easy-to-use interfaces for Identity and Access Management (IAM), Security Token Service (STS), and Single Sign-On across multiple cloud providers. This library abstracts the complexity of cloud identity systems and provides a clean, type-safe, multicloud API for managing identities and permissions.
 
 **Key Features:**
+- 🌐 **Multicloud Support** - AWS, GCP, Azure, and custom identity providers
 - 🔐 **Complete IAM Management** - Users, groups, roles, policies, and access controls
 - 🔑 **Temporary Credentials** - STS operations for secure, time-limited access
 - 🏢 **SSO Administration** - Permission sets, assignments, and federation
-- 💾 **In-Memory Storage** - Fast, lightweight implementation for testing and development
+- 💾 **Pluggable Storage** - In-memory, database, or cloud-native backends
 - 📚 **Comprehensive Documentation** - Detailed rustdoc with examples for every operation
 - ⚡ **Async API** - Built on Tokio for high-performance async operations
 - 🛡️ **Type-Safe** - Strongly typed requests and responses
@@ -44,7 +45,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustyiam = "0.1.0"
+wami = "0.6.0"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
@@ -53,8 +54,8 @@ tokio = { version = "1.0", features = ["full"] }
 ## Quick Start
 
 ```rust
-use rustyiam::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient};
-use rustyiam::{CreateUserRequest, AssumeRoleRequest, CreatePermissionSetRequest};
+use wami::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient};
+use wami::{CreateUserRequest, AssumeRoleRequest, CreatePermissionSetRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -62,8 +63,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     
     // Create shared store with auto-generated account ID
-    let store = rustyiam::create_memory_store();
-    let account_id = rustyiam::get_account_id_from_store(&store);
+    let store = wami::create_memory_store();
+    let account_id = wami::get_account_id_from_store(&store);
     println!("Using AWS account ID: {}", account_id);
     
     // Initialize clients
@@ -109,11 +110,11 @@ AWS Identity and Access Management (IAM) operations for managing users, groups, 
 ### Example: User Management
 
 ```rust
-use rustyiam::{MemoryIamClient, CreateUserRequest, CreateAccessKeyRequest};
+use wami::{MemoryIamClient, CreateUserRequest, CreateAccessKeyRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let store = rustyiam::create_memory_store();
+    let store = wami::create_memory_store();
     let mut iam_client = MemoryIamClient::new(store);
     
     // Create a user
@@ -260,11 +261,11 @@ AWS Security Token Service (STS) operations for requesting temporary, limited-pr
 ### Example: Assume Role
 
 ```rust
-use rustyiam::{MemoryStsClient, AssumeRoleRequest};
+use wami::{MemoryStsClient, AssumeRoleRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let store = rustyiam::create_memory_store();
+    let store = wami::create_memory_store();
     let mut sts_client = MemoryStsClient::new(store);
     
     // Assume a role
@@ -324,11 +325,11 @@ AWS Single Sign-On Admin operations for managing permission sets, account assign
 ### Example: Permission Sets & Assignments
 
 ```rust
-use rustyiam::{MemorySsoAdminClient, CreatePermissionSetRequest, CreateAccountAssignmentRequest};
+use wami::{MemorySsoAdminClient, CreatePermissionSetRequest, CreateAccountAssignmentRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let store = rustyiam::create_memory_store();
+    let store = wami::create_memory_store();
     let mut sso_client = MemorySsoAdminClient::new(store);
     
     // Create a permission set
@@ -403,20 +404,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Auto-Generated Account ID
 
 ```rust
-use rustyiam::MemoryIamClient;
+use wami::MemoryIamClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     
-    let store = rustyiam::create_memory_store();
-    let account_id = rustyiam::get_account_id_from_store(&store);
+    let store = wami::create_memory_store();
+    let account_id = wami::get_account_id_from_store(&store);
     println!("Using AWS account ID: {}", account_id);
     
     let mut iam_client = MemoryIamClient::new(store);
     
     // All ARNs will use the auto-generated account ID
-    let user_request = rustyiam::CreateUserRequest {
+    let user_request = wami::CreateUserRequest {
         user_name: "test-user".to_string(),
         path: Some("/".to_string()),
         permissions_boundary: None,
@@ -432,16 +433,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Custom Account ID
 
 ```rust
-use rustyiam::MemoryIamClient;
+use wami::MemoryIamClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Use a specific account ID
-    let store = rustyiam::create_memory_store_with_account_id("123456789012".to_string());
+    let store = wami::create_memory_store_with_account_id("123456789012".to_string());
     let mut iam_client = MemoryIamClient::new(store);
     
     // All ARNs will use the specified account ID
-    let user_request = rustyiam::CreateUserRequest {
+    let user_request = wami::CreateUserRequest {
         user_name: "my-user".to_string(),
         path: Some("/".to_string()),
         permissions_boundary: None,
@@ -475,7 +476,7 @@ AMI.rs provides AWS environment variables for compatibility with AWS CLI and oth
 ### Example
 
 ```rust
-use rustyiam::create_memory_store;
+use wami::create_memory_store;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -484,7 +485,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let store = create_memory_store();
     
     // Print environment variables to console
-    rustyiam::print_aws_environment_variables(&store);
+    wami::print_aws_environment_variables(&store);
     
     // Or get them programmatically
     let env_vars = store.aws_environment_variables();
@@ -498,7 +499,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Output
 
 ```
-INFO rustyiam::store::in_memory: Generated AWS account ID: 847392847392
+INFO wami::store::in_memory: Generated AWS account ID: 847392847392
 
 AWS Environment Variables:
   export AWS_ACCOUNT_ID=847392847392
