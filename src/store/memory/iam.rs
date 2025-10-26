@@ -20,13 +20,13 @@ pub struct InMemoryIamStore {
     mfa_devices: HashMap<String, MfaDevice>,
     login_profiles: HashMap<String, LoginProfile>,
     user_groups: HashMap<String, Vec<String>>, // user_name -> group_names
-    credential_report: Option<crate::iam::reports::CredentialReport>,
+    credential_report: Option<crate::iam::report::CredentialReport>,
     server_certificates: HashMap<String, crate::iam::ServerCertificate>, // cert_name -> certificate
     service_specific_credentials:
-        HashMap<String, crate::iam::service_credentials::ServiceSpecificCredential>, // cred_id -> credential
+        HashMap<String, crate::iam::service_credential::ServiceSpecificCredential>, // cred_id -> credential
     service_linked_role_deletion_tasks:
-        HashMap<String, crate::iam::service_linked_roles::DeletionTaskInfo>, // task_id -> task info
-    signing_certificates: HashMap<String, crate::iam::signing_certificates::SigningCertificate>, // cert_id -> certificate
+        HashMap<String, crate::iam::service_linked_role::DeletionTaskInfo>, // task_id -> task info
+    signing_certificates: HashMap<String, crate::iam::signing_certificate::SigningCertificate>, // cert_id -> certificate
 }
 
 impl Default for InMemoryIamStore {
@@ -509,13 +509,13 @@ impl IamStore for InMemoryIamStore {
 
     async fn store_credential_report(
         &mut self,
-        report: crate::iam::reports::CredentialReport,
+        report: crate::iam::report::CredentialReport,
     ) -> Result<()> {
         self.credential_report = Some(report);
         Ok(())
     }
 
-    async fn get_credential_report(&self) -> Result<Option<crate::iam::reports::CredentialReport>> {
+    async fn get_credential_report(&self) -> Result<Option<crate::iam::report::CredentialReport>> {
         Ok(self.credential_report.clone())
     }
 
@@ -605,8 +605,8 @@ impl IamStore for InMemoryIamStore {
 
     async fn create_service_specific_credential(
         &mut self,
-        credential: crate::iam::service_credentials::ServiceSpecificCredential,
-    ) -> Result<crate::iam::service_credentials::ServiceSpecificCredential> {
+        credential: crate::iam::service_credential::ServiceSpecificCredential,
+    ) -> Result<crate::iam::service_credential::ServiceSpecificCredential> {
         self.service_specific_credentials.insert(
             credential.service_specific_credential_id.clone(),
             credential.clone(),
@@ -617,7 +617,7 @@ impl IamStore for InMemoryIamStore {
     async fn get_service_specific_credential(
         &self,
         credential_id: &str,
-    ) -> Result<Option<crate::iam::service_credentials::ServiceSpecificCredential>> {
+    ) -> Result<Option<crate::iam::service_credential::ServiceSpecificCredential>> {
         Ok(self
             .service_specific_credentials
             .get(credential_id)
@@ -626,8 +626,8 @@ impl IamStore for InMemoryIamStore {
 
     async fn update_service_specific_credential(
         &mut self,
-        credential: crate::iam::service_credentials::ServiceSpecificCredential,
-    ) -> Result<crate::iam::service_credentials::ServiceSpecificCredential> {
+        credential: crate::iam::service_credential::ServiceSpecificCredential,
+    ) -> Result<crate::iam::service_credential::ServiceSpecificCredential> {
         self.service_specific_credentials.insert(
             credential.service_specific_credential_id.clone(),
             credential.clone(),
@@ -644,8 +644,8 @@ impl IamStore for InMemoryIamStore {
         &self,
         user_name: Option<&str>,
         service_name: Option<&str>,
-    ) -> Result<Vec<crate::iam::service_credentials::ServiceSpecificCredential>> {
-        let mut credentials: Vec<crate::iam::service_credentials::ServiceSpecificCredential> = self
+    ) -> Result<Vec<crate::iam::service_credential::ServiceSpecificCredential>> {
+        let mut credentials: Vec<crate::iam::service_credential::ServiceSpecificCredential> = self
             .service_specific_credentials
             .values()
             .cloned()
@@ -673,8 +673,8 @@ impl IamStore for InMemoryIamStore {
     // Service-linked role deletion task operations
     async fn create_service_linked_role_deletion_task(
         &mut self,
-        task: crate::iam::service_linked_roles::DeletionTaskInfo,
-    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo> {
+        task: crate::iam::service_linked_role::DeletionTaskInfo,
+    ) -> Result<crate::iam::service_linked_role::DeletionTaskInfo> {
         self.service_linked_role_deletion_tasks
             .insert(task.deletion_task_id.clone(), task.clone());
         Ok(task)
@@ -683,7 +683,7 @@ impl IamStore for InMemoryIamStore {
     async fn get_service_linked_role_deletion_task(
         &self,
         task_id: &str,
-    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo> {
+    ) -> Result<crate::iam::service_linked_role::DeletionTaskInfo> {
         self.service_linked_role_deletion_tasks
             .get(task_id)
             .cloned()
@@ -694,8 +694,8 @@ impl IamStore for InMemoryIamStore {
 
     async fn update_service_linked_role_deletion_task(
         &mut self,
-        task: crate::iam::service_linked_roles::DeletionTaskInfo,
-    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo> {
+        task: crate::iam::service_linked_role::DeletionTaskInfo,
+    ) -> Result<crate::iam::service_linked_role::DeletionTaskInfo> {
         self.service_linked_role_deletion_tasks
             .insert(task.deletion_task_id.clone(), task.clone());
         Ok(task)
@@ -704,8 +704,8 @@ impl IamStore for InMemoryIamStore {
     // Signing certificate operations
     async fn create_signing_certificate(
         &mut self,
-        certificate: crate::iam::signing_certificates::SigningCertificate,
-    ) -> Result<crate::iam::signing_certificates::SigningCertificate> {
+        certificate: crate::iam::signing_certificate::SigningCertificate,
+    ) -> Result<crate::iam::signing_certificate::SigningCertificate> {
         self.signing_certificates
             .insert(certificate.certificate_id.clone(), certificate.clone());
         Ok(certificate)
@@ -714,14 +714,14 @@ impl IamStore for InMemoryIamStore {
     async fn get_signing_certificate(
         &self,
         certificate_id: &str,
-    ) -> Result<Option<crate::iam::signing_certificates::SigningCertificate>> {
+    ) -> Result<Option<crate::iam::signing_certificate::SigningCertificate>> {
         Ok(self.signing_certificates.get(certificate_id).cloned())
     }
 
     async fn update_signing_certificate(
         &mut self,
-        certificate: crate::iam::signing_certificates::SigningCertificate,
-    ) -> Result<crate::iam::signing_certificates::SigningCertificate> {
+        certificate: crate::iam::signing_certificate::SigningCertificate,
+    ) -> Result<crate::iam::signing_certificate::SigningCertificate> {
         self.signing_certificates
             .insert(certificate.certificate_id.clone(), certificate.clone());
         Ok(certificate)
@@ -735,8 +735,8 @@ impl IamStore for InMemoryIamStore {
     async fn list_signing_certificates(
         &self,
         user_name: Option<&str>,
-    ) -> Result<Vec<crate::iam::signing_certificates::SigningCertificate>> {
-        let mut certificates: Vec<crate::iam::signing_certificates::SigningCertificate> =
+    ) -> Result<Vec<crate::iam::signing_certificate::SigningCertificate>> {
+        let mut certificates: Vec<crate::iam::signing_certificate::SigningCertificate> =
             self.signing_certificates.values().cloned().collect();
 
         // Filter by user if provided

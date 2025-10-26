@@ -65,7 +65,7 @@ mod tests;
 ///
 /// # Type Parameters
 ///
-/// * `S` - The store implementation (e.g., [`InMemoryStore`](crate::store::in_memory::InMemoryStore))
+/// * `S` - The store implementation (e.g., [`InMemoryStore`](crate::store::memory::InMemoryStore))
 ///
 /// # Example
 ///

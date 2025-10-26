@@ -103,9 +103,9 @@ pub trait IamStore: Send + Sync {
     // Credential report operations
     async fn store_credential_report(
         &mut self,
-        report: crate::iam::reports::CredentialReport,
+        report: crate::iam::report::CredentialReport,
     ) -> Result<()>;
-    async fn get_credential_report(&self) -> Result<Option<crate::iam::reports::CredentialReport>>;
+    async fn get_credential_report(&self) -> Result<Option<crate::iam::report::CredentialReport>>;
 
     // Server certificate operations
     async fn create_server_certificate(
@@ -130,53 +130,53 @@ pub trait IamStore: Send + Sync {
     // Service-specific credential operations
     async fn create_service_specific_credential(
         &mut self,
-        credential: crate::iam::service_credentials::ServiceSpecificCredential,
-    ) -> Result<crate::iam::service_credentials::ServiceSpecificCredential>;
+        credential: crate::iam::service_credential::ServiceSpecificCredential,
+    ) -> Result<crate::iam::service_credential::ServiceSpecificCredential>;
     async fn get_service_specific_credential(
         &self,
         credential_id: &str,
-    ) -> Result<Option<crate::iam::service_credentials::ServiceSpecificCredential>>;
+    ) -> Result<Option<crate::iam::service_credential::ServiceSpecificCredential>>;
     async fn update_service_specific_credential(
         &mut self,
-        credential: crate::iam::service_credentials::ServiceSpecificCredential,
-    ) -> Result<crate::iam::service_credentials::ServiceSpecificCredential>;
+        credential: crate::iam::service_credential::ServiceSpecificCredential,
+    ) -> Result<crate::iam::service_credential::ServiceSpecificCredential>;
     async fn delete_service_specific_credential(&mut self, credential_id: &str) -> Result<()>;
     async fn list_service_specific_credentials(
         &self,
         user_name: Option<&str>,
         service_name: Option<&str>,
-    ) -> Result<Vec<crate::iam::service_credentials::ServiceSpecificCredential>>;
+    ) -> Result<Vec<crate::iam::service_credential::ServiceSpecificCredential>>;
 
     // Service-linked role deletion task operations
     async fn create_service_linked_role_deletion_task(
         &mut self,
-        task: crate::iam::service_linked_roles::DeletionTaskInfo,
-    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo>;
+        task: crate::iam::service_linked_role::DeletionTaskInfo,
+    ) -> Result<crate::iam::service_linked_role::DeletionTaskInfo>;
     async fn get_service_linked_role_deletion_task(
         &self,
         task_id: &str,
-    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo>;
+    ) -> Result<crate::iam::service_linked_role::DeletionTaskInfo>;
     async fn update_service_linked_role_deletion_task(
         &mut self,
-        task: crate::iam::service_linked_roles::DeletionTaskInfo,
-    ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo>;
+        task: crate::iam::service_linked_role::DeletionTaskInfo,
+    ) -> Result<crate::iam::service_linked_role::DeletionTaskInfo>;
 
     // Signing certificate operations
     async fn create_signing_certificate(
         &mut self,
-        certificate: crate::iam::signing_certificates::SigningCertificate,
-    ) -> Result<crate::iam::signing_certificates::SigningCertificate>;
+        certificate: crate::iam::signing_certificate::SigningCertificate,
+    ) -> Result<crate::iam::signing_certificate::SigningCertificate>;
     async fn get_signing_certificate(
         &self,
         certificate_id: &str,
-    ) -> Result<Option<crate::iam::signing_certificates::SigningCertificate>>;
+    ) -> Result<Option<crate::iam::signing_certificate::SigningCertificate>>;
     async fn update_signing_certificate(
         &mut self,
-        certificate: crate::iam::signing_certificates::SigningCertificate,
-    ) -> Result<crate::iam::signing_certificates::SigningCertificate>;
+        certificate: crate::iam::signing_certificate::SigningCertificate,
+    ) -> Result<crate::iam::signing_certificate::SigningCertificate>;
     async fn delete_signing_certificate(&mut self, certificate_id: &str) -> Result<()>;
     async fn list_signing_certificates(
         &self,
         user_name: Option<&str>,
-    ) -> Result<Vec<crate::iam::signing_certificates::SigningCertificate>>;
+    ) -> Result<Vec<crate::iam::signing_certificate::SigningCertificate>>;
 }
