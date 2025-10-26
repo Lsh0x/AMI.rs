@@ -7,8 +7,6 @@ Multicloud Identity, IAM, STS, and SSO operations library for Rust
 [![Codecov](https://codecov.io/gh/lsh0x/wami/branch/main/graph/badge.svg)](https://codecov.io/gh/lsh0x/wami)
 [![Docs](https://docs.rs/wami/badge.svg)](https://docs.rs/wami)
 [![Crates.io](https://img.shields.io/crates/v/wami.svg)](https://crates.io/crates/wami)
-[![crates.io](https://img.shields.io/crates/d/wami)](https://crates.io/crates/wami)
-
 ## Overview
 
 **WAMI** (Who Am I) is a comprehensive Rust library that provides easy-to-use interfaces for Identity and Access Management (IAM), Security Token Service (STS), and Single Sign-On across multiple cloud providers. This library abstracts the complexity of cloud identity systems and provides a clean, type-safe, multicloud API for managing identities and permissions.
