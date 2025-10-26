@@ -60,6 +60,7 @@
 //! }
 //! ```
 
+pub mod builders;
 pub mod error;
 pub mod iam;
 pub mod provider;

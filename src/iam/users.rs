@@ -1,6 +1,5 @@
 use crate::error::Result;
 use crate::iam::{IamClient, User};
-use crate::provider::ResourceType;
 use crate::store::{IamStore, Store};
 use crate::types::{AmiResponse, PaginationParams, Tag};
 use serde::{Deserialize, Serialize};
@@ -44,32 +43,15 @@ impl<S: Store> IamClient<S> {
         let account_id = store.account_id();
         let provider = store.cloud_provider();
 
-        // Use provider for ID and ARN generation
-        let user_id = provider.generate_resource_id(ResourceType::User);
-        let path = request.path.unwrap_or_else(|| "/".to_string());
-        let arn = provider.generate_resource_identifier(
-            ResourceType::User,
+        // Use builder to construct the user
+        let user = crate::builders::user::build_user(
+            request.user_name,
+            request.path,
+            request.permissions_boundary,
+            request.tags,
+            provider,
             account_id,
-            &path,
-            &request.user_name,
         );
-
-        // Generate WAMI ARN for cross-provider identification
-        let wami_arn =
-            provider.generate_wami_arn(ResourceType::User, account_id, &path, &request.user_name);
-
-        let user = User {
-            user_name: request.user_name.clone(),
-            user_id: user_id.clone(),
-            arn: arn.clone(),
-            path,
-            create_date: chrono::Utc::now(),
-            password_last_used: None,
-            permissions_boundary: request.permissions_boundary,
-            tags: request.tags.unwrap_or_default(),
-            wami_arn,
-            providers: Vec::new(), // Initialize empty, can be populated when syncing to providers
-        };
 
         let created_user = store.create_user(user).await?;
 
@@ -101,29 +83,23 @@ impl<S: Store> IamClient<S> {
         let account_id = store.account_id();
 
         // Get existing user
-        let mut user = store.get_user(&request.user_name).await?.ok_or_else(|| {
+        let user = store.get_user(&request.user_name).await?.ok_or_else(|| {
             crate::error::AmiError::ResourceNotFound {
                 resource: format!("User: {}", request.user_name),
             }
         })?;
 
-        // Update user properties
-        if let Some(new_name) = request.new_user_name {
-            user.user_name = new_name.clone();
-            // Use provider for ARN generation
-            user.arn = provider.generate_resource_identifier(
-                ResourceType::User,
-                account_id,
-                &user.path,
-                &new_name,
-            );
-        }
-        if let Some(new_path) = request.new_path {
-            user.path = new_path;
-        }
+        // Use builder to update user properties
+        let updated_user = crate::builders::user::update_user(
+            user,
+            request.new_user_name,
+            request.new_path,
+            provider,
+            account_id,
+        );
 
-        let updated_user = store.update_user(user).await?;
-        Ok(AmiResponse::success(updated_user))
+        let saved_user = store.update_user(updated_user).await?;
+        Ok(AmiResponse::success(saved_user))
     }
 
     /// List all IAM users
