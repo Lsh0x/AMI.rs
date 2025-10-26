@@ -155,6 +155,25 @@ pub trait IamStore: Send + Sync {
         &mut self,
         task: crate::iam::service_linked_roles::DeletionTaskInfo,
     ) -> Result<crate::iam::service_linked_roles::DeletionTaskInfo>;
+
+    // Signing certificate operations
+    async fn create_signing_certificate(
+        &mut self,
+        certificate: crate::iam::signing_certificates::SigningCertificate,
+    ) -> Result<crate::iam::signing_certificates::SigningCertificate>;
+    async fn get_signing_certificate(
+        &self,
+        certificate_id: &str,
+    ) -> Result<Option<crate::iam::signing_certificates::SigningCertificate>>;
+    async fn update_signing_certificate(
+        &mut self,
+        certificate: crate::iam::signing_certificates::SigningCertificate,
+    ) -> Result<crate::iam::signing_certificates::SigningCertificate>;
+    async fn delete_signing_certificate(&mut self, certificate_id: &str) -> Result<()>;
+    async fn list_signing_certificates(
+        &self,
+        user_name: Option<&str>,
+    ) -> Result<Vec<crate::iam::signing_certificates::SigningCertificate>>;
 }
 
 /// Trait for STS data storage operations

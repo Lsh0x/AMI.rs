@@ -135,6 +135,11 @@ pub use iam::service_linked_roles::{
     DeletionTaskInfo, DeletionTaskStatus, GetServiceLinkedRoleDeletionStatusRequest,
     GetServiceLinkedRoleDeletionStatusResponse, RoleUsageType,
 };
+pub use iam::signing_certificates::{
+    CertificateStatus, DeleteSigningCertificateRequest, ListSigningCertificatesRequest,
+    ListSigningCertificatesResponse, SigningCertificate, UpdateSigningCertificateRequest,
+    UploadSigningCertificateRequest, UploadSigningCertificateResponse,
+};
 pub use iam::tags::{ListResourceTagsRequest, TagResourceRequest, UntagResourceRequest};
 pub use iam::users::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
 pub use sso_admin::{CreateAccountAssignmentRequest, CreatePermissionSetRequest};

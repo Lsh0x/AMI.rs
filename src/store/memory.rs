@@ -23,6 +23,7 @@ pub struct InMemoryIamStore {
         HashMap<String, crate::iam::service_credentials::ServiceSpecificCredential>, // cred_id -> credential
     service_linked_role_deletion_tasks:
         HashMap<String, crate::iam::service_linked_roles::DeletionTaskInfo>, // task_id -> task info
+    signing_certificates: HashMap<String, crate::iam::signing_certificates::SigningCertificate>, // cert_id -> certificate
 }
 
 impl Default for InMemoryIamStore {
@@ -47,6 +48,7 @@ impl InMemoryIamStore {
             server_certificates: HashMap::new(),
             service_specific_credentials: HashMap::new(),
             service_linked_role_deletion_tasks: HashMap::new(),
+            signing_certificates: HashMap::new(),
         }
     }
 
@@ -65,6 +67,7 @@ impl InMemoryIamStore {
             server_certificates: HashMap::new(),
             service_specific_credentials: HashMap::new(),
             service_linked_role_deletion_tasks: HashMap::new(),
+            signing_certificates: HashMap::new(),
         }
     }
 }
@@ -679,5 +682,54 @@ impl IamStore for InMemoryIamStore {
         self.service_linked_role_deletion_tasks
             .insert(task.deletion_task_id.clone(), task.clone());
         Ok(task)
+    }
+
+    // Signing certificate operations
+    async fn create_signing_certificate(
+        &mut self,
+        certificate: crate::iam::signing_certificates::SigningCertificate,
+    ) -> Result<crate::iam::signing_certificates::SigningCertificate> {
+        self.signing_certificates
+            .insert(certificate.certificate_id.clone(), certificate.clone());
+        Ok(certificate)
+    }
+
+    async fn get_signing_certificate(
+        &self,
+        certificate_id: &str,
+    ) -> Result<Option<crate::iam::signing_certificates::SigningCertificate>> {
+        Ok(self.signing_certificates.get(certificate_id).cloned())
+    }
+
+    async fn update_signing_certificate(
+        &mut self,
+        certificate: crate::iam::signing_certificates::SigningCertificate,
+    ) -> Result<crate::iam::signing_certificates::SigningCertificate> {
+        self.signing_certificates
+            .insert(certificate.certificate_id.clone(), certificate.clone());
+        Ok(certificate)
+    }
+
+    async fn delete_signing_certificate(&mut self, certificate_id: &str) -> Result<()> {
+        self.signing_certificates.remove(certificate_id);
+        Ok(())
+    }
+
+    async fn list_signing_certificates(
+        &self,
+        user_name: Option<&str>,
+    ) -> Result<Vec<crate::iam::signing_certificates::SigningCertificate>> {
+        let mut certificates: Vec<crate::iam::signing_certificates::SigningCertificate> =
+            self.signing_certificates.values().cloned().collect();
+
+        // Filter by user if provided
+        if let Some(user) = user_name {
+            certificates.retain(|c| c.user_name == user);
+        }
+
+        // Sort by certificate ID
+        certificates.sort_by(|a, b| a.certificate_id.cmp(&b.certificate_id));
+
+        Ok(certificates)
     }
 }
