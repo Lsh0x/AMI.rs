@@ -136,6 +136,8 @@ impl<S: Store> StsClient<S> {
 ///     secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_string(),
 ///     expiration: Utc::now() + chrono::Duration::hours(1),
 ///     assumed_role_arn: Some("arn:aws:iam::123456789012:role/MyRole".to_string()),
+///     wami_arn: "arn:wami:sts::123456789012:assumed-role/session".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,6 +152,10 @@ pub struct StsSession {
     pub expiration: chrono::DateTime<chrono::Utc>,
     /// The ARN of the assumed role (if any)
     pub assumed_role_arn: Option<String>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Information about the caller's identity
@@ -163,6 +169,8 @@ pub struct StsSession {
 ///     user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
 ///     account: "123456789012".to_string(),
 ///     arn: "arn:aws:iam::123456789012:user/alice".to_string(),
+///     wami_arn: "arn:wami:iam::123456789012:user/alice".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -173,6 +181,10 @@ pub struct CallerIdentity {
     pub account: String,
     /// The ARN of the calling entity
     pub arn: String,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Request to assume an IAM role
@@ -337,15 +349,25 @@ impl<S: Store> StsClient<S> {
             expiration,
         };
 
+        let store = self.sts_store().await?;
+        let account_id = store.account_id();
+
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = format!(
+            "arn:wami:sts::{}:assumed-role/{}",
+            account_id, session_token
+        );
+
         let session = StsSession {
             session_token: session_token.clone(),
             access_key_id: access_key_id.clone(),
             secret_access_key: secret_access_key.clone(),
             expiration,
             assumed_role_arn: Some(request.role_arn),
+            wami_arn,
+            providers: Vec::new(),
         };
 
-        let store = self.sts_store().await?;
         store.create_session(session).await?;
 
         Ok(AmiResponse::success(credentials))
@@ -434,15 +456,25 @@ impl<S: Store> StsClient<S> {
             expiration,
         };
 
+        let store = self.sts_store().await?;
+        let account_id = store.account_id();
+
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = format!(
+            "arn:wami:sts::{}:federated-user/{}",
+            account_id, request.name
+        );
+
         let session = StsSession {
             session_token: session_token.clone(),
             access_key_id: access_key_id.clone(),
             secret_access_key: secret_access_key.clone(),
             expiration,
             assumed_role_arn: None,
+            wami_arn,
+            providers: Vec::new(),
         };
 
-        let store = self.sts_store().await?;
         store.create_session(session).await?;
 
         Ok(AmiResponse::success(credentials))
@@ -478,15 +510,22 @@ impl<S: Store> StsClient<S> {
             expiration,
         };
 
+        let store = self.sts_store().await?;
+        let account_id = store.account_id();
+
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = format!("arn:wami:sts::{}:session/{}", account_id, session_token);
+
         let session = StsSession {
             session_token: session_token.clone(),
             access_key_id: access_key_id.clone(),
             secret_access_key: secret_access_key.clone(),
             expiration,
             assumed_role_arn: None,
+            wami_arn,
+            providers: Vec::new(),
         };
 
-        let store = self.sts_store().await?;
         store.create_session(session).await?;
 
         Ok(AmiResponse::success(credentials))
@@ -539,6 +578,8 @@ impl<S: Store> StsClient<S> {
 
         // Try to get existing identity, or create a default one
         let identity_arn = format!("arn:aws:iam::{}:user/example-user", account_id);
+        let wami_arn = format!("arn:wami:iam::{}:user/example-user", account_id);
+
         let identity = store
             .get_identity(&identity_arn)
             .await?
@@ -546,6 +587,8 @@ impl<S: Store> StsClient<S> {
                 user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
                 account: account_id.to_string(),
                 arn: identity_arn,
+                wami_arn,
+                providers: Vec::new(),
             });
 
         Ok(AmiResponse::success(identity))

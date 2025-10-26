@@ -57,6 +57,12 @@ pub struct ServerCertificate {
     /// Tags associated with the certificate
     #[serde(rename = "Tags", skip_serializing_if = "Vec::is_empty", default)]
     pub tags: Vec<crate::types::Tag>,
+
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Request to upload a server certificate
@@ -280,6 +286,14 @@ impl<S: Store> IamClient<S> {
             &request.server_certificate_name,
         );
 
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = provider.generate_wami_arn(
+            ResourceType::ServerCertificate,
+            account_id,
+            &path,
+            &request.server_certificate_name,
+        );
+
         let metadata = ServerCertificateMetadata {
             path: path.clone(),
             server_certificate_name: request.server_certificate_name.clone(),
@@ -294,6 +308,8 @@ impl<S: Store> IamClient<S> {
             certificate_body: request.certificate_body,
             certificate_chain: request.certificate_chain,
             tags: tags.clone(),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         store.create_server_certificate(certificate).await?;

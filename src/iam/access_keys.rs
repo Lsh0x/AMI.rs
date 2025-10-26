@@ -220,6 +220,13 @@ impl<S: Store> crate::iam::IamClient<S> {
         // Use provider for access key ID generation
         let access_key_id = provider.generate_resource_id(ResourceType::AccessKey);
 
+        // Generate account ID for ARN
+        let account_id = store.account_id();
+
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn =
+            provider.generate_wami_arn(ResourceType::AccessKey, account_id, "/", &access_key_id);
+
         // Generate secret access key (40 random chars)
         let secret_access_key = uuid::Uuid::new_v4().to_string().replace('-', "")
             + &uuid::Uuid::new_v4().to_string().replace('-', "")[..8];
@@ -230,6 +237,8 @@ impl<S: Store> crate::iam::IamClient<S> {
             status: "Active".to_string(),
             create_date: chrono::Utc::now(),
             secret_access_key: Some(secret_access_key),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let created_key = store.create_access_key(access_key).await?;

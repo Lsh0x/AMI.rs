@@ -134,6 +134,10 @@ impl<S: Store> crate::iam::IamClient<S> {
             &request.role_name,
         );
 
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn =
+            provider.generate_wami_arn(ResourceType::Role, account_id, &path, &request.role_name);
+
         let role = Role {
             role_name: request.role_name.clone(),
             role_id,
@@ -145,6 +149,8 @@ impl<S: Store> crate::iam::IamClient<S> {
             max_session_duration: request.max_session_duration,
             permissions_boundary: request.permissions_boundary,
             tags: request.tags.unwrap_or_default(),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let created_role = store.create_role(role).await?;

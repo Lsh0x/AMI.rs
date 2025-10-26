@@ -54,6 +54,10 @@ impl<S: Store> IamClient<S> {
             &request.user_name,
         );
 
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn =
+            provider.generate_wami_arn(ResourceType::User, account_id, &path, &request.user_name);
+
         let user = User {
             user_name: request.user_name.clone(),
             user_id: user_id.clone(),
@@ -63,6 +67,8 @@ impl<S: Store> IamClient<S> {
             password_last_used: None,
             permissions_boundary: request.permissions_boundary,
             tags: request.tags.unwrap_or_default(),
+            wami_arn,
+            providers: Vec::new(), // Initialize empty, can be populated when syncing to providers
         };
 
         let created_user = store.create_user(user).await?;

@@ -37,6 +37,12 @@ pub struct SigningCertificate {
     /// The date and time when the signing certificate was uploaded
     #[serde(rename = "UploadDate")]
     pub upload_date: DateTime<Utc>,
+
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Request to upload a signing certificate
@@ -203,12 +209,25 @@ where
         // Use provider for certificate ID generation
         let certificate_id = provider.generate_resource_id(ResourceType::SigningCertificate);
 
+        // Get account ID for WAMI ARN generation
+        let account_id = store.account_id();
+
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = provider.generate_wami_arn(
+            ResourceType::SigningCertificate,
+            account_id,
+            "/",
+            &certificate_id,
+        );
+
         let certificate = SigningCertificate {
             user_name: request.user_name.clone(),
             certificate_id,
             certificate_body: request.certificate_body,
             status: CertificateStatus::Active,
             upload_date: Utc::now(),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let created_cert = store.create_signing_certificate(certificate).await?;
