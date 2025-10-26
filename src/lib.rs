@@ -129,6 +129,12 @@ pub use iam::service_credentials::{
     ListServiceSpecificCredentialsResponse, ResetServiceSpecificCredentialRequest,
     ResetServiceSpecificCredentialResponse, UpdateServiceSpecificCredentialRequest,
 };
+pub use iam::service_linked_roles::{
+    CreateServiceLinkedRoleRequest, CreateServiceLinkedRoleResponse,
+    DeleteServiceLinkedRoleRequest, DeleteServiceLinkedRoleResponse, DeletionTaskFailureReason,
+    DeletionTaskInfo, DeletionTaskStatus, GetServiceLinkedRoleDeletionStatusRequest,
+    GetServiceLinkedRoleDeletionStatusResponse, RoleUsageType,
+};
 pub use iam::tags::{ListResourceTagsRequest, TagResourceRequest, UntagResourceRequest};
 pub use iam::users::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
 pub use sso_admin::{CreateAccountAssignmentRequest, CreatePermissionSetRequest};
