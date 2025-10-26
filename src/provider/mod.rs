@@ -41,6 +41,36 @@ mod tests;
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
 
+/// Provider configuration for tracking which cloud providers a resource exists on
+///
+/// This struct tracks the synchronization state of a resource across multiple cloud providers,
+/// including the provider-specific identifiers and sync timestamps.
+///
+/// # Example
+///
+/// ```rust
+/// use wami::provider::ProviderConfig;
+/// use chrono::Utc;
+///
+/// let config = ProviderConfig {
+///     provider_name: "aws".to_string(),
+///     account_id: "123456789012".to_string(),
+///     native_arn: "arn:aws:iam::123456789012:user/alice".to_string(),
+///     synced_at: Utc::now(),
+/// };
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProviderConfig {
+    /// The provider name (e.g., "aws", "gcp", "azure", "custom")
+    pub provider_name: String,
+    /// The account/project/subscription identifier
+    pub account_id: String,
+    /// The provider-specific ARN/identifier
+    pub native_arn: String,
+    /// When this resource was last synced to this provider
+    pub synced_at: chrono::DateTime<chrono::Utc>,
+}
+
 /// Resource type enumeration for cloud resources
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -257,6 +287,98 @@ pub trait CloudProvider: Send + Sync + std::fmt::Debug {
     ///
     /// A service-linked role path in the provider's format
     fn generate_service_linked_role_path(&self, service_name: &str) -> String;
+
+    /// Generates a WAMI ARN for cross-provider resource identification
+    ///
+    /// WAMI ARNs use the format `arn:wami:service::account:resource/path/name`
+    /// to provide a unified identifier across multiple cloud providers.
+    ///
+    /// # Arguments
+    ///
+    /// * `resource_type` - The type of resource
+    /// * `account_id` - The account/project/subscription identifier
+    /// * `path` - The resource path (may be empty for providers that don't use paths)
+    /// * `name` - The resource name
+    ///
+    /// # Returns
+    ///
+    /// A WAMI ARN in the format `arn:wami:iam::account:resource/path/name`
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wami::provider::{AwsProvider, CloudProvider, ResourceType};
+    ///
+    /// let provider = AwsProvider::default();
+    /// let wami_arn = provider.generate_wami_arn(
+    ///     ResourceType::User,
+    ///     "123456789012",
+    ///     "/engineering/",
+    ///     "alice"
+    /// );
+    /// assert_eq!(wami_arn, "arn:wami:iam::123456789012:user/engineering/alice");
+    /// ```
+    fn generate_wami_arn(
+        &self,
+        resource_type: ResourceType,
+        account_id: &str,
+        path: &str,
+        name: &str,
+    ) -> String {
+        // Default implementation: convert to AWS-style ARN format but with "wami" as provider
+        let service = match resource_type {
+            ResourceType::User
+            | ResourceType::Group
+            | ResourceType::Role
+            | ResourceType::Policy
+            | ResourceType::AccessKey
+            | ResourceType::MfaDevice
+            | ResourceType::ServiceLinkedRole
+            | ResourceType::ServiceCredential
+            | ResourceType::SigningCertificate
+            | ResourceType::ServerCertificate => "iam",
+        };
+
+        let resource_prefix = match resource_type {
+            ResourceType::User => "user",
+            ResourceType::Group => "group",
+            ResourceType::Role => "role",
+            ResourceType::Policy => "policy",
+            ResourceType::ServerCertificate => "server-certificate",
+            ResourceType::AccessKey => "access-key",
+            ResourceType::ServiceCredential => "service-credential",
+            ResourceType::ServiceLinkedRole => "role",
+            ResourceType::MfaDevice => "mfa",
+            ResourceType::SigningCertificate => "signing-certificate",
+        };
+
+        // Normalize path: ensure it starts with / and ends with / if not empty
+        let normalized_path = if path.is_empty() || path == "/" {
+            String::new()
+        } else {
+            let mut p = path.to_string();
+            if !p.starts_with('/') {
+                p.insert(0, '/');
+            }
+            if !p.ends_with('/') {
+                p.push('/');
+            }
+            // Remove leading / for the final format since we add it in the format string
+            p[1..].to_string()
+        };
+
+        if normalized_path.is_empty() {
+            format!(
+                "arn:wami:{}::{}:{}/{}",
+                service, account_id, resource_prefix, name
+            )
+        } else {
+            format!(
+                "arn:wami:{}::{}:{}/{}{}",
+                service, account_id, resource_prefix, normalized_path, name
+            )
+        }
+    }
 }
 
 // Re-export provider implementations

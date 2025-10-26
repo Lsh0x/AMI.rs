@@ -180,6 +180,8 @@ impl<S: Store> IamClient<S> {
 ///     password_last_used: None,
 ///     permissions_boundary: None,
 ///     tags: vec![],
+///     wami_arn: "arn:wami:iam::123456789012:user/alice".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -200,6 +202,10 @@ pub struct User {
     pub permissions_boundary: Option<String>,
     /// A list of tags associated with the user
     pub tags: Vec<crate::types::Tag>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Represents an IAM group
@@ -219,6 +225,8 @@ pub struct User {
 ///     path: "/engineering/".to_string(),
 ///     create_date: Utc::now(),
 ///     tags: vec![],
+///     wami_arn: "arn:wami:iam::123456789012:group/Developers".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -235,6 +243,10 @@ pub struct Group {
     pub create_date: chrono::DateTime<chrono::Utc>,
     /// A list of tags associated with the group
     pub tags: Vec<crate::types::Tag>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Represents an IAM role
@@ -258,6 +270,8 @@ pub struct Group {
 ///     max_session_duration: Some(3600),
 ///     permissions_boundary: None,
 ///     tags: vec![],
+///     wami_arn: "arn:wami:iam::123456789012:role/EC2-S3-Access".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -282,6 +296,10 @@ pub struct Role {
     pub permissions_boundary: Option<String>,
     /// A list of tags associated with the role
     pub tags: Vec<crate::types::Tag>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Represents an IAM managed policy
@@ -315,6 +333,10 @@ pub struct Policy {
     pub update_date: chrono::DateTime<chrono::Utc>,
     /// A list of tags associated with the policy
     pub tags: Vec<crate::types::Tag>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Represents an IAM access key
@@ -333,6 +355,8 @@ pub struct Policy {
 ///     status: "Active".to_string(),
 ///     create_date: Utc::now(),
 ///     secret_access_key: Some("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_string()),
+///     wami_arn: "arn:wami:iam::123456789012:access-key/AKIAIOSFODNN7EXAMPLE".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -347,6 +371,10 @@ pub struct AccessKey {
     pub create_date: chrono::DateTime<chrono::Utc>,
     /// The secret key used to sign requests (only provided when creating the key)
     pub secret_access_key: Option<String>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Represents an MFA (Multi-Factor Authentication) device
@@ -361,6 +389,8 @@ pub struct AccessKey {
 ///     user_name: "alice".to_string(),
 ///     serial_number: "arn:aws:iam::123456789012:mfa/alice".to_string(),
 ///     enable_date: Utc::now(),
+///     wami_arn: "arn:wami:iam::123456789012:mfa/alice".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -371,6 +401,10 @@ pub struct MfaDevice {
     pub serial_number: String,
     /// The date when the MFA device was enabled
     pub enable_date: chrono::DateTime<chrono::Utc>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Represents a login profile (console password) for an IAM user
@@ -385,6 +419,8 @@ pub struct MfaDevice {
 ///     user_name: "alice".to_string(),
 ///     create_date: Utc::now(),
 ///     password_reset_required: false,
+///     wami_arn: "arn:wami:iam::123456789012:login-profile/alice".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -395,6 +431,10 @@ pub struct LoginProfile {
     pub create_date: chrono::DateTime<chrono::Utc>,
     /// Whether the user must reset their password on next sign-in
     pub password_reset_required: bool,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 // Re-export all sub-modules for easy access

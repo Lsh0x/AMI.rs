@@ -125,6 +125,14 @@ impl<S: Store> IamClient<S> {
             &request.policy_name,
         );
 
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = provider.generate_wami_arn(
+            ResourceType::Policy,
+            account_id,
+            &path,
+            &request.policy_name,
+        );
+
         let policy = Policy {
             policy_name: request.policy_name.clone(),
             policy_id: policy_id.clone(),
@@ -139,6 +147,8 @@ impl<S: Store> IamClient<S> {
             create_date: chrono::Utc::now(),
             update_date: chrono::Utc::now(),
             tags: request.tags.unwrap_or_default(),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let created_policy = store.create_policy(policy).await?;

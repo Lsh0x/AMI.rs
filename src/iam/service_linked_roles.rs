@@ -213,6 +213,14 @@ where
             &role_name,
         );
 
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = provider.generate_wami_arn(
+            ResourceType::ServiceLinkedRole,
+            account_id,
+            &path,
+            &role_name,
+        );
+
         let role = Role {
             role_name: role_name.clone(),
             role_id,
@@ -224,6 +232,8 @@ where
             max_session_duration: Some(3600), // Default to 1 hour
             permissions_boundary: None,
             tags: vec![],
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let created_role = store.create_role(role).await?;

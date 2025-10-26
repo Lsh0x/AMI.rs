@@ -91,11 +91,25 @@ impl<S: Store> crate::iam::IamClient<S> {
             });
         }
 
+        // Get provider and account ID for WAMI ARN generation
+        let provider = store.cloud_provider();
+        let account_id = store.account_id();
+
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = provider.generate_wami_arn(
+            crate::provider::ResourceType::MfaDevice,
+            account_id,
+            "/",
+            &request.user_name,
+        );
+
         // Create the MFA device
         let mfa_device = MfaDevice {
             user_name: request.user_name.clone(),
             serial_number: request.serial_number.clone(),
             enable_date: chrono::Utc::now(),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let created_device = store.create_mfa_device(mfa_device).await?;

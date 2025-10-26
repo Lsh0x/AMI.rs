@@ -41,6 +41,12 @@ pub struct ServiceSpecificCredential {
     /// The status of the credential (Active or Inactive)
     #[serde(rename = "Status")]
     pub status: String,
+
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Metadata about a service-specific credential (without password)
@@ -247,6 +253,10 @@ impl<S: Store> IamClient<S> {
         // Generate service password (random string)
         let service_password = uuid::Uuid::new_v4().to_string().replace('-', "");
 
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn =
+            provider.generate_wami_arn(ResourceType::ServiceCredential, account_id, "/", &cred_id);
+
         let credential = ServiceSpecificCredential {
             user_name: request.user_name.clone(),
             service_specific_credential_id: cred_id,
@@ -255,6 +265,8 @@ impl<S: Store> IamClient<S> {
             service_name: request.service_name,
             create_date: Utc::now(),
             status: "Active".to_string(),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         store

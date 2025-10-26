@@ -76,6 +76,9 @@ pub use types::{AmiResponse, AwsConfig, PaginationParams, PolicyDocument, Policy
 pub use store::in_memory::InMemoryStore;
 pub use store::{IamStore, SsoAdminStore, Store, StsStore};
 
+// Re-export provider types
+pub use provider::ProviderConfig;
+
 // Re-export clients (now generic over stores)
 pub use iam::IamClient;
 pub use sso_admin::SsoAdminClient;

@@ -56,6 +56,10 @@ impl<S: Store> crate::iam::IamClient<S> {
             &request.group_name,
         );
 
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn =
+            provider.generate_wami_arn(ResourceType::Group, account_id, &path, &request.group_name);
+
         let group = Group {
             group_name: request.group_name.clone(),
             group_id: group_id.clone(),
@@ -63,6 +67,8 @@ impl<S: Store> crate::iam::IamClient<S> {
             path,
             create_date: chrono::Utc::now(),
             tags: request.tags.unwrap_or_default(),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let created_group = store.create_group(group).await?;

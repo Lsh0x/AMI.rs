@@ -128,6 +128,8 @@ impl<S: Store> SsoAdminClient<S> {
 ///     created_date: Utc::now(),
 ///     session_duration: Some("PT8H".to_string()),
 ///     relay_state: None,
+///     wami_arn: "arn:wami:sso:::permissionSet/ssoins-1234/ps-5678".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -144,6 +146,10 @@ pub struct PermissionSet {
     pub session_duration: Option<String>,
     /// The relay state URL for the application
     pub relay_state: Option<String>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Represents an SSO account assignment
@@ -162,6 +168,8 @@ pub struct PermissionSet {
 ///     principal_type: "USER".to_string(),
 ///     principal_id: "user-id-12345".to_string(),
 ///     created_date: Utc::now(),
+///     wami_arn: "arn:wami:sso:::account-assignment/123456789012-ps-5678-user-id-12345".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -176,6 +184,10 @@ pub struct AccountAssignment {
     pub principal_id: String,
     /// The date and time when the assignment was created
     pub created_date: chrono::DateTime<chrono::Utc>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Represents an SSO instance
@@ -191,6 +203,8 @@ pub struct AccountAssignment {
 ///     identity_store_id: "d-1234567890".to_string(),
 ///     owner_account_id: "123456789012".to_string(),
 ///     created_date: Utc::now(),
+///     wami_arn: "arn:wami:sso:::instance/ssoins-1234".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -203,6 +217,10 @@ pub struct SsoInstance {
     pub owner_account_id: String,
     /// The date and time when the instance was created
     pub created_date: chrono::DateTime<chrono::Utc>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Represents an SSO application
@@ -218,6 +236,8 @@ pub struct SsoInstance {
 ///     name: "MyApp".to_string(),
 ///     description: Some("My application".to_string()),
 ///     created_date: Utc::now(),
+///     wami_arn: "arn:wami:sso:::application/ssoins-1234/app-5678".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -230,6 +250,10 @@ pub struct Application {
     pub description: Option<String>,
     /// The date and time when the application was created
     pub created_date: chrono::DateTime<chrono::Utc>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Represents a trusted token issuer
@@ -245,6 +269,8 @@ pub struct Application {
 ///     name: "OktaIssuer".to_string(),
 ///     issuer_url: "https://okta.example.com".to_string(),
 ///     created_date: Utc::now(),
+///     wami_arn: "arn:wami:sso:::trustedTokenIssuer/ssoins-1234/tti-5678".to_string(),
+///     providers: vec![],
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -257,6 +283,10 @@ pub struct TrustedTokenIssuer {
     pub issuer_url: String,
     /// The date and time when the issuer was created
     pub created_date: chrono::DateTime<chrono::Utc>,
+    /// The WAMI ARN for cross-provider identification
+    pub wami_arn: String,
+    /// List of cloud providers where this resource exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
 }
 
 /// Request to create a permission set
@@ -359,6 +389,12 @@ impl<S: Store> SsoAdminClient<S> {
             uuid::Uuid::new_v4()
         );
 
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = format!(
+            "arn:wami:sso:::permissionSet/ssoins-{}",
+            uuid::Uuid::new_v4()
+        );
+
         let permission_set = PermissionSet {
             permission_set_arn: permission_set_arn.clone(),
             name: request.name.clone(),
@@ -366,6 +402,8 @@ impl<S: Store> SsoAdminClient<S> {
             created_date: chrono::Utc::now(),
             session_duration: request.session_duration,
             relay_state: request.relay_state,
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let store = self.sso_admin_store().await?;
@@ -485,12 +523,20 @@ impl<S: Store> SsoAdminClient<S> {
         &mut self,
         request: CreateAccountAssignmentRequest,
     ) -> Result<AmiResponse<AccountAssignment>> {
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = format!(
+            "arn:wami:sso:::account-assignment/{}-{}-{}",
+            request.target_id, request.permission_set_arn, request.principal_id
+        );
+
         let assignment = AccountAssignment {
             account_id: request.target_id.clone(),
             permission_set_arn: request.permission_set_arn.clone(),
             principal_type: request.principal_type.clone(),
             principal_id: request.principal_id.clone(),
             created_date: chrono::Utc::now(),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let store = self.sso_admin_store().await?;
@@ -561,11 +607,19 @@ impl<S: Store> SsoAdminClient<S> {
             uuid::Uuid::new_v4()
         );
 
+        // Generate WAMI ARN for cross-provider identification
+        let wami_arn = format!(
+            "arn:wami:sso:::trustedTokenIssuer/ssoins-{}",
+            uuid::Uuid::new_v4()
+        );
+
         let issuer = TrustedTokenIssuer {
             trusted_token_issuer_arn: trusted_token_issuer_arn.clone(),
             name: name.clone(),
             issuer_url: issuer_url.clone(),
             created_date: chrono::Utc::now(),
+            wami_arn,
+            providers: Vec::new(),
         };
 
         let store = self.sso_admin_store().await?;
