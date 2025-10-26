@@ -35,6 +35,9 @@ pub mod azure;
 pub mod custom;
 pub mod gcp;
 
+#[cfg(test)]
+mod tests;
+
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
 
