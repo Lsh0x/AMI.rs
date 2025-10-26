@@ -18,6 +18,7 @@ pub struct InMemoryIamStore {
     login_profiles: HashMap<String, LoginProfile>,
     user_groups: HashMap<String, Vec<String>>, // user_name -> group_names
     credential_report: Option<crate::iam::reports::CredentialReport>,
+    server_certificates: HashMap<String, crate::iam::ServerCertificate>, // cert_name -> certificate
 }
 
 impl Default for InMemoryIamStore {
@@ -39,6 +40,7 @@ impl InMemoryIamStore {
             login_profiles: HashMap::new(),
             user_groups: HashMap::new(),
             credential_report: None,
+            server_certificates: HashMap::new(),
         }
     }
 
@@ -54,6 +56,7 @@ impl InMemoryIamStore {
             login_profiles: HashMap::new(),
             user_groups: HashMap::new(),
             credential_report: None,
+            server_certificates: HashMap::new(),
         }
     }
 }
@@ -486,5 +489,89 @@ impl IamStore for InMemoryIamStore {
 
     async fn get_credential_report(&self) -> Result<Option<crate::iam::reports::CredentialReport>> {
         Ok(self.credential_report.clone())
+    }
+
+    async fn create_server_certificate(
+        &mut self,
+        certificate: crate::iam::ServerCertificate,
+    ) -> Result<crate::iam::ServerCertificate> {
+        self.server_certificates.insert(
+            certificate
+                .server_certificate_metadata
+                .server_certificate_name
+                .clone(),
+            certificate.clone(),
+        );
+        Ok(certificate)
+    }
+
+    async fn get_server_certificate(
+        &self,
+        certificate_name: &str,
+    ) -> Result<Option<crate::iam::ServerCertificate>> {
+        Ok(self.server_certificates.get(certificate_name).cloned())
+    }
+
+    async fn update_server_certificate(
+        &mut self,
+        certificate: crate::iam::ServerCertificate,
+    ) -> Result<crate::iam::ServerCertificate> {
+        self.server_certificates.insert(
+            certificate
+                .server_certificate_metadata
+                .server_certificate_name
+                .clone(),
+            certificate.clone(),
+        );
+        Ok(certificate)
+    }
+
+    async fn delete_server_certificate(&mut self, certificate_name: &str) -> Result<()> {
+        self.server_certificates.remove(certificate_name);
+        Ok(())
+    }
+
+    async fn list_server_certificates(
+        &self,
+        path_prefix: Option<&str>,
+        pagination: Option<&PaginationParams>,
+    ) -> Result<(Vec<crate::iam::ServerCertificate>, bool, Option<String>)> {
+        let mut certificates: Vec<crate::iam::ServerCertificate> =
+            self.server_certificates.values().cloned().collect();
+
+        // Apply path prefix filter
+        if let Some(prefix) = path_prefix {
+            certificates.retain(|cert| cert.server_certificate_metadata.path.starts_with(prefix));
+        }
+
+        // Sort by certificate name
+        certificates.sort_by(|a, b| {
+            a.server_certificate_metadata
+                .server_certificate_name
+                .cmp(&b.server_certificate_metadata.server_certificate_name)
+        });
+
+        // Apply pagination
+        let mut is_truncated = false;
+        let mut marker = None;
+
+        if let Some(pagination) = pagination {
+            if let Some(max_items) = pagination.max_items {
+                if certificates.len() > max_items as usize {
+                    certificates.truncate(max_items as usize);
+                    is_truncated = true;
+                    marker = Some(
+                        certificates
+                            .last()
+                            .unwrap()
+                            .server_certificate_metadata
+                            .server_certificate_name
+                            .clone(),
+                    );
+                }
+            }
+        }
+
+        Ok((certificates, is_truncated, marker))
     }
 }
