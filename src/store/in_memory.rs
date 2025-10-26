@@ -1,13 +1,16 @@
 use crate::error::Result;
+use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::memory::InMemoryIamStore;
 use crate::store::memory_sts_sso::{InMemorySsoAdminStore, InMemoryStsStore};
 use crate::store::Store;
 use async_trait::async_trait;
+use std::sync::Arc;
 
 /// Main store implementation that combines all sub-stores
 #[derive(Debug, Clone)]
 pub struct InMemoryStore {
     pub account_id: String,
+    provider: Arc<dyn CloudProvider>,
     pub iam_store: InMemoryIamStore,
     pub sts_store: InMemoryStsStore,
     pub sso_admin_store: InMemorySsoAdminStore,
@@ -21,23 +24,53 @@ impl Default for InMemoryStore {
 
 impl InMemoryStore {
     pub fn new() -> Self {
-        let account_id = crate::types::AwsConfig::generate_account_id();
-        log::info!("Generated AWS account ID: {}", account_id);
-        Self::log_aws_environment_variables(&account_id);
-        Self {
-            account_id: account_id.clone(),
-            iam_store: InMemoryIamStore::with_account_id(account_id.clone()),
-            sts_store: InMemoryStsStore::with_account_id(account_id.clone()),
-            sso_admin_store: InMemorySsoAdminStore::default(),
-        }
+        Self::with_provider(Arc::new(AwsProvider::new()))
     }
 
     pub fn with_account_id(account_id: String) -> Self {
-        log::info!("Using provided AWS account ID: {}", account_id);
+        Self::with_account_and_provider(account_id, Arc::new(AwsProvider::new()))
+    }
+
+    /// Creates a new in-memory store with a custom provider
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wami::store::in_memory::InMemoryStore;
+    /// use wami::provider::{AwsProvider, GcpProvider, CustomProvider};
+    /// use std::sync::Arc;
+    ///
+    /// // AWS provider (default)
+    /// let aws_store = InMemoryStore::with_provider(Arc::new(AwsProvider::new()));
+    ///
+    /// // GCP provider
+    /// let gcp_store = InMemoryStore::with_provider(Arc::new(GcpProvider::new("my-project")));
+    ///
+    /// // Custom provider
+    /// let custom = CustomProvider::builder()
+    ///     .name("mycloud")
+    ///     .build();
+    /// let custom_store = InMemoryStore::with_provider(Arc::new(custom));
+    /// ```
+    pub fn with_provider(provider: Arc<dyn CloudProvider>) -> Self {
+        let account_id = crate::types::AwsConfig::generate_account_id();
+        log::info!("Generated account ID: {}", account_id);
+        Self::log_aws_environment_variables(&account_id);
+        Self::with_account_and_provider(account_id, provider)
+    }
+
+    /// Creates a new in-memory store with a specific account ID and provider
+    pub fn with_account_and_provider(account_id: String, provider: Arc<dyn CloudProvider>) -> Self {
+        log::info!("Using provided account ID: {}", account_id);
+        log::info!("Using provider: {}", provider.name());
         Self::log_aws_environment_variables(&account_id);
         Self {
             account_id: account_id.clone(),
-            iam_store: InMemoryIamStore::with_account_id(account_id.clone()),
+            provider: Arc::clone(&provider),
+            iam_store: InMemoryIamStore::with_account_and_provider(
+                account_id.clone(),
+                Arc::clone(&provider),
+            ),
             sts_store: InMemoryStsStore::with_account_id(account_id.clone()),
             sso_admin_store: InMemorySsoAdminStore::default(),
         }
@@ -97,6 +130,10 @@ impl Store for InMemoryStore {
     type IamStore = InMemoryIamStore;
     type StsStore = InMemoryStsStore;
     type SsoAdminStore = InMemorySsoAdminStore;
+
+    fn cloud_provider(&self) -> &dyn CloudProvider {
+        self.provider.as_ref()
+    }
 
     async fn iam_store(&mut self) -> Result<&mut Self::IamStore> {
         Ok(&mut self.iam_store)

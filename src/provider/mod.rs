@@ -101,7 +101,7 @@ impl Default for ResourceLimits {
 /// This trait allows the library to work with different cloud providers
 /// by abstracting provider-specific details like ARN formats, ID generation,
 /// resource limits, and validation rules.
-pub trait CloudProvider: Send + Sync {
+pub trait CloudProvider: Send + Sync + std::fmt::Debug {
     /// Returns the provider name (e.g., "aws", "gcp", "azure", "custom")
     fn name(&self) -> &str;
 
