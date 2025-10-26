@@ -59,8 +59,8 @@
 pub mod access_key;
 pub mod group;
 pub mod identity_providers;
+pub mod login_profile;
 pub mod mfa_device;
-pub mod passwords;
 pub mod permissions_boundaries;
 pub mod policy;
 pub mod policy_evaluation;
@@ -75,7 +75,6 @@ pub mod user;
 
 use crate::error::Result;
 use crate::store::{IamStore, Store};
-use serde::{Deserialize, Serialize};
 
 /// IAM client for managing AWS Identity and Access Management resources
 ///
@@ -173,41 +172,16 @@ pub use policy::Policy;
 pub use access_key::AccessKey;
 // MfaDevice is now defined in iam::mfa_device::model
 pub use mfa_device::MfaDevice;
-
-/// Represents a login profile (console password) for an IAM user
-///
-/// # Example
-///
-/// ```rust
-/// use wami::LoginProfile;
-/// use chrono::Utc;
-///
-/// let profile = LoginProfile {
-///     user_name: "alice".to_string(),
-///     create_date: Utc::now(),
-///     password_reset_required: false,
-///     wami_arn: "arn:wami:iam::123456789012:login-profile/alice".to_string(),
-///     providers: vec![],
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LoginProfile {
-    /// The user with whom the login profile is associated
-    pub user_name: String,
-    /// The date when the login profile was created
-    pub create_date: chrono::DateTime<chrono::Utc>,
-    /// Whether the user must reset their password on next sign-in
-    pub password_reset_required: bool,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
-    /// List of cloud providers where this resource exists
-    pub providers: Vec<crate::provider::ProviderConfig>,
-}
+// LoginProfile is now defined in iam::login_profile::model
+pub use login_profile::LoginProfile;
 
 // Re-export all sub-modules for easy access
 pub use access_key::{
     AccessKeyLastUsed, CreateAccessKeyRequest, ListAccessKeysRequest, ListAccessKeysResponse,
     UpdateAccessKeyRequest,
+};
+pub use login_profile::{
+    CreateLoginProfileRequest, GetLoginProfileRequest, UpdateLoginProfileRequest,
 };
 pub use mfa_device::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
 pub use server_certificates::{ServerCertificate, ServerCertificateMetadata};
