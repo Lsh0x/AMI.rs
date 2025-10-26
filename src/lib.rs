@@ -66,6 +66,7 @@ pub mod provider;
 pub mod sso_admin;
 pub mod store;
 pub mod sts;
+pub mod tenant;
 pub mod types;
 
 // Re-export main types for convenience
@@ -83,6 +84,7 @@ pub use provider::ProviderConfig;
 pub use iam::IamClient;
 pub use sso_admin::SsoAdminClient;
 pub use sts::StsClient;
+pub use tenant::TenantClient;
 
 // Re-export IAM types
 pub use iam::{
@@ -96,6 +98,12 @@ pub use sts::{CallerIdentity, Credentials, StsSession};
 // Re-export SSO Admin types
 pub use sso_admin::{
     AccountAssignment, Application, PermissionSet, SsoInstance, TrustedTokenIssuer,
+};
+
+// Re-export Tenant types
+pub use tenant::{
+    BillingInfo, QuotaMode, Tenant, TenantAction, TenantId, TenantQuotas, TenantStatus, TenantType,
+    TenantUsage,
 };
 
 // Re-export request/response types
@@ -150,18 +158,20 @@ pub use iam::user::{CreateUserRequest, ListUsersRequest, ListUsersResponse, Upda
 pub use sso_admin::{CreateAccountAssignmentRequest, CreatePermissionSetRequest};
 pub use sts::{AssumeRoleRequest, GetFederationTokenRequest, GetSessionTokenRequest};
 
-/// Initialize all AWS clients with in-memory storage
+/// Initialize all clients with in-memory storage
 pub fn initialize_clients_with_memory_store() -> (
     IamClient<InMemoryStore>,
     StsClient<InMemoryStore>,
     SsoAdminClient<InMemoryStore>,
+    TenantClient<InMemoryStore>,
 ) {
     let store = InMemoryStore::new();
     let iam_client = IamClient::new(store.clone());
     let sts_client = StsClient::new(store.clone());
-    let sso_client = SsoAdminClient::new(store);
+    let sso_client = SsoAdminClient::new(store.clone());
+    let tenant_client = TenantClient::new(store, "admin@example.com".to_string());
 
-    (iam_client, sts_client, sso_client)
+    (iam_client, sts_client, sso_client, tenant_client)
 }
 
 /// Create a new in-memory store
@@ -195,3 +205,4 @@ pub fn print_aws_environment_variables(store: &InMemoryStore) {
 pub type MemoryIamClient = IamClient<InMemoryStore>;
 pub type MemoryStsClient = StsClient<InMemoryStore>;
 pub type MemorySsoAdminClient = SsoAdminClient<InMemoryStore>;
+pub type MemoryTenantClient = TenantClient<InMemoryStore>;

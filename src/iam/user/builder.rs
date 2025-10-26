@@ -208,6 +208,7 @@ mod tests {
             account_id: "123456789012".to_string(),
             native_arn: "arn:aws:iam::123456789012:user/test-user".to_string(),
             synced_at: chrono::Utc::now(),
+            tenant_id: None,
         };
 
         let updated = add_provider_to_user(user, config);

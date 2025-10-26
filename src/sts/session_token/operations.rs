@@ -74,6 +74,7 @@ where
                 &creds.session_token,
             ),
             synced_at: chrono::Utc::now(),
+            tenant_id: None, // STS sessions are not currently tenant-scoped
         };
 
         // 7. Create session
