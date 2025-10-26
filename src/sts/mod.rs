@@ -15,7 +15,7 @@
 //! # Example
 //!
 //! ```rust
-//! use wami::{MemoryStsClient, AssumeRoleRequest};
+//! use wami::{MemoryStsClient, sts::AssumeRoleRequest};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let store = wami::create_memory_store();
@@ -41,11 +41,25 @@
 
 use crate::error::Result;
 use crate::store::{Store, StsStore};
-use crate::types::AmiResponse;
-use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 mod tests;
+
+// Self-contained modules
+pub mod assume_role;
+pub mod credentials;
+pub mod federation;
+pub mod identity;
+pub mod session;
+pub mod session_token;
+
+// Re-exports from sub-modules
+pub use assume_role::{AssumeRoleRequest, AssumeRoleResponse, AssumedRoleUser};
+pub use credentials::{CredentialType, Credentials};
+pub use federation::{FederatedUser, GetFederationTokenRequest, GetFederationTokenResponse};
+pub use identity::CallerIdentity;
+pub use session::{SessionStatus, StsSession};
+pub use session_token::GetSessionTokenRequest;
 
 /// STS client for managing temporary AWS credentials and identity operations
 ///
@@ -73,7 +87,7 @@ mod tests;
 /// ```
 #[derive(Debug)]
 pub struct StsClient<S: Store> {
-    store: S,
+    pub(crate) store: S,
 }
 
 impl<S: Store> StsClient<S> {
@@ -96,7 +110,7 @@ impl<S: Store> StsClient<S> {
     }
 
     /// Get mutable reference to the STS store
-    async fn sts_store(&mut self) -> Result<&mut S::StsStore> {
+    pub(crate) async fn sts_store(&mut self) -> Result<&mut S::StsStore> {
         self.store.sts_store().await
     }
 
@@ -119,478 +133,5 @@ impl<S: Store> StsClient<S> {
     pub async fn account_id(&mut self) -> Result<String> {
         let store = self.sts_store().await?;
         Ok(store.account_id().to_string())
-    }
-}
-
-/// Represents an STS session with temporary credentials
-///
-/// # Example
-///
-/// ```rust
-/// use wami::StsSession;
-/// use chrono::Utc;
-///
-/// let session = StsSession {
-///     session_token: "FwoGZXIvYXdzEBYaDH...".to_string(),
-///     access_key_id: "ASIAIOSFODNN7EXAMPLE".to_string(),
-///     secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_string(),
-///     expiration: Utc::now() + chrono::Duration::hours(1),
-///     assumed_role_arn: Some("arn:aws:iam::123456789012:role/MyRole".to_string()),
-///     wami_arn: "arn:wami:sts::123456789012:assumed-role/session".to_string(),
-///     providers: vec![],
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StsSession {
-    /// The session token for temporary credentials
-    pub session_token: String,
-    /// The access key ID
-    pub access_key_id: String,
-    /// The secret access key
-    pub secret_access_key: String,
-    /// When the credentials expire
-    pub expiration: chrono::DateTime<chrono::Utc>,
-    /// The ARN of the assumed role (if any)
-    pub assumed_role_arn: Option<String>,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
-    /// List of cloud providers where this resource exists
-    pub providers: Vec<crate::provider::ProviderConfig>,
-}
-
-/// Information about the caller's identity
-///
-/// # Example
-///
-/// ```rust
-/// use wami::CallerIdentity;
-///
-/// let identity = CallerIdentity {
-///     user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
-///     account: "123456789012".to_string(),
-///     arn: "arn:aws:iam::123456789012:user/alice".to_string(),
-///     wami_arn: "arn:wami:iam::123456789012:user/alice".to_string(),
-///     providers: vec![],
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CallerIdentity {
-    /// The unique identifier of the calling entity
-    pub user_id: String,
-    /// The AWS account ID
-    pub account: String,
-    /// The ARN of the calling entity
-    pub arn: String,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
-    /// List of cloud providers where this resource exists
-    pub providers: Vec<crate::provider::ProviderConfig>,
-}
-
-/// Request to assume an IAM role
-///
-/// # Example
-///
-/// ```rust
-/// use wami::AssumeRoleRequest;
-///
-/// let request = AssumeRoleRequest {
-///     role_arn: "arn:aws:iam::123456789012:role/S3Access".to_string(),
-///     role_session_name: "my-app-session".to_string(),
-///     duration_seconds: Some(3600),
-///     external_id: Some("unique-external-id".to_string()),
-///     policy: None,
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AssumeRoleRequest {
-    /// The ARN of the role to assume
-    pub role_arn: String,
-    /// An identifier for the assumed role session
-    pub role_session_name: String,
-    /// The duration of the session in seconds (default: 3600, max: 43200)
-    pub duration_seconds: Option<i32>,
-    /// A unique identifier used by third parties for assuming a role
-    pub external_id: Option<String>,
-    /// An IAM policy in JSON format to further restrict permissions
-    pub policy: Option<String>,
-}
-
-/// Request to get a session token
-///
-/// # Example
-///
-/// ```rust
-/// use wami::GetSessionTokenRequest;
-///
-/// let request = GetSessionTokenRequest {
-///     duration_seconds: Some(3600),
-///     serial_number: Some("arn:aws:iam::123456789012:mfa/alice".to_string()),
-///     token_code: Some("123456".to_string()),
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GetSessionTokenRequest {
-    /// The duration of the session in seconds
-    pub duration_seconds: Option<i32>,
-    /// The identification number of the MFA device
-    pub serial_number: Option<String>,
-    /// The value provided by the MFA device
-    pub token_code: Option<String>,
-}
-
-/// Request to get a federation token
-///
-/// # Example
-///
-/// ```rust
-/// use wami::GetFederationTokenRequest;
-///
-/// let request = GetFederationTokenRequest {
-///     name: "federated-user".to_string(),
-///     duration_seconds: Some(3600),
-///     policy: Some(r#"{"Version":"2012-10-17","Statement":[]}"#.to_string()),
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GetFederationTokenRequest {
-    /// The name of the federated user
-    pub name: String,
-    /// The duration of the session in seconds
-    pub duration_seconds: Option<i32>,
-    /// An IAM policy in JSON format
-    pub policy: Option<String>,
-}
-
-/// Temporary AWS credentials
-///
-/// # Example
-///
-/// ```rust
-/// use wami::Credentials;
-/// use chrono::Utc;
-///
-/// let credentials = Credentials {
-///     access_key_id: "ASIAIOSFODNN7EXAMPLE".to_string(),
-///     secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_string(),
-///     session_token: "FwoGZXIvYXdzEBYaDH...".to_string(),
-///     expiration: Utc::now() + chrono::Duration::hours(1),
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Credentials {
-    /// The access key ID
-    pub access_key_id: String,
-    /// The secret access key
-    pub secret_access_key: String,
-    /// The session token
-    pub session_token: String,
-    /// When the credentials expire
-    pub expiration: chrono::DateTime<chrono::Utc>,
-}
-
-impl<S: Store> StsClient<S> {
-    /// Assumes an IAM role and returns temporary security credentials
-    ///
-    /// Returns temporary security credentials that you can use to access AWS resources.
-    /// These credentials consist of an access key ID, a secret access key, and a security token.
-    ///
-    /// # Arguments
-    ///
-    /// * `request` - The assume role request parameters
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::{MemoryStsClient, AssumeRoleRequest};
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = wami::create_memory_store();
-    /// let mut sts_client = MemoryStsClient::new(store);
-    ///
-    /// let request = AssumeRoleRequest {
-    ///     role_arn: "arn:aws:iam::123456789012:role/DataScientist".to_string(),
-    ///     role_session_name: "analytics-session".to_string(),
-    ///     duration_seconds: Some(3600),
-    ///     external_id: None,
-    ///     policy: None,
-    /// };
-    ///
-    /// let response = sts_client.assume_role(request).await?;
-    /// let credentials = response.data.unwrap();
-    /// println!("Access Key: {}", credentials.access_key_id);
-    /// println!("Expires: {}", credentials.expiration);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn assume_role(
-        &mut self,
-        request: AssumeRoleRequest,
-    ) -> Result<AmiResponse<Credentials>> {
-        let session_token = format!("{}", uuid::Uuid::new_v4());
-        let access_key_id = format!(
-            "ASIA{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(17)
-                .collect::<String>()
-        );
-        let secret_access_key = uuid::Uuid::new_v4().to_string().replace('-', "");
-
-        let duration = request.duration_seconds.unwrap_or(3600);
-        let expiration = chrono::Utc::now() + chrono::Duration::seconds(duration as i64);
-
-        let credentials = Credentials {
-            access_key_id: access_key_id.clone(),
-            secret_access_key: secret_access_key.clone(),
-            session_token: session_token.clone(),
-            expiration,
-        };
-
-        let store = self.sts_store().await?;
-        let account_id = store.account_id();
-
-        // Generate WAMI ARN for cross-provider identification
-        let wami_arn = format!(
-            "arn:wami:sts::{}:assumed-role/{}",
-            account_id, session_token
-        );
-
-        let session = StsSession {
-            session_token: session_token.clone(),
-            access_key_id: access_key_id.clone(),
-            secret_access_key: secret_access_key.clone(),
-            expiration,
-            assumed_role_arn: Some(request.role_arn),
-            wami_arn,
-            providers: Vec::new(),
-        };
-
-        store.create_session(session).await?;
-
-        Ok(AmiResponse::success(credentials))
-    }
-
-    /// Assume role with SAML
-    pub async fn assume_role_with_saml(
-        &mut self,
-        role_arn: String,
-        _principal_arn: String,
-        _saml_assertion: String,
-    ) -> Result<AmiResponse<Credentials>> {
-        // In a real implementation, this would validate the SAML assertion
-        let request = AssumeRoleRequest {
-            role_arn,
-            role_session_name: "saml-session".to_string(),
-            duration_seconds: Some(3600),
-            external_id: None,
-            policy: None,
-        };
-
-        self.assume_role(request).await
-    }
-
-    /// Assume role with web identity
-    pub async fn assume_role_with_web_identity(
-        &mut self,
-        role_arn: String,
-        _web_identity_token: String,
-        role_session_name: String,
-    ) -> Result<AmiResponse<Credentials>> {
-        // In a real implementation, this would validate the web identity token
-        let request = AssumeRoleRequest {
-            role_arn,
-            role_session_name,
-            duration_seconds: Some(3600),
-            external_id: None,
-            policy: None,
-        };
-
-        self.assume_role(request).await
-    }
-
-    /// Assume role with client grants
-    pub async fn assume_role_with_client_grants(
-        &mut self,
-        role_arn: String,
-        _client_grant_token: String,
-    ) -> Result<AmiResponse<Credentials>> {
-        // In a real implementation, this would validate the client grant token
-        let request = AssumeRoleRequest {
-            role_arn,
-            role_session_name: "client-grants-session".to_string(),
-            duration_seconds: Some(3600),
-            external_id: None,
-            policy: None,
-        };
-
-        self.assume_role(request).await
-    }
-
-    /// Get federation token
-    pub async fn get_federation_token(
-        &mut self,
-        request: GetFederationTokenRequest,
-    ) -> Result<AmiResponse<Credentials>> {
-        let session_token = format!("{}", uuid::Uuid::new_v4());
-        let access_key_id = format!(
-            "ASIA{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(17)
-                .collect::<String>()
-        );
-        let secret_access_key = uuid::Uuid::new_v4().to_string().replace('-', "");
-
-        let duration = request.duration_seconds.unwrap_or(3600);
-        let expiration = chrono::Utc::now() + chrono::Duration::seconds(duration as i64);
-
-        let credentials = Credentials {
-            access_key_id: access_key_id.clone(),
-            secret_access_key: secret_access_key.clone(),
-            session_token: session_token.clone(),
-            expiration,
-        };
-
-        let store = self.sts_store().await?;
-        let account_id = store.account_id();
-
-        // Generate WAMI ARN for cross-provider identification
-        let wami_arn = format!(
-            "arn:wami:sts::{}:federated-user/{}",
-            account_id, request.name
-        );
-
-        let session = StsSession {
-            session_token: session_token.clone(),
-            access_key_id: access_key_id.clone(),
-            secret_access_key: secret_access_key.clone(),
-            expiration,
-            assumed_role_arn: None,
-            wami_arn,
-            providers: Vec::new(),
-        };
-
-        store.create_session(session).await?;
-
-        Ok(AmiResponse::success(credentials))
-    }
-
-    /// Get session token
-    pub async fn get_session_token(
-        &mut self,
-        request: Option<GetSessionTokenRequest>,
-    ) -> Result<AmiResponse<Credentials>> {
-        let session_token = format!("{}", uuid::Uuid::new_v4());
-        let access_key_id = format!(
-            "ASIA{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(17)
-                .collect::<String>()
-        );
-        let secret_access_key = uuid::Uuid::new_v4().to_string().replace('-', "");
-
-        let duration = request
-            .as_ref()
-            .and_then(|r| r.duration_seconds)
-            .unwrap_or(3600);
-        let expiration = chrono::Utc::now() + chrono::Duration::seconds(duration as i64);
-
-        let credentials = Credentials {
-            access_key_id: access_key_id.clone(),
-            secret_access_key: secret_access_key.clone(),
-            session_token: session_token.clone(),
-            expiration,
-        };
-
-        let store = self.sts_store().await?;
-        let account_id = store.account_id();
-
-        // Generate WAMI ARN for cross-provider identification
-        let wami_arn = format!("arn:wami:sts::{}:session/{}", account_id, session_token);
-
-        let session = StsSession {
-            session_token: session_token.clone(),
-            access_key_id: access_key_id.clone(),
-            secret_access_key: secret_access_key.clone(),
-            expiration,
-            assumed_role_arn: None,
-            wami_arn,
-            providers: Vec::new(),
-        };
-
-        store.create_session(session).await?;
-
-        Ok(AmiResponse::success(credentials))
-    }
-
-    /// Decode authorization message
-    pub async fn decode_authorization_message(
-        &self,
-        encoded_message: String,
-    ) -> Result<AmiResponse<String>> {
-        // In a real implementation, this would decode the authorization message
-        // For now, return a placeholder decoded message
-        let decoded = format!("Decoded message for: {}", encoded_message);
-        Ok(AmiResponse::success(decoded))
-    }
-
-    /// Get access key info
-    pub async fn get_access_key_info(
-        &mut self,
-        _access_key_id: String,
-    ) -> Result<AmiResponse<String>> {
-        let store = self.sts_store().await?;
-        let account_id = store.account_id();
-        Ok(AmiResponse::success(account_id.to_string()))
-    }
-
-    /// Returns details about the IAM identity whose credentials are used to call this operation
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::MemoryStsClient;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = wami::create_memory_store();
-    /// let mut sts_client = MemoryStsClient::new(store);
-    ///
-    /// let response = sts_client.get_caller_identity().await?;
-    /// let identity = response.data.unwrap();
-    ///
-    /// println!("User ID: {}", identity.user_id);
-    /// println!("Account: {}", identity.account);
-    /// println!("ARN: {}", identity.arn);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn get_caller_identity(&mut self) -> Result<AmiResponse<CallerIdentity>> {
-        let store = self.sts_store().await?;
-        let account_id = store.account_id();
-
-        // Try to get existing identity, or create a default one
-        let identity_arn = format!("arn:aws:iam::{}:user/example-user", account_id);
-        let wami_arn = format!("arn:wami:iam::{}:user/example-user", account_id);
-
-        let identity = store
-            .get_identity(&identity_arn)
-            .await?
-            .unwrap_or_else(|| CallerIdentity {
-                user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
-                account: account_id.to_string(),
-                arn: identity_arn,
-                wami_arn,
-                providers: Vec::new(),
-            });
-
-        Ok(AmiResponse::success(identity))
     }
 }

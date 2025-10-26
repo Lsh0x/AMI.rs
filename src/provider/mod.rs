@@ -95,6 +95,12 @@ pub enum ResourceType {
     MfaDevice,
     /// Signing Certificate
     SigningCertificate,
+    /// STS assumed role session
+    StsAssumedRole,
+    /// STS federated user session
+    StsFederatedUser,
+    /// STS session token session
+    StsSession,
 }
 
 /// Resource limits configuration per cloud provider
@@ -337,6 +343,9 @@ pub trait CloudProvider: Send + Sync + std::fmt::Debug {
             | ResourceType::ServiceCredential
             | ResourceType::SigningCertificate
             | ResourceType::ServerCertificate => "iam",
+            ResourceType::StsAssumedRole
+            | ResourceType::StsFederatedUser
+            | ResourceType::StsSession => "sts",
         };
 
         let resource_prefix = match resource_type {
@@ -350,6 +359,9 @@ pub trait CloudProvider: Send + Sync + std::fmt::Debug {
             ResourceType::ServiceLinkedRole => "role",
             ResourceType::MfaDevice => "mfa",
             ResourceType::SigningCertificate => "signing-certificate",
+            ResourceType::StsAssumedRole => "assumed-role",
+            ResourceType::StsFederatedUser => "federated-user",
+            ResourceType::StsSession => "session",
         };
 
         // Normalize path: ensure it starts with / and ends with / if not empty

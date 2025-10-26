@@ -454,6 +454,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 AWS Security Token Service (STS) operations for requesting temporary, limited-privilege credentials.
 
+Multicloud-aware behavior:
+- WAMI ARNs are generated for STS resources using provider.generate_wami_arn with service=sts
+- Provider-native identifiers are generated via CloudProvider (AWS: arn:aws:sts::...)
+- Session duration is validated against provider.resource_limits()
+- Each STS session stores ProviderConfig entries for cross-cloud tracking
+
 ### Example: Assume Role
 
 ```rust

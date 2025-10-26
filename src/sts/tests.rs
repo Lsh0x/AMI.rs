@@ -36,7 +36,8 @@ mod sts_tests {
         let response = client.assume_role(request).await.unwrap();
         assert!(response.success);
 
-        let credentials = response.data.unwrap();
+        let result = response.data.unwrap();
+        let credentials = result.credentials;
         assert!(!credentials.access_key_id.is_empty());
         assert!(!credentials.secret_access_key.is_empty());
         assert!(!credentials.session_token.is_empty());
@@ -58,7 +59,8 @@ mod sts_tests {
 
         assert!(response.success);
 
-        let credentials = response.data.unwrap();
+        let result = response.data.unwrap();
+        let credentials = result.credentials;
         assert!(!credentials.access_key_id.is_empty());
         assert!(!credentials.secret_access_key.is_empty());
     }
@@ -103,7 +105,8 @@ mod sts_tests {
 
         assert!(response.success);
 
-        let credentials = response.data.unwrap();
+        let result = response.data.unwrap();
+        let credentials = result.credentials;
         assert!(!credentials.access_key_id.is_empty());
         assert!(!credentials.secret_access_key.is_empty());
     }
@@ -163,7 +166,8 @@ mod sts_tests {
         };
 
         let response = client.assume_role(request).await.unwrap();
-        let credentials = response.data.unwrap();
+        let result = response.data.unwrap();
+        let credentials = result.credentials;
 
         // Access key should start with 'ASIA' for temporary credentials
         assert!(credentials.access_key_id.starts_with("ASIA"));

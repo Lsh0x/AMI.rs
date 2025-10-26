@@ -42,7 +42,8 @@ async fn test_end_to_end_workflow() {
 
     let credentials_response = sts_client.assume_role(assume_role_request).await.unwrap();
     assert!(credentials_response.success);
-    let credentials = credentials_response.data.unwrap();
+    let result = credentials_response.data.unwrap();
+    let credentials = result.credentials;
     assert!(!credentials.access_key_id.is_empty());
     assert!(!credentials.secret_access_key.is_empty());
 
