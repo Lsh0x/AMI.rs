@@ -62,6 +62,7 @@
 
 pub mod error;
 pub mod iam;
+pub mod provider;
 pub mod sso_admin;
 pub mod store;
 pub mod sts;
