@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 ///     tags: vec![],
 ///     wami_arn: "arn:wami:iam::123456789012:group/Developers".to_string(),
 ///     providers: vec![],
+///     tenant_id: None,
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,4 +43,6 @@ pub struct Group {
     pub wami_arn: String,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
+    /// Optional tenant ID for multi-tenant isolation
+    pub tenant_id: Option<crate::tenant::TenantId>,
 }

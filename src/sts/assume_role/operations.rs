@@ -89,6 +89,7 @@ where
                 &request.role_session_name,
             ),
             synced_at: chrono::Utc::now(),
+            tenant_id: None, // STS sessions are not currently tenant-scoped
         };
 
         // 8. Create session

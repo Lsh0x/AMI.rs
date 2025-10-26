@@ -19,15 +19,17 @@ use crate::types::Tag;
 /// * `tags` - Optional list of tags to associate with the user
 /// * `provider` - The cloud provider to use for ID and ARN generation
 /// * `account_id` - The account ID for the user
+/// * `tenant_id` - Optional tenant ID for multi-tenant isolation
 ///
 /// # Returns
 ///
 /// A fully constructed `User` with:
 /// - Generated user_id
 /// - Native ARN
-/// - WAMI ARN
+/// - WAMI ARN (with tenant path if tenant_id is provided)
 /// - Empty providers vector
 /// - Current timestamp for create_date
+/// - Tenant ID (if provided)
 pub fn build_user(
     user_name: String,
     path: Option<String>,
@@ -35,8 +37,18 @@ pub fn build_user(
     tags: Option<Vec<Tag>>,
     provider: &dyn CloudProvider,
     account_id: &str,
+    tenant_id: Option<crate::tenant::TenantId>,
 ) -> User {
-    let path = path.unwrap_or_else(|| "/".to_string());
+    let mut path = path.unwrap_or_else(|| "/".to_string());
+
+    // If tenant_id is provided, prefix the path with tenant hierarchy
+    if let Some(ref tid) = tenant_id {
+        // Remove trailing slash from path if present
+        let path_without_slash = path.trim_end_matches('/');
+        // Construct tenant-aware path: /tenants/{tenant_hierarchy}{original_path}/
+        path = format!("/tenants/{}{}/", tid.as_str(), path_without_slash);
+    }
+
     let user_id = provider.generate_resource_id(ResourceType::User);
     let arn =
         provider.generate_resource_identifier(ResourceType::User, account_id, &path, &user_name);
@@ -53,6 +65,7 @@ pub fn build_user(
         tags: tags.unwrap_or_default(),
         wami_arn,
         providers: Vec::new(),
+        tenant_id,
     }
 }
 
@@ -136,6 +149,7 @@ mod tests {
             None,
             provider.as_ref(),
             "123456789012",
+            None,
         );
 
         assert_eq!(user.user_name, "test-user");
@@ -149,6 +163,7 @@ mod tests {
             .contains("arn:wami:iam::123456789012:user/engineering/test-user"));
         assert_eq!(user.providers.len(), 0);
         assert_eq!(user.tags.len(), 0);
+        assert_eq!(user.tenant_id, None);
     }
 
     #[test]
@@ -161,6 +176,7 @@ mod tests {
             None,
             provider.as_ref(),
             "123456789012",
+            None,
         );
 
         assert_eq!(user.path, "/");
@@ -176,6 +192,7 @@ mod tests {
             None,
             provider.as_ref(),
             "123456789012",
+            None,
         );
 
         let updated = update_user(
@@ -201,6 +218,7 @@ mod tests {
             None,
             provider.as_ref(),
             "123456789012",
+            None,
         );
 
         let config = ProviderConfig {
@@ -208,6 +226,7 @@ mod tests {
             account_id: "123456789012".to_string(),
             native_arn: "arn:aws:iam::123456789012:user/test-user".to_string(),
             synced_at: chrono::Utc::now(),
+            tenant_id: None,
         };
 
         let updated = add_provider_to_user(user, config);

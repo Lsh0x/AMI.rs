@@ -27,6 +27,7 @@ pub fn build_group(
         tags: tags.unwrap_or_default(),
         wami_arn,
         providers: Vec::new(),
+        tenant_id: None,
     }
 }
 

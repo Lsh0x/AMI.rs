@@ -1,11 +1,12 @@
 //! Unified In-Memory Store
 //!
-//! Combines IAM, STS, and SSO Admin stores into a single unified store.
+//! Combines IAM, STS, SSO Admin, and Tenant stores into a single unified store.
 
 use crate::error::Result;
 use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::memory::{InMemoryIamStore, InMemorySsoAdminStore, InMemoryStsStore};
 use crate::store::Store;
+use crate::tenant::store::InMemoryTenantStore;
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -17,6 +18,7 @@ pub struct InMemoryStore {
     pub iam_store: InMemoryIamStore,
     pub sts_store: InMemoryStsStore,
     pub sso_admin_store: InMemorySsoAdminStore,
+    pub tenant_store: InMemoryTenantStore,
 }
 
 impl Default for InMemoryStore {
@@ -76,6 +78,7 @@ impl InMemoryStore {
             ),
             sts_store: InMemoryStsStore::with_account_id(account_id.clone()),
             sso_admin_store: InMemorySsoAdminStore::default(),
+            tenant_store: InMemoryTenantStore::new(),
         }
     }
 
@@ -133,6 +136,7 @@ impl Store for InMemoryStore {
     type IamStore = InMemoryIamStore;
     type StsStore = InMemoryStsStore;
     type SsoAdminStore = InMemorySsoAdminStore;
+    type TenantStore = InMemoryTenantStore;
 
     fn cloud_provider(&self) -> &dyn CloudProvider {
         self.provider.as_ref()
@@ -148,5 +152,9 @@ impl Store for InMemoryStore {
 
     async fn sso_admin_store(&mut self) -> Result<&mut Self::SsoAdminStore> {
         Ok(&mut self.sso_admin_store)
+    }
+
+    async fn tenant_store(&mut self) -> Result<&mut Self::TenantStore> {
+        Ok(&mut self.tenant_store)
     }
 }

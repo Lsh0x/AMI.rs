@@ -46,6 +46,11 @@ use serde::{Deserialize, Serialize};
 /// This struct tracks the synchronization state of a resource across multiple cloud providers,
 /// including the provider-specific identifiers and sync timestamps.
 ///
+/// # Tenant Support
+///
+/// When `tenant_id` is provided, resources are isolated to that tenant. The ARN will
+/// include the tenant path, e.g., `arn:aws:iam::123456789012:user/tenants/acme/engineering/alice`
+///
 /// # Example
 ///
 /// ```rust
@@ -57,6 +62,7 @@ use serde::{Deserialize, Serialize};
 ///     account_id: "123456789012".to_string(),
 ///     native_arn: "arn:aws:iam::123456789012:user/alice".to_string(),
 ///     synced_at: Utc::now(),
+///     tenant_id: None, // Single-tenant mode
 /// };
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -69,6 +75,9 @@ pub struct ProviderConfig {
     pub native_arn: String,
     /// When this resource was last synced to this provider
     pub synced_at: chrono::DateTime<chrono::Utc>,
+    /// Optional tenant ID for multi-tenant isolation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tenant_id: Option<String>,
 }
 
 /// Resource type enumeration for cloud resources
@@ -390,6 +399,73 @@ pub trait CloudProvider: Send + Sync + std::fmt::Debug {
                 service, account_id, resource_prefix, normalized_path, name
             )
         }
+    }
+}
+
+/// Helper functions for multi-tenant resource management
+impl dyn CloudProvider {
+    /// Generate a tenant-aware path for resources
+    ///
+    /// # Arguments
+    ///
+    /// * `tenant_id` - Optional tenant ID (e.g., "acme/engineering")
+    /// * `base_path` - Base resource path (e.g., "/")
+    ///
+    /// # Returns
+    ///
+    /// A path that includes tenant isolation
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use wami::provider::CloudProvider;
+    /// let path = <dyn CloudProvider>::tenant_aware_path(Some("acme/engineering"), "/");
+    /// assert_eq!(path, "/tenants/acme/engineering/");
+    ///
+    /// let path = <dyn CloudProvider>::tenant_aware_path(None, "/admin/");
+    /// assert_eq!(path, "/admin/");
+    /// ```
+    pub fn tenant_aware_path(tenant_id: Option<&str>, base_path: &str) -> String {
+        match tenant_id {
+            Some(tid) if !tid.is_empty() => {
+                let normalized_base = base_path.trim_end_matches('/');
+                format!("{}/tenants/{}/", normalized_base, tid)
+            }
+            _ => base_path.to_string(),
+        }
+    }
+
+    /// Extract tenant ID from a tenant-aware path
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The resource path that may contain tenant information
+    ///
+    /// # Returns
+    ///
+    /// The extracted tenant ID, or None if not tenant-aware
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use wami::provider::CloudProvider;
+    /// let tenant = <dyn CloudProvider>::extract_tenant_from_path("/tenants/acme/engineering/");
+    /// assert_eq!(tenant, Some("acme/engineering".to_string()));
+    ///
+    /// let tenant = <dyn CloudProvider>::extract_tenant_from_path("/admin/");
+    /// assert_eq!(tenant, None);
+    /// ```
+    pub fn extract_tenant_from_path(path: &str) -> Option<String> {
+        if path.contains("/tenants/") {
+            let parts: Vec<&str> = path.split("/tenants/").collect();
+            if parts.len() > 1 {
+                let tenant_part = parts[1].trim_end_matches('/');
+                if !tenant_part.is_empty() {
+                    return Some(tenant_part.to_string());
+                }
+            }
+        }
+        None
     }
 }
 

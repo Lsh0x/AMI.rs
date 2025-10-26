@@ -79,5 +79,6 @@ pub fn build_service_linked_role(
         tags: vec![],
         wami_arn,
         providers: Vec::new(),
+        tenant_id: None,
     }
 }

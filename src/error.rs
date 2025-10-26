@@ -25,6 +25,15 @@ pub enum AmiError {
 
     #[error("Permission denied: {reason}")]
     PermissionDenied { reason: String },
+
+    #[error("Access denied: {message}")]
+    AccessDenied { message: String },
+
+    #[error("Resource limit exceeded: {resource_type} limit is {limit}")]
+    ResourceLimitExceeded { resource_type: String, limit: usize },
+
+    #[error("Resource already exists: {resource}")]
+    ResourceExists { resource: String },
 }
 
 pub type Result<T> = std::result::Result<T, AmiError>;
