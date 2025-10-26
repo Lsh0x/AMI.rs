@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::iam::{IamClient, Policy};
+use crate::provider::ResourceType;
 use crate::store::{IamStore, Store};
 use crate::types::{AmiResponse, PaginationParams};
 use serde::{Deserialize, Serialize};
@@ -112,22 +113,16 @@ impl<S: Store> IamClient<S> {
 
         let store = self.iam_store().await?;
         let account_id = store.account_id();
+        let provider = store.cloud_provider();
 
-        // Generate policy ID (ANPA + 17 random chars)
-        let policy_id = format!(
-            "ANPA{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(17)
-                .collect::<String>()
-        );
-
+        // Use provider for policy ID and ARN generation
+        let policy_id = provider.generate_resource_id(ResourceType::Policy);
         let path = request.path.unwrap_or_else(|| "/".to_string());
-        let arn = format!(
-            "arn:aws:iam::{}:policy{}{}",
-            account_id, path, request.policy_name
+        let arn = provider.generate_resource_identifier(
+            ResourceType::Policy,
+            account_id,
+            &path,
+            &request.policy_name,
         );
 
         let policy = Policy {
