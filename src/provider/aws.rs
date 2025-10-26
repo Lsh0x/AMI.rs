@@ -106,23 +106,26 @@ impl CloudProvider for AwsProvider {
         path: &str,
         name: &str,
     ) -> String {
-        let resource_name = match resource_type {
-            ResourceType::User => "user",
-            ResourceType::Group => "group",
-            ResourceType::Role => "role",
-            ResourceType::Policy => "policy",
-            ResourceType::MfaDevice => "mfa",
-            ResourceType::AccessKey => "access-key",
-            ResourceType::ServerCertificate => "server-certificate",
-            ResourceType::ServiceCredential => "service-credential",
-            ResourceType::ServiceLinkedRole => "role",
-            ResourceType::SigningCertificate => "signing-certificate",
+        let (service, resource_name) = match resource_type {
+            ResourceType::User => ("iam", "user"),
+            ResourceType::Group => ("iam", "group"),
+            ResourceType::Role => ("iam", "role"),
+            ResourceType::Policy => ("iam", "policy"),
+            ResourceType::MfaDevice => ("iam", "mfa"),
+            ResourceType::AccessKey => ("iam", "access-key"),
+            ResourceType::ServerCertificate => ("iam", "server-certificate"),
+            ResourceType::ServiceCredential => ("iam", "service-credential"),
+            ResourceType::ServiceLinkedRole => ("iam", "role"),
+            ResourceType::SigningCertificate => ("iam", "signing-certificate"),
+            ResourceType::StsAssumedRole => ("sts", "assumed-role"),
+            ResourceType::StsFederatedUser => ("sts", "federated-user"),
+            ResourceType::StsSession => ("sts", "session"),
         };
 
-        // AWS ARN format: arn:aws:iam::account_id:resource_type/path/name
+        // AWS ARN format: arn:aws:<service>::account_id:resource_type/path/name
         format!(
-            "arn:aws:iam::{}:{}{}{}",
-            account_id, resource_name, path, name
+            "arn:aws:{}::{}:{}{}{}",
+            service, account_id, resource_name, path, name
         )
     }
 
@@ -139,6 +142,10 @@ impl CloudProvider for AwsProvider {
             ResourceType::ServiceLinkedRole => "AROA",
             ResourceType::MfaDevice => "AMFA",
             ResourceType::SigningCertificate => "ASCA",
+            // STS resources don't have AWS-issued IDs; use generic prefix
+            ResourceType::StsAssumedRole
+            | ResourceType::StsFederatedUser
+            | ResourceType::StsSession => "ASTS",
         };
 
         // AWS IDs are: 4-letter prefix + 17 random alphanumeric characters
