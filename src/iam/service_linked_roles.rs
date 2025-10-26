@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::iam::Role;
+use crate::provider::ResourceType;
 use crate::store::{IamStore, Store};
 use crate::types::AmiResponse;
 use serde::{Deserialize, Serialize};
@@ -176,8 +177,17 @@ where
             format!("AWSServiceRoleFor{}", service_name_pascal)
         };
 
-        // Service-linked roles have a specific path pattern
-        let path = format!("/aws-service-role/{}/", request.aws_service_name);
+        let provider = store.cloud_provider();
+
+        // Override role_name with provider-specific naming if custom suffix is not provided
+        let role_name = if request.custom_suffix.is_none() {
+            provider.generate_service_linked_role_name(&request.aws_service_name, None)
+        } else {
+            role_name
+        };
+
+        // Service-linked roles have a specific path pattern (provider-specific)
+        let path = provider.generate_service_linked_role_path(&request.aws_service_name);
 
         // Generate the assume role policy document that allows the service to assume this role
         let assume_role_policy_document = serde_json::json!({
@@ -192,18 +202,16 @@ where
         })
         .to_string();
 
-        // Generate role ID with AROA prefix
-        let role_id = format!(
-            "AROA{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(17)
-                .collect::<String>()
-        );
+        // Use provider for role ID generation
+        let role_id = provider.generate_resource_id(ResourceType::ServiceLinkedRole);
 
-        let arn = format!("arn:aws:iam::{}:role{}{}", account_id, path, role_name);
+        // Use provider for ARN generation
+        let arn = provider.generate_resource_identifier(
+            ResourceType::ServiceLinkedRole,
+            account_id,
+            &path,
+            &role_name,
+        );
 
         let role = Role {
             role_name: role_name.clone(),

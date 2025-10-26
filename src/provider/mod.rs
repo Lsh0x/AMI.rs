@@ -56,6 +56,8 @@ pub enum ResourceType {
     ServerCertificate,
     /// Service-specific Credential
     ServiceCredential,
+    /// Service-Linked Role
+    ServiceLinkedRole,
     /// MFA Device
     MfaDevice,
     /// Signing Certificate

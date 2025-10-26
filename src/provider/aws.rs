@@ -115,6 +115,7 @@ impl CloudProvider for AwsProvider {
             ResourceType::AccessKey => "access-key",
             ResourceType::ServerCertificate => "server-certificate",
             ResourceType::ServiceCredential => "service-credential",
+            ResourceType::ServiceLinkedRole => "role",
             ResourceType::SigningCertificate => "signing-certificate",
         };
 
@@ -135,6 +136,7 @@ impl CloudProvider for AwsProvider {
             ResourceType::AccessKey => "AKIA",
             ResourceType::ServerCertificate => "ASCA",
             ResourceType::ServiceCredential => "ACCA",
+            ResourceType::ServiceLinkedRole => "AROA",
             ResourceType::MfaDevice => "AMFA",
             ResourceType::SigningCertificate => "ASCA",
         };

@@ -5,6 +5,7 @@
 
 use crate::error::{AmiError, Result};
 use crate::iam::IamClient;
+use crate::provider::ResourceType;
 use crate::store::{IamStore, Store};
 use crate::types::AmiResponse;
 use chrono::{DateTime, Utc};
@@ -212,42 +213,32 @@ impl<S: Store> IamClient<S> {
         }
 
         // Validate service name
-        let valid_services = ["codecommit.amazonaws.com", "cassandra.amazonaws.com"];
-        if !valid_services.contains(&request.service_name.as_str()) {
-            return Err(AmiError::InvalidParameter {
-                message: format!(
-                    "Invalid service name. Valid services are: {}",
-                    valid_services.join(", ")
-                ),
-            });
-        }
+        let provider = store.cloud_provider();
 
-        // Check if user already has 2 credentials for this service (AWS limit)
+        // Validate service name using provider
+        provider.validate_service_name(&request.service_name)?;
+
+        // Check if user already has max credentials for this service (provider-specific limit)
         let existing = store
             .list_service_specific_credentials(
                 Some(request.user_name.as_str()),
                 Some(request.service_name.as_str()),
             )
             .await?;
-        if existing.len() >= 2 {
+        let max_creds = provider
+            .resource_limits()
+            .max_service_credentials_per_user_per_service;
+        if existing.len() >= max_creds {
             return Err(AmiError::InvalidParameter {
                 message: format!(
-                    "User {} already has the maximum number of credentials (2) for service {}",
-                    request.user_name, request.service_name
+                    "User {} already has the maximum number of credentials ({}) for service {}",
+                    request.user_name, max_creds, request.service_name
                 ),
             });
         }
 
-        // Generate credential ID
-        let cred_id = format!(
-            "ACCA{}",
-            uuid::Uuid::new_v4()
-                .to_string()
-                .replace('-', "")
-                .chars()
-                .take(17)
-                .collect::<String>()
-        );
+        // Use provider for credential ID generation
+        let cred_id = provider.generate_resource_id(ResourceType::ServiceCredential);
 
         // Generate service username (format: username-at-account_id)
         let account_id = store.account_id();
