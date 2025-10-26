@@ -441,7 +441,7 @@ impl<S: Store> IamClient<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::store::in_memory::InMemoryStore;
+    use crate::store::memory::InMemoryStore;
 
     #[tokio::test]
     async fn test_create_policy() {

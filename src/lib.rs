@@ -60,6 +60,7 @@
 //! }
 //! ```
 
+pub mod builders;
 pub mod error;
 pub mod iam;
 pub mod provider;
@@ -73,7 +74,7 @@ pub use error::{AmiError, Result};
 pub use types::{AmiResponse, AwsConfig, PaginationParams, PolicyDocument, PolicyStatement, Tag};
 
 // Re-export store traits and implementations
-pub use store::in_memory::InMemoryStore;
+pub use store::memory::InMemoryStore;
 pub use store::{IamStore, SsoAdminStore, Store, StsStore};
 
 // Re-export provider types

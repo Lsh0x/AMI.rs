@@ -598,7 +598,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_upload_server_certificate() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         let request = UploadServerCertificateRequest {
@@ -625,7 +625,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_upload_duplicate_certificate() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         let request = UploadServerCertificateRequest {
@@ -650,7 +650,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_server_certificate() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Upload certificate first
@@ -689,7 +689,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_server_certificates() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Upload multiple certificates
@@ -723,7 +723,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_server_certificate() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Upload certificate
@@ -762,7 +762,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_server_certificate() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Upload certificate
@@ -808,7 +808,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_certificate_format() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         let request = UploadServerCertificateRequest {

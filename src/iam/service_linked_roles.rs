@@ -395,7 +395,7 @@ where
 mod tests {
     use super::*;
     use crate::iam::IamClient;
-    use crate::store::in_memory::InMemoryStore;
+    use crate::store::memory::InMemoryStore;
 
     fn create_test_client() -> IamClient<InMemoryStore> {
         let store = InMemoryStore::new();

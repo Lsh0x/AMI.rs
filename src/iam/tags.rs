@@ -286,7 +286,7 @@ mod tests {
     use crate::iam::groups::CreateGroupRequest;
     use crate::iam::policies::CreatePolicyRequest;
     use crate::iam::roles::CreateRoleRequest;
-    use crate::store::in_memory::InMemoryStore;
+    use crate::store::memory::InMemoryStore;
 
     #[tokio::test]
     async fn test_tag_group() {

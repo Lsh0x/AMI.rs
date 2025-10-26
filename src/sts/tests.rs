@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod sts_tests {
-    use crate::store::in_memory::InMemoryStore;
+    use crate::store::memory::InMemoryStore;
     use crate::sts::{AssumeRoleRequest, GetSessionTokenRequest, StsClient};
 
     fn create_test_client() -> StsClient<InMemoryStore> {

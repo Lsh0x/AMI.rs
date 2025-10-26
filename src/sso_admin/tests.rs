@@ -3,7 +3,7 @@ mod sso_tests {
     use crate::sso_admin::{
         CreateAccountAssignmentRequest, CreatePermissionSetRequest, SsoAdminClient,
     };
-    use crate::store::in_memory::InMemoryStore;
+    use crate::store::memory::InMemoryStore;
 
     fn create_test_client() -> SsoAdminClient<InMemoryStore> {
         let store = InMemoryStore::new();
