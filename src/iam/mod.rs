@@ -400,4 +400,5 @@ pub struct LoginProfile {
 // Re-export all sub-modules for easy access
 pub use access_keys::*;
 pub use groups::*;
+pub use server_certificates::{ServerCertificate, ServerCertificateMetadata};
 pub use users::*;

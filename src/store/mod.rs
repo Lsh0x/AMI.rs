@@ -101,6 +101,26 @@ pub trait IamStore: Send + Sync {
         report: crate::iam::reports::CredentialReport,
     ) -> Result<()>;
     async fn get_credential_report(&self) -> Result<Option<crate::iam::reports::CredentialReport>>;
+
+    // Server certificate operations
+    async fn create_server_certificate(
+        &mut self,
+        certificate: crate::iam::ServerCertificate,
+    ) -> Result<crate::iam::ServerCertificate>;
+    async fn get_server_certificate(
+        &self,
+        certificate_name: &str,
+    ) -> Result<Option<crate::iam::ServerCertificate>>;
+    async fn update_server_certificate(
+        &mut self,
+        certificate: crate::iam::ServerCertificate,
+    ) -> Result<crate::iam::ServerCertificate>;
+    async fn delete_server_certificate(&mut self, certificate_name: &str) -> Result<()>;
+    async fn list_server_certificates(
+        &self,
+        path_prefix: Option<&str>,
+        pagination: Option<&PaginationParams>,
+    ) -> Result<(Vec<crate::iam::ServerCertificate>, bool, Option<String>)>;
 }
 
 /// Trait for STS data storage operations
