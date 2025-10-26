@@ -99,7 +99,7 @@ pub use sso_admin::{
 };
 
 // Re-export request/response types
-pub use iam::access_keys::{
+pub use iam::access_key::{
     AccessKeyLastUsed, CreateAccessKeyRequest, ListAccessKeysRequest, ListAccessKeysResponse,
     UpdateAccessKeyRequest,
 };

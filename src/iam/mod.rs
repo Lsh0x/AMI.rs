@@ -56,7 +56,7 @@
 //! # }
 //! ```
 
-pub mod access_keys;
+pub mod access_key;
 pub mod group;
 pub mod identity_providers;
 pub mod mfa_devices;
@@ -169,44 +169,8 @@ pub use group::Group;
 pub use role::Role;
 // Policy is now defined in iam::policy::model
 pub use policy::Policy;
-
-/// Represents an IAM access key
-///
-/// Access keys are long-term credentials used to sign programmatic requests to AWS.
-///
-/// # Example
-///
-/// ```rust
-/// use wami::AccessKey;
-/// use chrono::Utc;
-///
-/// let access_key = AccessKey {
-///     user_name: "alice".to_string(),
-///     access_key_id: "AKIAIOSFODNN7EXAMPLE".to_string(),
-///     status: "Active".to_string(),
-///     create_date: Utc::now(),
-///     secret_access_key: Some("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_string()),
-///     wami_arn: "arn:wami:iam::123456789012:access-key/AKIAIOSFODNN7EXAMPLE".to_string(),
-///     providers: vec![],
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AccessKey {
-    /// The name of the IAM user that the key is associated with
-    pub user_name: String,
-    /// The ID for this access key
-    pub access_key_id: String,
-    /// The status of the access key: Active or Inactive
-    pub status: String,
-    /// The date when the access key was created
-    pub create_date: chrono::DateTime<chrono::Utc>,
-    /// The secret key used to sign requests (only provided when creating the key)
-    pub secret_access_key: Option<String>,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
-    /// List of cloud providers where this resource exists
-    pub providers: Vec<crate::provider::ProviderConfig>,
-}
+// AccessKey is now defined in iam::access_key::model
+pub use access_key::AccessKey;
 
 /// Represents an MFA (Multi-Factor Authentication) device
 ///
@@ -269,7 +233,10 @@ pub struct LoginProfile {
 }
 
 // Re-export all sub-modules for easy access
-pub use access_keys::*;
+pub use access_key::{
+    AccessKeyLastUsed, CreateAccessKeyRequest, ListAccessKeysRequest, ListAccessKeysResponse,
+    UpdateAccessKeyRequest,
+};
 pub use server_certificates::{ServerCertificate, ServerCertificateMetadata};
 pub use service_credentials::{ServiceSpecificCredential, ServiceSpecificCredentialMetadata};
 pub use signing_certificates::{CertificateStatus, SigningCertificate};

@@ -125,7 +125,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_access_key_limit_enforcement_aws() {
-        use crate::iam::access_keys::CreateAccessKeyRequest;
+        use crate::iam::access_key::CreateAccessKeyRequest;
         use crate::iam::user::CreateUserRequest;
 
         let provider = Arc::new(AwsProvider::default());
@@ -163,7 +163,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_access_key_limit_enforcement_gcp() {
-        use crate::iam::access_keys::CreateAccessKeyRequest;
+        use crate::iam::access_key::CreateAccessKeyRequest;
         use crate::iam::user::CreateUserRequest;
 
         let provider = Arc::new(GcpProvider::new("my-project"));
@@ -199,7 +199,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_custom_provider_with_custom_limits() {
-        use crate::iam::access_keys::CreateAccessKeyRequest;
+        use crate::iam::access_key::CreateAccessKeyRequest;
         use crate::iam::user::CreateUserRequest;
 
         let custom_limits = ResourceLimits {
