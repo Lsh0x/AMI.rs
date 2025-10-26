@@ -725,15 +725,38 @@ export AWS_PROFILE=default
 
 ---
 
-## Documentation
+## 📚 Documentation
 
-For detailed API documentation with examples, run:
+### Quick Links
+
+- 🚀 **[5-Minute Quickstart](docs/GETTING_STARTED.md)** - Get up and running fast
+- 📖 **[Complete Documentation](docs/README.md)** - All guides and tutorials
+- 🔍 **[API Reference](docs/API_REFERENCE.md)** - Quick API lookup
+- 💡 **[Examples](docs/EXAMPLES.md)** - Code samples catalog
+
+### Core Guides
+
+- **[IAM Operations](docs/IAM_GUIDE.md)** - Users, roles, policies, groups
+- **[STS Operations](docs/STS_GUIDE.md)** - Temporary credentials
+- **[SSO Admin](docs/SSO_ADMIN_GUIDE.md)** - Permission sets and assignments
+- **[Multi-Tenant](docs/MULTI_TENANT_GUIDE.md)** - Hierarchical tenant isolation
+
+### Advanced Topics
+
+- **[Store Implementation](docs/STORE_IMPLEMENTATION.md)** - Custom persistence backends
+- **[Permission Checking](docs/PERMISSION_CHECKING.md)** - Policy evaluation only
+- **[Multicloud Providers](docs/MULTICLOUD_PROVIDERS.md)** - AWS, GCP, Azure, Custom
+- **[Architecture](docs/ARCHITECTURE.md)** - System design and components
+
+### API Documentation
+
+For full rustdoc API documentation:
 
 ```bash
 cargo doc --open
 ```
 
-Or visit the online documentation at [docs.rs/ami](https://docs.rs/ami).
+Or visit [docs.rs/wami](https://docs.rs/wami)
 
 ---
 
