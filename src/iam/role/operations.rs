@@ -1,111 +1,13 @@
+//! Role Operations
+
+use super::{builder, model::Role, requests::*};
 use crate::error::Result;
-use crate::iam::Role;
-use crate::provider::ResourceType;
+use crate::iam::IamClient;
 use crate::store::{IamStore, Store};
-use crate::types::{AmiResponse, PaginationParams, Tag};
-use serde::{Deserialize, Serialize};
+use crate::types::AmiResponse;
 
-/// Request parameters for creating a role
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CreateRoleRequest {
-    /// The name of the role
-    pub role_name: String,
-    /// The trust relationship policy document
-    pub assume_role_policy_document: String,
-    /// The path to the role
-    pub path: Option<String>,
-    /// A description of the role
-    pub description: Option<String>,
-    /// The maximum session duration in seconds (1h to 12h)
-    pub max_session_duration: Option<i32>,
-    /// The ARN of the policy used to set the permissions boundary
-    pub permissions_boundary: Option<String>,
-    /// Tags to attach to the role
-    pub tags: Option<Vec<Tag>>,
-}
-
-/// Request parameters for updating a role
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateRoleRequest {
-    /// The name of the role to update
-    pub role_name: String,
-    /// New description
-    pub description: Option<String>,
-    /// New maximum session duration
-    pub max_session_duration: Option<i32>,
-}
-
-/// Request parameters for listing roles
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListRolesRequest {
-    /// Path prefix for filtering roles
-    pub path_prefix: Option<String>,
-    /// Pagination parameters
-    pub pagination: Option<PaginationParams>,
-}
-
-/// Response for listing roles
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListRolesResponse {
-    /// List of roles
-    pub roles: Vec<Role>,
-    /// Whether the results are truncated
-    pub is_truncated: bool,
-    /// Marker for pagination
-    pub marker: Option<String>,
-}
-
-impl<S: Store> crate::iam::IamClient<S> {
+impl<S: Store> IamClient<S> {
     /// Create a new IAM role
-    ///
-    /// # Arguments
-    ///
-    /// * `request` - The request containing role name and trust policy
-    ///
-    /// # Returns
-    ///
-    /// Returns the newly created role.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if:
-    /// * The role name already exists
-    /// * The assume role policy document is invalid JSON
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::{MemoryIamClient, CreateRoleRequest};
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = wami::create_memory_store();
-    /// let mut iam_client = MemoryIamClient::new(store);
-    ///
-    /// let trust_policy = r#"{
-    ///     "Version": "2012-10-17",
-    ///     "Statement": [{
-    ///         "Effect": "Allow",
-    ///         "Principal": {"Service": "ec2.amazonaws.com"},
-    ///         "Action": "sts:AssumeRole"
-    ///     }]
-    /// }"#;
-    ///
-    /// let request = CreateRoleRequest {
-    ///     role_name: "EC2-S3-Access".to_string(),
-    ///     assume_role_policy_document: trust_policy.to_string(),
-    ///     path: Some("/service-role/".to_string()),
-    ///     description: Some("Allows EC2 to access S3".to_string()),
-    ///     max_session_duration: Some(3600),
-    ///     permissions_boundary: None,
-    ///     tags: None,
-    /// };
-    ///
-    /// let response = iam_client.create_role(request).await?;
-    /// let role = response.data.unwrap();
-    /// println!("Created role: {}", role.arn);
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn create_role(&mut self, request: CreateRoleRequest) -> Result<AmiResponse<Role>> {
         let store = self.iam_store().await?;
         let account_id = store.account_id();
@@ -124,34 +26,17 @@ impl<S: Store> crate::iam::IamClient<S> {
             });
         }
 
-        // Use provider for role ID and ARN generation
-        let role_id = provider.generate_resource_id(ResourceType::Role);
-        let path = request.path.unwrap_or_else(|| "/".to_string());
-        let arn = provider.generate_resource_identifier(
-            ResourceType::Role,
+        let role = builder::build_role(
+            request.role_name,
+            request.assume_role_policy_document,
+            request.path,
+            request.description,
+            request.max_session_duration,
+            request.permissions_boundary,
+            request.tags,
+            provider,
             account_id,
-            &path,
-            &request.role_name,
         );
-
-        // Generate WAMI ARN for cross-provider identification
-        let wami_arn =
-            provider.generate_wami_arn(ResourceType::Role, account_id, &path, &request.role_name);
-
-        let role = Role {
-            role_name: request.role_name.clone(),
-            role_id,
-            arn,
-            path,
-            create_date: chrono::Utc::now(),
-            assume_role_policy_document: request.assume_role_policy_document,
-            description: request.description,
-            max_session_duration: request.max_session_duration,
-            permissions_boundary: request.permissions_boundary,
-            tags: request.tags.unwrap_or_default(),
-            wami_arn,
-            providers: Vec::new(),
-        };
 
         let created_role = store.create_role(role).await?;
 
@@ -159,42 +44,6 @@ impl<S: Store> crate::iam::IamClient<S> {
     }
 
     /// Update an IAM role
-    ///
-    /// # Arguments
-    ///
-    /// * `request` - The request containing role name and fields to update
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::{MemoryIamClient, CreateRoleRequest, UpdateRoleRequest};
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = wami::create_memory_store();
-    /// let mut iam_client = MemoryIamClient::new(store);
-    ///
-    /// // Create a role first
-    /// let create_request = CreateRoleRequest {
-    ///     role_name: "MyRole".to_string(),
-    ///     assume_role_policy_document: r#"{"Version":"2012-10-17"}"#.to_string(),
-    ///     path: None,
-    ///     description: Some("Old description".to_string()),
-    ///     max_session_duration: Some(3600),
-    ///     permissions_boundary: None,
-    ///     tags: None,
-    /// };
-    /// iam_client.create_role(create_request).await?;
-    ///
-    /// // Update the role
-    /// let update_request = UpdateRoleRequest {
-    ///     role_name: "MyRole".to_string(),
-    ///     description: Some("New description".to_string()),
-    ///     max_session_duration: Some(7200),
-    /// };
-    /// let response = iam_client.update_role(update_request).await?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn update_role(&mut self, request: UpdateRoleRequest) -> Result<AmiResponse<Role>> {
         let store = self.iam_store().await?;
         let provider = store.cloud_provider();
@@ -205,7 +54,7 @@ impl<S: Store> crate::iam::IamClient<S> {
         }
 
         // Get existing role
-        let mut role = match store.get_role(&request.role_name).await? {
+        let role = match store.get_role(&request.role_name).await? {
             Some(role) => role,
             None => {
                 return Err(crate::error::AmiError::ResourceNotFound {
@@ -214,51 +63,15 @@ impl<S: Store> crate::iam::IamClient<S> {
             }
         };
 
-        // Update fields
-        if let Some(description) = request.description {
-            role.description = Some(description);
-        }
-        if let Some(max_session_duration) = request.max_session_duration {
-            role.max_session_duration = Some(max_session_duration);
-        }
+        let updated_role =
+            builder::update_role(role, request.description, request.max_session_duration);
 
-        let updated_role = store.update_role(role).await?;
+        let result = store.update_role(updated_role).await?;
 
-        Ok(AmiResponse::success(updated_role))
+        Ok(AmiResponse::success(result))
     }
 
     /// Delete an IAM role
-    ///
-    /// # Arguments
-    ///
-    /// * `role_name` - The name of the role to delete
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::{MemoryIamClient, CreateRoleRequest};
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = wami::create_memory_store();
-    /// let mut iam_client = MemoryIamClient::new(store);
-    ///
-    /// // Create a role
-    /// let request = CreateRoleRequest {
-    ///     role_name: "ToDelete".to_string(),
-    ///     assume_role_policy_document: r#"{"Version":"2012-10-17"}"#.to_string(),
-    ///     path: None,
-    ///     description: None,
-    ///     max_session_duration: None,
-    ///     permissions_boundary: None,
-    ///     tags: None,
-    /// };
-    /// iam_client.create_role(request).await?;
-    ///
-    /// // Delete it
-    /// iam_client.delete_role("ToDelete".to_string()).await?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn delete_role(&mut self, role_name: String) -> Result<AmiResponse<()>> {
         let store = self.iam_store().await?;
 
@@ -274,39 +87,6 @@ impl<S: Store> crate::iam::IamClient<S> {
     }
 
     /// Get information about a specific IAM role
-    ///
-    /// # Arguments
-    ///
-    /// * `role_name` - The name of the role to retrieve
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::{MemoryIamClient, CreateRoleRequest};
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = wami::create_memory_store();
-    /// let mut iam_client = MemoryIamClient::new(store);
-    ///
-    /// // Create a role
-    /// let request = CreateRoleRequest {
-    ///     role_name: "MyRole".to_string(),
-    ///     assume_role_policy_document: r#"{"Version":"2012-10-17"}"#.to_string(),
-    ///     path: None,
-    ///     description: Some("Test role".to_string()),
-    ///     max_session_duration: None,
-    ///     permissions_boundary: None,
-    ///     tags: None,
-    /// };
-    /// iam_client.create_role(request).await?;
-    ///
-    /// // Get the role
-    /// let response = iam_client.get_role("MyRole".to_string()).await?;
-    /// let role = response.data.unwrap();
-    /// println!("Role ARN: {}", role.arn);
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn get_role(&mut self, role_name: String) -> Result<AmiResponse<Role>> {
         let store = self.iam_store().await?;
 
@@ -319,45 +99,6 @@ impl<S: Store> crate::iam::IamClient<S> {
     }
 
     /// List all IAM roles
-    ///
-    /// # Arguments
-    ///
-    /// * `request` - Optional request containing path prefix and pagination
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::{MemoryIamClient, CreateRoleRequest, ListRolesRequest};
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = wami::create_memory_store();
-    /// let mut iam_client = MemoryIamClient::new(store);
-    ///
-    /// // Create some roles
-    /// for i in 1..=3 {
-    ///     let request = CreateRoleRequest {
-    ///         role_name: format!("Role{}", i),
-    ///         assume_role_policy_document: r#"{"Version":"2012-10-17"}"#.to_string(),
-    ///         path: Some("/service/".to_string()),
-    ///         description: None,
-    ///         max_session_duration: None,
-    ///         permissions_boundary: None,
-    ///         tags: None,
-    ///     };
-    ///     iam_client.create_role(request).await?;
-    /// }
-    ///
-    /// // List them
-    /// let list_request = ListRolesRequest {
-    ///     path_prefix: Some("/service/".to_string()),
-    ///     pagination: None,
-    /// };
-    /// let response = iam_client.list_roles(Some(list_request)).await?;
-    /// let list_response = response.data.unwrap();
-    /// println!("Found {} roles", list_response.roles.len());
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn list_roles(
         &mut self,
         request: Option<ListRolesRequest>,

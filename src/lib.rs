@@ -122,7 +122,7 @@ pub use iam::reports::{
     GenerateCredentialReportResponse, GetAccountSummaryRequest, GetAccountSummaryResponse,
     GetCredentialReportRequest, GetCredentialReportResponse, ReportState,
 };
-pub use iam::roles::{CreateRoleRequest, ListRolesRequest, ListRolesResponse, UpdateRoleRequest};
+pub use iam::role::{CreateRoleRequest, ListRolesRequest, ListRolesResponse, UpdateRoleRequest};
 pub use iam::server_certificates::{
     DeleteServerCertificateRequest, GetServerCertificateRequest, GetServerCertificateResponse,
     ListServerCertificatesRequest, ListServerCertificatesResponse, UpdateServerCertificateRequest,

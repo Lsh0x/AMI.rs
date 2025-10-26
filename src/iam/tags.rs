@@ -285,7 +285,7 @@ mod tests {
     use super::*;
     use crate::iam::group::CreateGroupRequest;
     use crate::iam::policies::CreatePolicyRequest;
-    use crate::iam::roles::CreateRoleRequest;
+    use crate::iam::role::CreateRoleRequest;
     use crate::store::memory::InMemoryStore;
 
     #[tokio::test]

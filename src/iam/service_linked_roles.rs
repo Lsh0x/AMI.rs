@@ -496,7 +496,7 @@ mod tests {
         // Create a regular role (not service-linked)
         let trust_policy = r#"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}"#;
 
-        let create_request = crate::iam::roles::CreateRoleRequest {
+        let create_request = crate::iam::role::CreateRoleRequest {
             role_name: "RegularRole".to_string(),
             assume_role_policy_document: trust_policy.to_string(),
             path: Some("/".to_string()),

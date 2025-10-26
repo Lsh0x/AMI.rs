@@ -65,7 +65,7 @@ pub mod permissions_boundaries;
 pub mod policies;
 pub mod policy_evaluation;
 pub mod reports;
-pub mod roles;
+pub mod role;
 pub mod server_certificates;
 pub mod service_credentials;
 pub mod service_linked_roles;
@@ -165,59 +165,8 @@ impl<S: Store> IamClient<S> {
 pub use user::User;
 // Group is now defined in iam::group::model
 pub use group::Group;
-
-/// Represents an IAM role
-///
-/// An IAM role is similar to a user but is intended to be assumable by anyone who needs it.
-///
-/// # Example
-///
-/// ```rust
-/// use wami::Role;
-/// use chrono::Utc;
-///
-/// let role = Role {
-///     role_name: "EC2-S3-Access".to_string(),
-///     role_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
-///     arn: "arn:aws:iam::123456789012:role/EC2-S3-Access".to_string(),
-///     path: "/".to_string(),
-///     create_date: Utc::now(),
-///     assume_role_policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
-///     description: Some("Allows EC2 instances to access S3".to_string()),
-///     max_session_duration: Some(3600),
-///     permissions_boundary: None,
-///     tags: vec![],
-///     wami_arn: "arn:wami:iam::123456789012:role/EC2-S3-Access".to_string(),
-///     providers: vec![],
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Role {
-    /// The friendly name identifying the role
-    pub role_name: String,
-    /// The stable and unique identifier for the role
-    pub role_id: String,
-    /// The Amazon Resource Name (ARN) that identifies the role
-    pub arn: String,
-    /// The path to the role
-    pub path: String,
-    /// The date and time when the role was created
-    pub create_date: chrono::DateTime<chrono::Utc>,
-    /// The trust policy that grants permission to assume the role
-    pub assume_role_policy_document: String,
-    /// A description of the role
-    pub description: Option<String>,
-    /// The maximum session duration in seconds
-    pub max_session_duration: Option<i32>,
-    /// The ARN of the policy used to set the permissions boundary
-    pub permissions_boundary: Option<String>,
-    /// A list of tags associated with the role
-    pub tags: Vec<crate::types::Tag>,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
-    /// List of cloud providers where this resource exists
-    pub providers: Vec<crate::provider::ProviderConfig>,
-}
+// Role is now defined in iam::role::model
+pub use role::Role;
 
 /// Represents an IAM managed policy
 ///
@@ -361,6 +310,8 @@ pub use service_credentials::{ServiceSpecificCredential, ServiceSpecificCredenti
 pub use signing_certificates::{CertificateStatus, SigningCertificate};
 // User operations are in iam::user::operations
 // Group operations are in iam::group::operations
+// Role operations are in iam::role::operations
 // Re-export request types for convenience
 pub use group::{CreateGroupRequest, ListGroupsRequest, ListGroupsResponse, UpdateGroupRequest};
+pub use role::{CreateRoleRequest, ListRolesRequest, ListRolesResponse, UpdateRoleRequest};
 pub use user::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
