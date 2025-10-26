@@ -1,7 +1,10 @@
+//! Unified In-Memory Store
+//!
+//! Combines IAM, STS, and SSO Admin stores into a single unified store.
+
 use crate::error::Result;
 use crate::provider::{AwsProvider, CloudProvider};
-use crate::store::memory::InMemoryIamStore;
-use crate::store::memory_sts_sso::{InMemorySsoAdminStore, InMemoryStsStore};
+use crate::store::memory::{InMemoryIamStore, InMemorySsoAdminStore, InMemoryStsStore};
 use crate::store::Store;
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -36,7 +39,7 @@ impl InMemoryStore {
     /// # Example
     ///
     /// ```rust
-    /// use wami::store::in_memory::InMemoryStore;
+    /// use wami::store::memory::InMemoryStore;
     /// use wami::provider::{AwsProvider, GcpProvider, CustomProvider};
     /// use std::sync::Arc;
     ///

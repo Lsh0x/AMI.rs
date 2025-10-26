@@ -574,7 +574,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_service_specific_credential() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create user first
@@ -609,7 +609,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_credential_limit() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create user
@@ -646,7 +646,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_service_specific_credentials() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create user
@@ -688,7 +688,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_service_specific_credential() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create user and credential
@@ -746,7 +746,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_reset_service_specific_credential() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create user and credential
@@ -788,7 +788,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_service_specific_credential() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create user and credential
@@ -841,7 +841,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_service_name() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create user

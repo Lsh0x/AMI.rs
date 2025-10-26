@@ -348,7 +348,7 @@ impl<S: Store> IamClient<S> {
 mod tests {
     use super::*;
     use crate::iam::users::CreateUserRequest;
-    use crate::store::in_memory::InMemoryStore;
+    use crate::store::memory::InMemoryStore;
 
     #[tokio::test]
     async fn test_simulate_custom_policy_allow() {

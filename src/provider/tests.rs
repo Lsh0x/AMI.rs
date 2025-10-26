@@ -10,7 +10,7 @@ mod integration_tests {
         aws::AwsProvider, azure::AzureProvider, custom::CustomProvider, gcp::GcpProvider,
         CloudProvider, ResourceLimits, ResourceType,
     };
-    use crate::store::in_memory::InMemoryStore;
+    use crate::store::memory::InMemoryStore;
     use std::sync::Arc;
 
     #[tokio::test]

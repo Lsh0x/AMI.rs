@@ -1,7 +1,7 @@
 use crate::error::Result;
 use crate::iam::{AccessKey, Group, LoginProfile, MfaDevice, Policy, Role, User};
 use crate::provider::{AwsProvider, CloudProvider};
-use crate::store::IamStore;
+use crate::store::traits::IamStore;
 use crate::types::{PaginationParams, Tag};
 use async_trait::async_trait;
 use std::collections::HashMap;

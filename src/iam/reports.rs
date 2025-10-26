@@ -437,7 +437,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_generate_and_get_credential_report() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create a test user
@@ -477,7 +477,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_credential_report_not_found() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         let request = GetCredentialReportRequest {};
@@ -487,7 +487,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_account_summary() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create some test resources
@@ -521,7 +521,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_credential_report_with_mfa() {
-        let store = crate::store::in_memory::InMemoryStore::new();
+        let store = crate::store::memory::InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create user with MFA
