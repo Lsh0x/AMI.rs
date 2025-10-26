@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// # Example
 ///
 /// ```rust
-/// use wami::resources::user::User;
+/// use wami::iam::user::User;
 /// use chrono::Utc;
 ///
 /// let user = User {

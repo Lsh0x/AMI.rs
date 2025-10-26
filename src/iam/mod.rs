@@ -71,7 +71,7 @@ pub mod service_credentials;
 pub mod service_linked_roles;
 pub mod signing_certificates;
 pub mod tags;
-// users module moved to resources::user
+pub mod user;
 
 use crate::error::Result;
 use crate::store::{IamStore, Store};
@@ -161,8 +161,8 @@ impl<S: Store> IamClient<S> {
 
 // Common IAM resource types
 
-// User is now defined in resources::user::model
-pub use crate::resources::user::User;
+// User is now defined in iam::user::model
+pub use user::User;
 
 /// Represents an IAM group
 ///
@@ -399,8 +399,6 @@ pub use groups::*;
 pub use server_certificates::{ServerCertificate, ServerCertificateMetadata};
 pub use service_credentials::{ServiceSpecificCredential, ServiceSpecificCredentialMetadata};
 pub use signing_certificates::{CertificateStatus, SigningCertificate};
-// User operations are in resources::user::operations
+// User operations are in iam::user::operations
 // Re-export request types for convenience
-pub use crate::resources::user::{
-    CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest,
-};
+pub use user::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};

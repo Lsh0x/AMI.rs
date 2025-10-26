@@ -12,7 +12,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use wami::resources::user::{User, CreateUserRequest};
+//! use wami::iam::user::{User, CreateUserRequest};
 //! use wami::{IamClient, InMemoryStore};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {

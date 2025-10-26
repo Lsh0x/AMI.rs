@@ -416,7 +416,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resources::user::CreateUserRequest;
+    use crate::iam::user::CreateUserRequest;
     use crate::store::memory::InMemoryStore;
 
     fn create_test_client() -> IamClient<InMemoryStore> {
