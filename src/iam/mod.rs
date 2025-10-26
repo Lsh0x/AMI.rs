@@ -62,7 +62,7 @@ pub mod identity_providers;
 pub mod mfa_devices;
 pub mod passwords;
 pub mod permissions_boundaries;
-pub mod policies;
+pub mod policy;
 pub mod policy_evaluation;
 pub mod reports;
 pub mod role;
@@ -167,43 +167,8 @@ pub use user::User;
 pub use group::Group;
 // Role is now defined in iam::role::model
 pub use role::Role;
-
-/// Represents an IAM managed policy
-///
-/// A managed policy is a standalone policy that can be attached to multiple users, groups, and roles.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Policy {
-    /// The friendly name identifying the policy
-    pub policy_name: String,
-    /// The stable and unique identifier for the policy
-    pub policy_id: String,
-    /// The Amazon Resource Name (ARN) that identifies the policy
-    pub arn: String,
-    /// The path to the policy
-    pub path: String,
-    /// The identifier for the default version of the policy
-    pub default_version_id: String,
-    /// The policy document in JSON format
-    pub policy_document: String,
-    /// The number of entities (users, groups, and roles) that the policy is attached to
-    pub attachment_count: i32,
-    /// The number of entities that have the policy set as a permissions boundary
-    pub permissions_boundary_usage_count: i32,
-    /// Whether the policy can be attached to users, groups, or roles
-    pub is_attachable: bool,
-    /// A friendly description of the policy
-    pub description: Option<String>,
-    /// The date and time when the policy was created
-    pub create_date: chrono::DateTime<chrono::Utc>,
-    /// The date and time when the policy was last updated
-    pub update_date: chrono::DateTime<chrono::Utc>,
-    /// A list of tags associated with the policy
-    pub tags: Vec<crate::types::Tag>,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
-    /// List of cloud providers where this resource exists
-    pub providers: Vec<crate::provider::ProviderConfig>,
-}
+// Policy is now defined in iam::policy::model
+pub use policy::Policy;
 
 /// Represents an IAM access key
 ///
@@ -311,7 +276,11 @@ pub use signing_certificates::{CertificateStatus, SigningCertificate};
 // User operations are in iam::user::operations
 // Group operations are in iam::group::operations
 // Role operations are in iam::role::operations
+// Policy operations are in iam::policy::operations
 // Re-export request types for convenience
 pub use group::{CreateGroupRequest, ListGroupsRequest, ListGroupsResponse, UpdateGroupRequest};
+pub use policy::{
+    CreatePolicyRequest, ListPoliciesRequest, ListPoliciesResponse, UpdatePolicyRequest,
+};
 pub use role::{CreateRoleRequest, ListRolesRequest, ListRolesResponse, UpdateRoleRequest};
 pub use user::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};

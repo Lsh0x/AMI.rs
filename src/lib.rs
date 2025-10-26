@@ -110,7 +110,7 @@ pub use iam::mfa_devices::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
 pub use iam::passwords::{
     CreateLoginProfileRequest, GetLoginProfileRequest, UpdateLoginProfileRequest,
 };
-pub use iam::policies::{
+pub use iam::policy::{
     CreatePolicyRequest, ListPoliciesRequest, ListPoliciesResponse, UpdatePolicyRequest,
 };
 pub use iam::policy_evaluation::{
