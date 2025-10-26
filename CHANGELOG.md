@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2025-10-26
+
+### 🚀 Features
+
+- Implement service-specific credentials module
+
 ## [0.5.0] - 2025-10-26
 
 ### 🚀 Features
 
 - Implement server certificates module for SSL/TLS certificate management
+
+### ⚙️ Miscellaneous Tasks
+
+- **release:** V0.5.0 [skip ci]
 
 ## [0.4.0] - 2025-10-26
 
