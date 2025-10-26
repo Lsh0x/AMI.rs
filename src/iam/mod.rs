@@ -401,4 +401,5 @@ pub struct LoginProfile {
 pub use access_keys::*;
 pub use groups::*;
 pub use server_certificates::{ServerCertificate, ServerCertificateMetadata};
+pub use service_credentials::{ServiceSpecificCredential, ServiceSpecificCredentialMetadata};
 pub use users::*;

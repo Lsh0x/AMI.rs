@@ -82,7 +82,7 @@ pub use sts::StsClient;
 // Re-export IAM types
 pub use iam::{
     AccessKey, Group, LoginProfile, MfaDevice, Policy, Role, ServerCertificate,
-    ServerCertificateMetadata, User,
+    ServerCertificateMetadata, ServiceSpecificCredential, ServiceSpecificCredentialMetadata, User,
 };
 
 // Re-export STS types
@@ -122,6 +122,12 @@ pub use iam::server_certificates::{
     DeleteServerCertificateRequest, GetServerCertificateRequest, GetServerCertificateResponse,
     ListServerCertificatesRequest, ListServerCertificatesResponse, UpdateServerCertificateRequest,
     UploadServerCertificateRequest, UploadServerCertificateResponse,
+};
+pub use iam::service_credentials::{
+    CreateServiceSpecificCredentialRequest, CreateServiceSpecificCredentialResponse,
+    DeleteServiceSpecificCredentialRequest, ListServiceSpecificCredentialsRequest,
+    ListServiceSpecificCredentialsResponse, ResetServiceSpecificCredentialRequest,
+    ResetServiceSpecificCredentialResponse, UpdateServiceSpecificCredentialRequest,
 };
 pub use iam::tags::{ListResourceTagsRequest, TagResourceRequest, UntagResourceRequest};
 pub use iam::users::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};

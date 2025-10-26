@@ -19,6 +19,8 @@ pub struct InMemoryIamStore {
     user_groups: HashMap<String, Vec<String>>, // user_name -> group_names
     credential_report: Option<crate::iam::reports::CredentialReport>,
     server_certificates: HashMap<String, crate::iam::ServerCertificate>, // cert_name -> certificate
+    service_specific_credentials:
+        HashMap<String, crate::iam::service_credentials::ServiceSpecificCredential>, // cred_id -> credential
 }
 
 impl Default for InMemoryIamStore {
@@ -41,6 +43,7 @@ impl InMemoryIamStore {
             user_groups: HashMap::new(),
             credential_report: None,
             server_certificates: HashMap::new(),
+            service_specific_credentials: HashMap::new(),
         }
     }
 
@@ -57,6 +60,7 @@ impl InMemoryIamStore {
             user_groups: HashMap::new(),
             credential_report: None,
             server_certificates: HashMap::new(),
+            service_specific_credentials: HashMap::new(),
         }
     }
 }
@@ -573,5 +577,72 @@ impl IamStore for InMemoryIamStore {
         }
 
         Ok((certificates, is_truncated, marker))
+    }
+
+    async fn create_service_specific_credential(
+        &mut self,
+        credential: crate::iam::service_credentials::ServiceSpecificCredential,
+    ) -> Result<crate::iam::service_credentials::ServiceSpecificCredential> {
+        self.service_specific_credentials.insert(
+            credential.service_specific_credential_id.clone(),
+            credential.clone(),
+        );
+        Ok(credential)
+    }
+
+    async fn get_service_specific_credential(
+        &self,
+        credential_id: &str,
+    ) -> Result<Option<crate::iam::service_credentials::ServiceSpecificCredential>> {
+        Ok(self
+            .service_specific_credentials
+            .get(credential_id)
+            .cloned())
+    }
+
+    async fn update_service_specific_credential(
+        &mut self,
+        credential: crate::iam::service_credentials::ServiceSpecificCredential,
+    ) -> Result<crate::iam::service_credentials::ServiceSpecificCredential> {
+        self.service_specific_credentials.insert(
+            credential.service_specific_credential_id.clone(),
+            credential.clone(),
+        );
+        Ok(credential)
+    }
+
+    async fn delete_service_specific_credential(&mut self, credential_id: &str) -> Result<()> {
+        self.service_specific_credentials.remove(credential_id);
+        Ok(())
+    }
+
+    async fn list_service_specific_credentials(
+        &self,
+        user_name: Option<&str>,
+        service_name: Option<&str>,
+    ) -> Result<Vec<crate::iam::service_credentials::ServiceSpecificCredential>> {
+        let mut credentials: Vec<crate::iam::service_credentials::ServiceSpecificCredential> = self
+            .service_specific_credentials
+            .values()
+            .cloned()
+            .collect();
+
+        // Filter by user if provided
+        if let Some(user) = user_name {
+            credentials.retain(|c| c.user_name == user);
+        }
+
+        // Filter by service if provided
+        if let Some(service) = service_name {
+            credentials.retain(|c| c.service_name == service);
+        }
+
+        // Sort by credential ID
+        credentials.sort_by(|a, b| {
+            a.service_specific_credential_id
+                .cmp(&b.service_specific_credential_id)
+        });
+
+        Ok(credentials)
     }
 }

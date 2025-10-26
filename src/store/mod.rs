@@ -121,6 +121,26 @@ pub trait IamStore: Send + Sync {
         path_prefix: Option<&str>,
         pagination: Option<&PaginationParams>,
     ) -> Result<(Vec<crate::iam::ServerCertificate>, bool, Option<String>)>;
+
+    // Service-specific credential operations
+    async fn create_service_specific_credential(
+        &mut self,
+        credential: crate::iam::service_credentials::ServiceSpecificCredential,
+    ) -> Result<crate::iam::service_credentials::ServiceSpecificCredential>;
+    async fn get_service_specific_credential(
+        &self,
+        credential_id: &str,
+    ) -> Result<Option<crate::iam::service_credentials::ServiceSpecificCredential>>;
+    async fn update_service_specific_credential(
+        &mut self,
+        credential: crate::iam::service_credentials::ServiceSpecificCredential,
+    ) -> Result<crate::iam::service_credentials::ServiceSpecificCredential>;
+    async fn delete_service_specific_credential(&mut self, credential_id: &str) -> Result<()>;
+    async fn list_service_specific_credentials(
+        &self,
+        user_name: Option<&str>,
+        service_name: Option<&str>,
+    ) -> Result<Vec<crate::iam::service_credentials::ServiceSpecificCredential>>;
 }
 
 /// Trait for STS data storage operations
