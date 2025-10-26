@@ -1,75 +1,13 @@
+//! MfaDevice Operations
+
+use super::{builder, model::MfaDevice, requests::*};
 use crate::error::Result;
-use crate::iam::MfaDevice;
+use crate::iam::IamClient;
 use crate::store::{IamStore, Store};
 use crate::types::AmiResponse;
-use serde::{Deserialize, Serialize};
 
-/// Request parameters for enabling an MFA device
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EnableMfaDeviceRequest {
-    /// The name of the IAM user for whom the MFA device is being enabled
-    pub user_name: String,
-    /// The serial number that uniquely identifies the MFA device
-    pub serial_number: String,
-    /// First authentication code from the device
-    pub authentication_code_1: String,
-    /// Second authentication code from the device
-    pub authentication_code_2: String,
-}
-
-/// Request parameters for listing MFA devices
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListMfaDevicesRequest {
-    /// The name of the user whose MFA devices you want to list
-    pub user_name: String,
-}
-
-impl<S: Store> crate::iam::IamClient<S> {
+impl<S: Store> IamClient<S> {
     /// Enable an MFA device for an IAM user
-    ///
-    /// # Arguments
-    ///
-    /// * `request` - The request containing user name, serial number, and authentication codes
-    ///
-    /// # Returns
-    ///
-    /// Returns the enabled MFA device information.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if:
-    /// * The user does not exist
-    /// * The authentication codes are invalid (for real MFA, we just validate format here)
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::{MemoryIamClient, CreateUserRequest, EnableMfaDeviceRequest};
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = wami::create_memory_store();
-    /// let mut iam_client = MemoryIamClient::new(store);
-    ///
-    /// // Create a user first
-    /// let user_request = CreateUserRequest {
-    ///     user_name: "alice".to_string(),
-    ///     path: Some("/".to_string()),
-    ///     permissions_boundary: None,
-    ///     tags: None,
-    /// };
-    /// iam_client.create_user(user_request).await?;
-    ///
-    /// // Enable MFA device
-    /// let mfa_request = EnableMfaDeviceRequest {
-    ///     user_name: "alice".to_string(),
-    ///     serial_number: "arn:aws:iam::123456789012:mfa/alice".to_string(),
-    ///     authentication_code_1: "123456".to_string(),
-    ///     authentication_code_2: "789012".to_string(),
-    /// };
-    /// let response = iam_client.enable_mfa_device(mfa_request).await?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn enable_mfa_device(
         &mut self,
         request: EnableMfaDeviceRequest,
@@ -84,33 +22,21 @@ impl<S: Store> crate::iam::IamClient<S> {
         }
 
         // Validate authentication codes (in real AWS, these would be verified against the device)
-        // For this mock implementation, we just check they're 6 digits
         if request.authentication_code_1.len() != 6 || request.authentication_code_2.len() != 6 {
             return Err(crate::error::AmiError::InvalidParameter {
                 message: "Authentication codes must be 6 digits".to_string(),
             });
         }
 
-        // Get provider and account ID for WAMI ARN generation
         let provider = store.cloud_provider();
         let account_id = store.account_id();
 
-        // Generate WAMI ARN for cross-provider identification
-        let wami_arn = provider.generate_wami_arn(
-            crate::provider::ResourceType::MfaDevice,
+        let mfa_device = builder::build_mfa_device(
+            request.user_name,
+            request.serial_number,
+            provider,
             account_id,
-            "/",
-            &request.user_name,
         );
-
-        // Create the MFA device
-        let mfa_device = MfaDevice {
-            user_name: request.user_name.clone(),
-            serial_number: request.serial_number.clone(),
-            enable_date: chrono::Utc::now(),
-            wami_arn,
-            providers: Vec::new(),
-        };
 
         let created_device = store.create_mfa_device(mfa_device).await?;
 
@@ -118,54 +44,6 @@ impl<S: Store> crate::iam::IamClient<S> {
     }
 
     /// Disable an MFA device for an IAM user
-    ///
-    /// # Arguments
-    ///
-    /// * `user_name` - The name of the user whose MFA device is being disabled
-    /// * `serial_number` - The serial number of the MFA device to disable
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if:
-    /// * The MFA device does not exist
-    /// * The MFA device does not belong to the specified user
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::{MemoryIamClient, CreateUserRequest, EnableMfaDeviceRequest};
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = wami::create_memory_store();
-    /// let mut iam_client = MemoryIamClient::new(store);
-    ///
-    /// // Setup: create user and enable MFA
-    /// let user_request = CreateUserRequest {
-    ///     user_name: "alice".to_string(),
-    ///     path: Some("/".to_string()),
-    ///     permissions_boundary: None,
-    ///     tags: None,
-    /// };
-    /// iam_client.create_user(user_request).await?;
-    ///
-    /// let mfa_request = EnableMfaDeviceRequest {
-    ///     user_name: "alice".to_string(),
-    ///     serial_number: "arn:aws:iam::123456789012:mfa/alice".to_string(),
-    ///     authentication_code_1: "123456".to_string(),
-    ///     authentication_code_2: "789012".to_string(),
-    /// };
-    /// iam_client.enable_mfa_device(mfa_request).await?;
-    ///
-    /// // Disable the MFA device
-    /// iam_client
-    ///     .disable_mfa_device(
-    ///         "alice".to_string(),
-    ///         "arn:aws:iam::123456789012:mfa/alice".to_string(),
-    ///     )
-    ///     .await?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn disable_mfa_device(
         &mut self,
         user_name: String,
@@ -194,51 +72,6 @@ impl<S: Store> crate::iam::IamClient<S> {
     }
 
     /// List all MFA devices for a specific IAM user
-    ///
-    /// # Arguments
-    ///
-    /// * `request` - The request containing the user name
-    ///
-    /// # Returns
-    ///
-    /// Returns a list of MFA devices for the user.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::{MemoryIamClient, CreateUserRequest, EnableMfaDeviceRequest, ListMfaDevicesRequest};
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let store = wami::create_memory_store();
-    /// let mut iam_client = MemoryIamClient::new(store);
-    ///
-    /// // Setup: create user and enable MFA
-    /// let user_request = CreateUserRequest {
-    ///     user_name: "alice".to_string(),
-    ///     path: Some("/".to_string()),
-    ///     permissions_boundary: None,
-    ///     tags: None,
-    /// };
-    /// iam_client.create_user(user_request).await?;
-    ///
-    /// let mfa_request = EnableMfaDeviceRequest {
-    ///     user_name: "alice".to_string(),
-    ///     serial_number: "arn:aws:iam::123456789012:mfa/alice".to_string(),
-    ///     authentication_code_1: "123456".to_string(),
-    ///     authentication_code_2: "789012".to_string(),
-    /// };
-    /// iam_client.enable_mfa_device(mfa_request).await?;
-    ///
-    /// // List MFA devices
-    /// let list_request = ListMfaDevicesRequest {
-    ///     user_name: "alice".to_string(),
-    /// };
-    /// let response = iam_client.list_mfa_devices(list_request).await?;
-    /// let devices = response.data.unwrap();
-    /// println!("Found {} MFA devices", devices.len());
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn list_mfa_devices(
         &mut self,
         request: ListMfaDevicesRequest,
@@ -253,7 +86,8 @@ impl<S: Store> crate::iam::IamClient<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iam::{CreateUserRequest, IamClient};
+    use crate::iam::user::CreateUserRequest;
+    use crate::iam::IamClient;
     use crate::store::memory::InMemoryStore;
 
     fn create_test_client() -> IamClient<InMemoryStore> {

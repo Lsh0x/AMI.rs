@@ -432,7 +432,7 @@ impl<S: Store> IamClient<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iam::mfa_devices::EnableMfaDeviceRequest;
+    use crate::iam::mfa_device::EnableMfaDeviceRequest;
     use crate::iam::user::CreateUserRequest;
 
     #[tokio::test]

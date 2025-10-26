@@ -106,7 +106,7 @@ pub use iam::access_key::{
 pub use iam::group::{
     CreateGroupRequest, ListGroupsRequest, ListGroupsResponse, UpdateGroupRequest,
 };
-pub use iam::mfa_devices::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
+pub use iam::mfa_device::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
 pub use iam::passwords::{
     CreateLoginProfileRequest, GetLoginProfileRequest, UpdateLoginProfileRequest,
 };

@@ -59,7 +59,7 @@
 pub mod access_key;
 pub mod group;
 pub mod identity_providers;
-pub mod mfa_devices;
+pub mod mfa_device;
 pub mod passwords;
 pub mod permissions_boundaries;
 pub mod policy;
@@ -171,36 +171,8 @@ pub use role::Role;
 pub use policy::Policy;
 // AccessKey is now defined in iam::access_key::model
 pub use access_key::AccessKey;
-
-/// Represents an MFA (Multi-Factor Authentication) device
-///
-/// # Example
-///
-/// ```rust
-/// use wami::MfaDevice;
-/// use chrono::Utc;
-///
-/// let mfa_device = MfaDevice {
-///     user_name: "alice".to_string(),
-///     serial_number: "arn:aws:iam::123456789012:mfa/alice".to_string(),
-///     enable_date: Utc::now(),
-///     wami_arn: "arn:wami:iam::123456789012:mfa/alice".to_string(),
-///     providers: vec![],
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MfaDevice {
-    /// The user with whom the MFA device is associated
-    pub user_name: String,
-    /// The serial number that uniquely identifies the MFA device
-    pub serial_number: String,
-    /// The date when the MFA device was enabled
-    pub enable_date: chrono::DateTime<chrono::Utc>,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
-    /// List of cloud providers where this resource exists
-    pub providers: Vec<crate::provider::ProviderConfig>,
-}
+// MfaDevice is now defined in iam::mfa_device::model
+pub use mfa_device::MfaDevice;
 
 /// Represents a login profile (console password) for an IAM user
 ///
@@ -237,6 +209,7 @@ pub use access_key::{
     AccessKeyLastUsed, CreateAccessKeyRequest, ListAccessKeysRequest, ListAccessKeysResponse,
     UpdateAccessKeyRequest,
 };
+pub use mfa_device::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
 pub use server_certificates::{ServerCertificate, ServerCertificateMetadata};
 pub use service_credentials::{ServiceSpecificCredential, ServiceSpecificCredentialMetadata};
 pub use signing_certificates::{CertificateStatus, SigningCertificate};
