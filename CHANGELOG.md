@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2025-10-26
+
+### 🚀 Features
+
+- Implement IAM reports module (credential reports and account summary)
+
 ## [0.3.0] - 2025-10-25
 
 ### 🚀 Features
 
 - Implement IAM policy evaluation/simulation module
+
+### ⚙️ Miscellaneous Tasks
+
+- **release:** V0.3.0 [skip ci]
 
 ## [0.2.7] - 2025-10-25
 
