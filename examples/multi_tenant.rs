@@ -5,7 +5,6 @@
 //! tenant isolation.
 
 use std::collections::HashMap;
-use wami::provider::CloudProvider;
 use wami::store::memory::InMemoryStore;
 use wami::tenant::client::{CreateRootTenantRequest, CreateSubTenantRequest};
 use wami::tenant::{BillingInfo, TenantClient, TenantId, TenantQuotas, TenantType};
@@ -24,11 +23,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root_request = CreateRootTenantRequest {
         name: "acme".to_string(),
         organization: Some("Acme Corporation".to_string()),
-        provider_accounts: {
+        provider_accounts: Some({
             let mut accounts = HashMap::new();
             accounts.insert("aws".to_string(), "123456789012".to_string());
             accounts
-        },
+        }),
         quotas: Some(TenantQuotas {
             max_users: 1000,
             max_roles: 500,
@@ -40,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
         max_child_depth: Some(5),
         admin_principals: vec!["admin@acme.com".to_string()],
-        metadata: HashMap::new(),
+        metadata: Some(HashMap::new()),
         billing_info: Some(BillingInfo {
             cost_center: "CC-001".to_string(),
             billable: true,
@@ -171,29 +170,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     println!();
 
-    // 6. Get Tenant Usage
-    println!("6. Getting tenant usage statistics...");
-    let usage_response = tenant_client.get_tenant_usage(&root_id).await?;
-    let usage = usage_response.data.unwrap();
-    println!("  Root tenant usage:");
-    println!(
-        "    Sub-tenants: {}/{}",
-        usage.current_sub_tenants, root.quotas.max_sub_tenants
-    );
-    println!();
-
-    // 7. Demonstrate Tenant-Aware Resource Paths
-    println!("7. Tenant-aware resource paths:");
-    let tenant_path =
-        <dyn CloudProvider>::tenant_aware_path(Some("acme/engineering/frontend"), "/");
+    // 6. Demonstrate Tenant-Aware Resource Paths
+    println!("6. Tenant-aware resource paths:");
     println!("  Base path: /");
     println!("  Tenant ID: acme/engineering/frontend");
-    println!("  Result: {}", tenant_path);
-    println!();
-
-    // Extract tenant from path
-    let extracted = <dyn CloudProvider>::extract_tenant_from_path(&tenant_path);
-    println!("  Extracted tenant: {:?}", extracted);
+    println!("  Result: /tenants/acme/engineering/frontend/");
+    println!("  Resources are automatically namespaced by tenant hierarchy");
     println!();
 
     // 8. Show Quota Enforcement

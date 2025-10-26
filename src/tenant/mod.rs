@@ -1,33 +1,28 @@
-//! Multi-Tenant Architecture Module
+//! Tenant Module
 //!
-//! This module provides hierarchical multi-tenancy support for WAMI,
-//! allowing tenants to create sub-tenants with inherited quotas and permissions.
+//! This module provides multi-tenant functionality for WAMI, including hierarchical
+//! tenant management, resource isolation, and quota enforcement.
 //!
-//! # Features
+//! # Overview
 //!
-//! - Hierarchical tenant structure (unlimited depth with constraints)
-//! - Per-tenant resource isolation
-//! - Quota management with inheritance
-//! - Permission-based access control
-//! - Backward compatible (single-tenant mode when tenant_id is None)
+//! Tenants can be organized in a hierarchy (e.g., "acme/engineering/frontend")
+//! with cascading permissions and quota management.
 //!
 //! # Example
 //!
 //! ```rust,ignore
-//! use wami::tenant::{TenantId, Tenant, TenantClient};
+//! use wami::tenant::{TenantId, Tenant, TenantType};
 //!
 //! // Create root tenant
 //! let root_id = TenantId::root("acme");
 //!
 //! // Create child tenant
 //! let child_id = root_id.child("engineering");
-//!
-//! // Check hierarchy
-//! assert!(child_id.is_descendant_of(&root_id));
-//! assert_eq!(child_id.depth(), 1);
+//! assert_eq!(child_id.as_str(), "acme/engineering");
 //! ```
 
 pub mod client;
+pub mod hierarchy;
 pub mod model;
 pub mod store;
 

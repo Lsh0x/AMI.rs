@@ -36,4 +36,6 @@ pub struct Policy {
     pub wami_arn: String,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
+    /// Optional tenant ID for multi-tenant isolation
+    pub tenant_id: Option<crate::tenant::TenantId>,
 }

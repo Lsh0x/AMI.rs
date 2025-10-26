@@ -17,6 +17,7 @@ impl<S: Store> IamClient<S> {
         let provider = store.cloud_provider();
 
         // Use builder to construct the user
+        // TODO: Extract tenant_id from request or context
         let user = builder::build_user(
             request.user_name,
             request.path,
@@ -24,6 +25,7 @@ impl<S: Store> IamClient<S> {
             request.tags,
             provider,
             account_id,
+            None, // tenant_id - single-tenant mode for now
         );
 
         let created_user = store.create_user(user).await?;

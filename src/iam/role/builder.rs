@@ -36,6 +36,7 @@ pub fn build_role(
         tags: tags.unwrap_or_default(),
         wami_arn,
         providers: Vec::new(),
+        tenant_id: None,
     }
 }
 

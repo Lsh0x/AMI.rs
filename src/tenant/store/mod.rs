@@ -2,19 +2,35 @@
 
 pub mod memory;
 
+pub use memory::InMemoryTenantStore;
+
+use super::{Tenant, TenantId, TenantQuotas, TenantUsage};
 use crate::error::Result;
 use async_trait::async_trait;
 
-use super::{Tenant, TenantAction, TenantId, TenantQuotas, TenantUsage};
+/// Tenant actions for permission checking
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TenantAction {
+    /// Read tenant information
+    Read,
+    /// Update tenant
+    Update,
+    /// Delete tenant
+    Delete,
+    /// Create sub-tenant
+    CreateSubTenant,
+    /// Manage users in tenant
+    ManageUsers,
+    /// Manage roles in tenant
+    ManageRoles,
+    /// Manage policies in tenant
+    ManagePolicies,
+}
 
-pub use memory::InMemoryTenantStore;
-
-/// Trait for tenant data storage operations
-///
-/// This trait defines the interface that any tenant storage backend must implement.
+/// Trait for tenant storage operations
 #[async_trait]
 pub trait TenantStore: Send + Sync {
-    // Basic CRUD
+    // Basic CRUD operations
     /// Create a new tenant
     async fn create_tenant(&mut self, tenant: Tenant) -> Result<Tenant>;
 
@@ -31,13 +47,13 @@ pub trait TenantStore: Send + Sync {
     async fn list_tenants(&self) -> Result<Vec<Tenant>>;
 
     // Hierarchy operations
-    /// List direct children of a tenant
+    /// List direct child tenants
     async fn list_child_tenants(&self, parent_id: &TenantId) -> Result<Vec<Tenant>>;
 
-    /// Get all ancestors of a tenant (parent, grandparent, etc.)
+    /// Get all ancestor tenants
     async fn get_ancestors(&self, tenant_id: &TenantId) -> Result<Vec<Tenant>>;
 
-    /// Get all descendant tenant IDs (children, grandchildren, etc.)
+    /// Get all descendant tenant IDs
     async fn get_descendants(&self, tenant_id: &TenantId) -> Result<Vec<TenantId>>;
 
     // Permission checking
@@ -50,7 +66,7 @@ pub trait TenantStore: Send + Sync {
     ) -> Result<bool>;
 
     // Quota management
-    /// Get effective quotas for a tenant (with inheritance)
+    /// Get effective quotas for a tenant (considering inheritance)
     async fn get_effective_quotas(&self, tenant_id: &TenantId) -> Result<TenantQuotas>;
 
     /// Get current resource usage for a tenant

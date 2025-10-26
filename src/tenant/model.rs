@@ -14,34 +14,41 @@ use std::collections::HashMap;
 ///
 /// let root = TenantId::root("acme");
 /// let child = root.child("engineering");
-/// let grandchild = child.child("frontend");
-///
-/// assert_eq!(root.depth(), 0);
+/// assert_eq!(child.as_str(), "acme/engineering");
 /// assert_eq!(child.depth(), 1);
-/// assert_eq!(grandchild.depth(), 2);
-/// assert!(grandchild.is_descendant_of(&root));
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TenantId(String);
 
 impl TenantId {
-    /// Create a tenant ID from a string
+    /// Create a new tenant ID from a string
     pub fn new(id: impl Into<String>) -> Self {
         Self(id.into())
     }
 
-    /// Create root tenant (e.g., "acme")
+    /// Create a root tenant ID
     pub fn root(name: &str) -> Self {
         Self(name.to_string())
     }
 
-    /// Create child tenant (e.g., parent="acme" + child="engineering" = "acme/engineering")
+    /// Create a child tenant ID
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wami::tenant::TenantId;
+    ///
+    /// let parent = TenantId::root("acme");
+    /// let child = parent.child("engineering");
+    /// assert_eq!(child.as_str(), "acme/engineering");
+    /// ```
     pub fn child(&self, name: &str) -> Self {
         Self(format!("{}/{}", self.0, name))
     }
 
     /// Get parent tenant ID
-    /// e.g., "acme/engineering/frontend" -> Some("acme/engineering")
+    ///
+    /// Returns None if this is a root tenant.
     pub fn parent(&self) -> Option<Self> {
         self.0
             .rsplit_once('/')
@@ -54,7 +61,19 @@ impl TenantId {
     }
 
     /// Get all ancestor tenant IDs (including self)
-    /// e.g., "acme/eng/team1" -> ["acme", "acme/eng", "acme/eng/team1"]
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wami::tenant::TenantId;
+    ///
+    /// let id = TenantId::new("acme/eng/team1");
+    /// let ancestors = id.ancestors();
+    /// assert_eq!(ancestors.len(), 3);
+    /// assert_eq!(ancestors[0].as_str(), "acme");
+    /// assert_eq!(ancestors[1].as_str(), "acme/eng");
+    /// assert_eq!(ancestors[2].as_str(), "acme/eng/team1");
+    /// ```
     pub fn ancestors(&self) -> Vec<TenantId> {
         let mut ancestors = Vec::new();
         let parts: Vec<&str> = self.0.split('/').collect();
@@ -71,7 +90,7 @@ impl TenantId {
         self.0.starts_with(&format!("{}/", other.0))
     }
 
-    /// Get the string representation
+    /// Get the tenant ID as a string slice
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -192,7 +211,7 @@ pub struct TenantQuotas {
 }
 
 impl TenantQuotas {
-    /// Validate child quotas don't exceed parent
+    /// Validate that child quotas don't exceed parent quotas
     pub fn validate_against_parent(&self, parent: &TenantQuotas) -> Result<(), String> {
         if self.max_users > parent.max_users {
             return Err("max_users exceeds parent limit".to_string());
@@ -243,111 +262,16 @@ pub struct BillingInfo {
 pub struct TenantUsage {
     /// Tenant ID
     pub tenant_id: TenantId,
-    /// Current number of users
+    /// Current user count
     pub current_users: usize,
-    /// Current number of roles
+    /// Current role count
     pub current_roles: usize,
-    /// Current number of policies
+    /// Current policy count
     pub current_policies: usize,
-    /// Current number of groups
+    /// Current group count
     pub current_groups: usize,
-    /// Current number of sub-tenants
+    /// Current sub-tenant count
     pub current_sub_tenants: usize,
-    /// Include descendant usage
+    /// Include descendants in count
     pub include_descendants: bool,
-}
-
-/// Actions that can be performed on tenants
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TenantAction {
-    /// Read tenant information
-    Read,
-    /// Update tenant settings
-    Update,
-    /// Delete tenant
-    Delete,
-    /// Create sub-tenant
-    CreateSubTenant,
-    /// Manage users in tenant
-    ManageUsers,
-    /// Manage roles in tenant
-    ManageRoles,
-    /// Manage policies in tenant
-    ManagePolicies,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_tenant_id_hierarchy() {
-        let root = TenantId::root("acme");
-        let child = root.child("engineering");
-        let grandchild = child.child("frontend");
-
-        assert_eq!(root.as_str(), "acme");
-        assert_eq!(child.as_str(), "acme/engineering");
-        assert_eq!(grandchild.as_str(), "acme/engineering/frontend");
-
-        assert_eq!(root.depth(), 0);
-        assert_eq!(child.depth(), 1);
-        assert_eq!(grandchild.depth(), 2);
-    }
-
-    #[test]
-    fn test_tenant_id_parent() {
-        let root = TenantId::root("acme");
-        let child = root.child("engineering");
-
-        assert_eq!(child.parent(), Some(root.clone()));
-        assert_eq!(root.parent(), None);
-    }
-
-    #[test]
-    fn test_tenant_id_is_descendant() {
-        let root = TenantId::root("acme");
-        let child = root.child("engineering");
-        let grandchild = child.child("frontend");
-
-        assert!(child.is_descendant_of(&root));
-        assert!(grandchild.is_descendant_of(&root));
-        assert!(grandchild.is_descendant_of(&child));
-        assert!(!root.is_descendant_of(&child));
-    }
-
-    #[test]
-    fn test_tenant_id_ancestors() {
-        let grandchild = TenantId::new("acme/engineering/frontend");
-        let ancestors = grandchild.ancestors();
-
-        assert_eq!(ancestors.len(), 3);
-        assert_eq!(ancestors[0].as_str(), "acme");
-        assert_eq!(ancestors[1].as_str(), "acme/engineering");
-        assert_eq!(ancestors[2].as_str(), "acme/engineering/frontend");
-    }
-
-    #[test]
-    fn test_quota_validation() {
-        let parent = TenantQuotas {
-            max_users: 1000,
-            max_roles: 500,
-            ..Default::default()
-        };
-
-        let valid_child = TenantQuotas {
-            max_users: 100,
-            max_roles: 50,
-            ..Default::default()
-        };
-
-        let invalid_child = TenantQuotas {
-            max_users: 2000, // Exceeds parent
-            max_roles: 50,
-            ..Default::default()
-        };
-
-        assert!(valid_child.validate_against_parent(&parent).is_ok());
-        assert!(invalid_child.validate_against_parent(&parent).is_err());
-    }
 }

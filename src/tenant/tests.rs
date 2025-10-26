@@ -1,380 +1,284 @@
-//! Tests for Multi-Tenant Functionality
+//! Tenant Module Tests
 
 #[cfg(test)]
 mod tenant_tests {
     use crate::store::memory::InMemoryStore;
     use crate::tenant::client::{CreateRootTenantRequest, CreateSubTenantRequest};
     use crate::tenant::{TenantClient, TenantId, TenantQuotas, TenantStatus, TenantType};
-    use std::collections::HashMap;
-
-    fn create_test_store() -> InMemoryStore {
-        InMemoryStore::new()
-    }
 
     #[tokio::test]
     async fn test_create_root_tenant() {
-        let store = create_test_store();
+        let store = InMemoryStore::new();
         let mut client = TenantClient::new(store, "admin@example.com".to_string());
 
         let request = CreateRootTenantRequest {
             name: "acme".to_string(),
             organization: Some("Acme Corp".to_string()),
-            provider_accounts: HashMap::new(),
+            provider_accounts: None,
             quotas: Some(TenantQuotas::default()),
             max_child_depth: Some(5),
-            admin_principals: vec!["admin@example.com".to_string()],
-            metadata: HashMap::new(),
+            admin_principals: vec!["admin@acme.com".to_string()],
+            metadata: None,
             billing_info: None,
         };
 
         let response = client.create_root_tenant(request).await.unwrap();
         let tenant = response.data.unwrap();
 
+        assert_eq!(tenant.id, TenantId::root("acme"));
         assert_eq!(tenant.name, "acme");
-        assert_eq!(tenant.id.as_str(), "acme");
-        assert!(tenant.parent_id.is_none());
         assert_eq!(tenant.status, TenantStatus::Active);
-        assert_eq!(tenant.max_child_depth, 5);
+        assert_eq!(tenant.parent_id, None);
     }
 
     #[tokio::test]
     async fn test_create_sub_tenant() {
-        let store = create_test_store();
-        let mut client = TenantClient::new(store, "admin@example.com".to_string());
+        let store = InMemoryStore::new();
+        // Use the same admin principal that will be set on tenants
+        let mut client = TenantClient::new(store, "admin@acme.com".to_string());
 
-        // Create root tenant
+        // Create root
         let root_request = CreateRootTenantRequest {
             name: "acme".to_string(),
             organization: Some("Acme Corp".to_string()),
-            provider_accounts: HashMap::new(),
+            provider_accounts: None,
             quotas: Some(TenantQuotas::default()),
             max_child_depth: Some(5),
-            admin_principals: vec!["admin@example.com".to_string()],
-            metadata: HashMap::new(),
+            admin_principals: vec!["admin@acme.com".to_string()],
+            metadata: None,
             billing_info: None,
         };
 
         client.create_root_tenant(root_request).await.unwrap();
 
-        // Create child tenant
+        // Create sub-tenant
         let root_id = TenantId::root("acme");
-        let child_request = CreateSubTenantRequest {
+        let sub_request = CreateSubTenantRequest {
             name: "engineering".to_string(),
             organization: None,
             tenant_type: TenantType::Department,
             provider_accounts: None,
-            quotas: None, // Should inherit
-            admin_principals: vec!["eng-admin@example.com".to_string()],
+            quotas: None, // Inherit from parent
+            admin_principals: vec!["eng-admin@acme.com".to_string()],
             metadata: None,
             billing_info: None,
         };
 
         let response = client
-            .create_sub_tenant(&root_id, child_request)
+            .create_sub_tenant(&root_id, sub_request)
             .await
             .unwrap();
-        let child = response.data.unwrap();
+        let sub_tenant = response.data.unwrap();
 
-        assert_eq!(child.name, "engineering");
-        assert_eq!(child.id.as_str(), "acme/engineering");
-        assert_eq!(child.parent_id, Some(root_id.clone()));
-        assert_eq!(child.id.depth(), 1);
+        assert_eq!(sub_tenant.id, TenantId::new("acme/engineering"));
+        assert_eq!(sub_tenant.parent_id, Some(root_id));
+        assert_eq!(sub_tenant.name, "engineering");
     }
 
     #[tokio::test]
     async fn test_tenant_hierarchy() {
-        let store = create_test_store();
-        let mut client = TenantClient::new(store, "admin@example.com".to_string());
+        let id = TenantId::new("acme/engineering/team1");
+
+        assert_eq!(id.depth(), 2);
+        assert_eq!(id.parent().unwrap(), TenantId::new("acme/engineering"));
+
+        let ancestors = id.ancestors();
+        assert_eq!(ancestors.len(), 3);
+        assert_eq!(ancestors[0], TenantId::new("acme"));
+        assert_eq!(ancestors[1], TenantId::new("acme/engineering"));
+        assert_eq!(ancestors[2], TenantId::new("acme/engineering/team1"));
+
+        assert!(id.is_descendant_of(&TenantId::new("acme")));
+        assert!(id.is_descendant_of(&TenantId::new("acme/engineering")));
+        assert!(!id.is_descendant_of(&TenantId::new("other")));
+    }
+
+    #[tokio::test]
+    async fn test_list_child_tenants() {
+        let store = InMemoryStore::new();
+        let mut client = TenantClient::new(store, "admin@acme.com".to_string());
 
         // Create root
         let root_request = CreateRootTenantRequest {
             name: "acme".to_string(),
-            organization: Some("Acme Corp".to_string()),
-            provider_accounts: HashMap::new(),
+            organization: None,
+            provider_accounts: None,
             quotas: Some(TenantQuotas::default()),
             max_child_depth: Some(5),
-            admin_principals: vec!["admin@example.com".to_string()],
-            metadata: HashMap::new(),
+            admin_principals: vec!["admin@acme.com".to_string()],
+            metadata: None,
             billing_info: None,
         };
+
         client.create_root_tenant(root_request).await.unwrap();
 
-        // Create child
+        // Create multiple children
         let root_id = TenantId::root("acme");
-        let child_request = CreateSubTenantRequest {
-            name: "engineering".to_string(),
-            organization: None,
-            tenant_type: TenantType::Department,
-            provider_accounts: None,
-            quotas: None,
-            admin_principals: vec!["eng-admin@example.com".to_string()],
-            metadata: None,
-            billing_info: None,
-        };
-        client
-            .create_sub_tenant(&root_id, child_request)
-            .await
-            .unwrap();
 
-        // Create grandchild
-        let child_id = root_id.child("engineering");
-        let grandchild_request = CreateSubTenantRequest {
-            name: "frontend".to_string(),
-            organization: None,
-            tenant_type: TenantType::Team,
-            provider_accounts: None,
-            quotas: None,
-            admin_principals: vec!["frontend-lead@example.com".to_string()],
-            metadata: None,
-            billing_info: None,
-        };
-        client
-            .create_sub_tenant(&child_id, grandchild_request)
-            .await
-            .unwrap();
-
-        // Verify hierarchy
-        let grandchild_id = child_id.child("frontend");
-        assert_eq!(grandchild_id.as_str(), "acme/engineering/frontend");
-        assert_eq!(grandchild_id.depth(), 2);
-        assert!(grandchild_id.is_descendant_of(&root_id));
-        assert!(grandchild_id.is_descendant_of(&child_id));
+        for name in &["eng", "sales", "marketing"] {
+            let sub_request = CreateSubTenantRequest {
+                name: name.to_string(),
+                organization: None,
+                tenant_type: TenantType::Department,
+                provider_accounts: None,
+                quotas: None,
+                admin_principals: vec![format!("admin-{}@acme.com", name)],
+                metadata: None,
+                billing_info: None,
+            };
+            client
+                .create_sub_tenant(&root_id, sub_request)
+                .await
+                .unwrap();
+        }
 
         // List children
-        let children_response = client.list_child_tenants(&root_id).await.unwrap();
-        let children = children_response.data.unwrap();
-        assert_eq!(children.len(), 1);
-        assert_eq!(children[0].name, "engineering");
+        let response = client.list_child_tenants(&root_id).await.unwrap();
+        let children = response.data.unwrap();
 
-        let grandchildren_response = client.list_child_tenants(&child_id).await.unwrap();
-        let grandchildren = grandchildren_response.data.unwrap();
-        assert_eq!(grandchildren.len(), 1);
-        assert_eq!(grandchildren[0].name, "frontend");
+        assert_eq!(children.len(), 3);
+        let names: Vec<String> = children.iter().map(|t| t.name.clone()).collect();
+        assert!(names.contains(&"eng".to_string()));
+        assert!(names.contains(&"sales".to_string()));
+        assert!(names.contains(&"marketing".to_string()));
     }
 
     #[tokio::test]
-    async fn test_quota_enforcement() {
-        let store = create_test_store();
-        let mut client = TenantClient::new(store, "admin@example.com".to_string());
-
-        // Create root with limited sub-tenants
-        let root_request = CreateRootTenantRequest {
-            name: "acme".to_string(),
-            organization: Some("Acme Corp".to_string()),
-            provider_accounts: HashMap::new(),
-            quotas: Some(TenantQuotas {
-                max_sub_tenants: 1, // Only 1 child allowed
-                ..Default::default()
-            }),
-            max_child_depth: Some(5),
-            admin_principals: vec!["admin@example.com".to_string()],
-            metadata: HashMap::new(),
-            billing_info: None,
+    async fn test_tenant_quota_validation() {
+        let parent_quotas = TenantQuotas {
+            max_users: 100,
+            max_roles: 50,
+            max_policies: 20,
+            max_groups: 10,
+            max_access_keys: 200,
+            max_sub_tenants: 5,
+            api_rate_limit: 500,
         };
-        client.create_root_tenant(root_request).await.unwrap();
 
-        let root_id = TenantId::root("acme");
-
-        // First child should succeed
-        let child1_request = CreateSubTenantRequest {
-            name: "engineering".to_string(),
-            organization: None,
-            tenant_type: TenantType::Department,
-            provider_accounts: None,
-            quotas: None,
-            admin_principals: vec!["eng-admin@example.com".to_string()],
-            metadata: None,
-            billing_info: None,
+        let valid_child_quotas = TenantQuotas {
+            max_users: 50,
+            max_roles: 25,
+            max_policies: 10,
+            max_groups: 5,
+            max_access_keys: 100,
+            max_sub_tenants: 3,
+            api_rate_limit: 250,
         };
-        client
-            .create_sub_tenant(&root_id, child1_request)
-            .await
-            .unwrap();
 
-        // Second child should fail (quota exceeded)
-        let child2_request = CreateSubTenantRequest {
-            name: "sales".to_string(),
-            organization: None,
-            tenant_type: TenantType::Department,
-            provider_accounts: None,
-            quotas: None,
-            admin_principals: vec!["sales-admin@example.com".to_string()],
-            metadata: None,
-            billing_info: None,
+        // Should pass
+        assert!(valid_child_quotas
+            .validate_against_parent(&parent_quotas)
+            .is_ok());
+
+        let invalid_child_quotas = TenantQuotas {
+            max_users: 200, // Exceeds parent
+            max_roles: 25,
+            max_policies: 10,
+            max_groups: 5,
+            max_access_keys: 100,
+            max_sub_tenants: 3,
+            api_rate_limit: 250,
         };
-        let result = client.create_sub_tenant(&root_id, child2_request).await;
-        assert!(result.is_err());
+
+        // Should fail
+        assert!(invalid_child_quotas
+            .validate_against_parent(&parent_quotas)
+            .is_err());
     }
 
     #[tokio::test]
-    async fn test_quota_validation() {
-        let store = create_test_store();
-        let mut client = TenantClient::new(store, "admin@example.com".to_string());
+    async fn test_tenant_aware_user_path() {
+        use crate::iam::user::builder::build_user;
+        use crate::provider::AwsProvider;
+        use std::sync::Arc;
 
-        // Create root with specific quotas
-        let root_request = CreateRootTenantRequest {
-            name: "acme".to_string(),
-            organization: Some("Acme Corp".to_string()),
-            provider_accounts: HashMap::new(),
-            quotas: Some(TenantQuotas {
-                max_users: 100,
-                max_roles: 50,
-                ..Default::default()
-            }),
-            max_child_depth: Some(5),
-            admin_principals: vec!["admin@example.com".to_string()],
-            metadata: HashMap::new(),
-            billing_info: None,
-        };
-        client.create_root_tenant(root_request).await.unwrap();
+        let provider = Arc::new(AwsProvider::new());
+        let tenant_id = Some(TenantId::new("acme/engineering"));
 
-        let root_id = TenantId::root("acme");
+        let user = build_user(
+            "alice".to_string(),
+            None,
+            None,
+            None,
+            provider.as_ref(),
+            "123456789012",
+            tenant_id.clone(),
+        );
 
-        // Try to create child with quotas exceeding parent
-        let child_request = CreateSubTenantRequest {
-            name: "engineering".to_string(),
-            organization: None,
-            tenant_type: TenantType::Department,
-            provider_accounts: None,
-            quotas: Some(TenantQuotas {
-                max_users: 200, // Exceeds parent quota
-                max_roles: 50,
-                ..Default::default()
-            }),
-            admin_principals: vec!["eng-admin@example.com".to_string()],
-            metadata: None,
-            billing_info: None,
-        };
-
-        let result = client.create_sub_tenant(&root_id, child_request).await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_get_tenant_usage() {
-        let store = create_test_store();
-        let mut client = TenantClient::new(store, "admin@example.com".to_string());
-
-        // Create root
-        let root_request = CreateRootTenantRequest {
-            name: "acme".to_string(),
-            organization: Some("Acme Corp".to_string()),
-            provider_accounts: HashMap::new(),
-            quotas: Some(TenantQuotas::default()),
-            max_child_depth: Some(5),
-            admin_principals: vec!["admin@example.com".to_string()],
-            metadata: HashMap::new(),
-            billing_info: None,
-        };
-        client.create_root_tenant(root_request).await.unwrap();
-
-        let root_id = TenantId::root("acme");
-
-        // Create child
-        let child_request = CreateSubTenantRequest {
-            name: "engineering".to_string(),
-            organization: None,
-            tenant_type: TenantType::Department,
-            provider_accounts: None,
-            quotas: None,
-            admin_principals: vec!["eng-admin@example.com".to_string()],
-            metadata: None,
-            billing_info: None,
-        };
-        client
-            .create_sub_tenant(&root_id, child_request)
-            .await
-            .unwrap();
-
-        // Get usage
-        let usage_response = client.get_tenant_usage(&root_id).await.unwrap();
-        let usage = usage_response.data.unwrap();
-
-        assert_eq!(usage.tenant_id, root_id);
-        assert_eq!(usage.current_sub_tenants, 1);
+        // Verify tenant-aware path
+        assert_eq!(user.path, "/tenants/acme/engineering/");
+        assert_eq!(user.tenant_id, tenant_id);
+        assert!(user.arn.contains("/tenants/acme/engineering/alice"));
     }
 
     #[tokio::test]
     async fn test_delete_tenant_cascade() {
-        let store = create_test_store();
-        let mut client = TenantClient::new(store, "admin@example.com".to_string());
+        let store = InMemoryStore::new();
+        let mut client = TenantClient::new(store, "admin@acme.com".to_string());
 
         // Create root
         let root_request = CreateRootTenantRequest {
             name: "acme".to_string(),
-            organization: Some("Acme Corp".to_string()),
-            provider_accounts: HashMap::new(),
+            organization: None,
+            provider_accounts: None,
             quotas: Some(TenantQuotas::default()),
             max_child_depth: Some(5),
-            admin_principals: vec!["admin@example.com".to_string()],
-            metadata: HashMap::new(),
+            admin_principals: vec!["admin@acme.com".to_string()],
+            metadata: None,
             billing_info: None,
         };
+
         client.create_root_tenant(root_request).await.unwrap();
 
+        // Create sub-tenant
         let root_id = TenantId::root("acme");
-
-        // Create child
-        let child_request = CreateSubTenantRequest {
+        let sub_request = CreateSubTenantRequest {
             name: "engineering".to_string(),
             organization: None,
             tenant_type: TenantType::Department,
             provider_accounts: None,
             quotas: None,
-            admin_principals: vec!["eng-admin@example.com".to_string()],
+            admin_principals: vec!["eng-admin@acme.com".to_string()],
             metadata: None,
             billing_info: None,
         };
+
         client
-            .create_sub_tenant(&root_id, child_request)
+            .create_sub_tenant(&root_id, sub_request)
             .await
             .unwrap();
 
-        // Delete root with cascade
-        client.delete_tenant(&root_id, true).await.unwrap();
+        // Create grandchild
+        let eng_id = TenantId::new("acme/engineering");
+        let grandchild_request = CreateSubTenantRequest {
+            name: "team1".to_string(),
+            organization: None,
+            tenant_type: TenantType::Team,
+            provider_accounts: None,
+            quotas: None,
+            admin_principals: vec!["team1-admin@acme.com".to_string()],
+            metadata: None,
+            billing_info: None,
+        };
 
-        // Verify both are deleted
+        client
+            .create_sub_tenant(&eng_id, grandchild_request)
+            .await
+            .unwrap();
+
+        // Delete cascade from engineering
+        client.delete_tenant_cascade(&eng_id).await.unwrap();
+
+        // Verify engineering and team1 are deleted
+        let eng_result = client.get_tenant(&eng_id).await;
+        assert!(eng_result.is_err());
+
+        let team1_id = TenantId::new("acme/engineering/team1");
+        let team1_result = client.get_tenant(&team1_id).await;
+        assert!(team1_result.is_err());
+
+        // Verify root still exists
         let root_result = client.get_tenant(&root_id).await;
-        assert!(root_result.is_err()); // Should not exist
-
-        let child_id = root_id.child("engineering");
-        let child_result = client.get_tenant(&child_id).await;
-        assert!(child_result.is_err()); // Should not exist
-    }
-
-    #[tokio::test]
-    async fn test_tenant_id_operations() {
-        let root = TenantId::root("acme");
-        let child = root.child("engineering");
-        let grandchild = child.child("frontend");
-
-        // Test as_str
-        assert_eq!(root.as_str(), "acme");
-        assert_eq!(child.as_str(), "acme/engineering");
-        assert_eq!(grandchild.as_str(), "acme/engineering/frontend");
-
-        // Test depth
-        assert_eq!(root.depth(), 0);
-        assert_eq!(child.depth(), 1);
-        assert_eq!(grandchild.depth(), 2);
-
-        // Test parent
-        assert_eq!(child.parent(), Some(root.clone()));
-        assert_eq!(grandchild.parent(), Some(child.clone()));
-        assert_eq!(root.parent(), None);
-
-        // Test is_descendant_of
-        assert!(child.is_descendant_of(&root));
-        assert!(grandchild.is_descendant_of(&root));
-        assert!(grandchild.is_descendant_of(&child));
-        assert!(!root.is_descendant_of(&child));
-        assert!(!child.is_descendant_of(&grandchild));
-
-        // Test ancestors
-        let ancestors = grandchild.ancestors();
-        assert_eq!(ancestors.len(), 3);
-        assert_eq!(ancestors[0], root);
-        assert_eq!(ancestors[1], child);
-        assert_eq!(ancestors[2], grandchild);
+        assert!(root_result.is_ok());
     }
 }

@@ -1,35 +1,18 @@
-//! Tenant Client for Tenant Management Operations
-
-use crate::error::{AmiError, Result};
-use crate::store::Store;
-use crate::tenant::store::TenantStore;
-use crate::types::AmiResponse;
+//! Tenant Client for Managing Tenants
 
 use super::{
-    BillingInfo, QuotaMode, Tenant, TenantAction, TenantId, TenantQuotas, TenantStatus, TenantType,
-    TenantUsage,
+    store::{TenantAction, TenantStore},
+    BillingInfo, QuotaMode, Tenant, TenantId, TenantQuotas, TenantStatus, TenantType,
 };
+use crate::error::{AmiError, Result};
+use crate::store::Store;
+use crate::types::AmiResponse;
+use std::collections::HashMap;
 
-/// Client for managing hierarchical tenants
-///
-/// # Example
-///
-/// ```rust,ignore
-/// use wami::tenant::{TenantClient, TenantId, CreateSubTenantRequest};
-///
-/// let mut client = TenantClient::new(store, "admin@example.com".to_string());
-///
-/// let root_id = TenantId::root("acme");
-/// let request = CreateSubTenantRequest {
-///     name: "engineering".to_string(),
-///     // ... other fields
-/// };
-///
-/// let child = client.create_sub_tenant(&root_id, request).await?;
-/// ```
+/// Client for tenant management operations
 pub struct TenantClient<S: Store> {
     store: S,
-    /// Current authenticated user/principal making requests
+    /// Current principal (user ARN) making requests
     current_principal: String,
 }
 
@@ -55,7 +38,7 @@ impl<S: Store> TenantClient<S> {
             name: request.name,
             organization: request.organization,
             tenant_type: TenantType::Root,
-            provider_accounts: request.provider_accounts,
+            provider_accounts: request.provider_accounts.unwrap_or_default(),
             created_at: chrono::Utc::now(),
             status: TenantStatus::Active,
             quotas: request.quotas.unwrap_or_default(),
@@ -63,7 +46,7 @@ impl<S: Store> TenantClient<S> {
             max_child_depth: request.max_child_depth.unwrap_or(10),
             can_create_sub_tenants: true,
             admin_principals: request.admin_principals,
-            metadata: request.metadata,
+            metadata: request.metadata.unwrap_or_default(),
             billing_info: request.billing_info,
         };
 
@@ -84,7 +67,7 @@ impl<S: Store> TenantClient<S> {
         request: CreateSubTenantRequest,
     ) -> Result<AmiResponse<Tenant>> {
         // 1. Check permission
-        let has_perm = self
+        let has_permission = self
             .store
             .tenant_store()
             .await?
@@ -95,7 +78,7 @@ impl<S: Store> TenantClient<S> {
             )
             .await?;
 
-        if !has_perm {
+        if !has_permission {
             return Err(AmiError::AccessDenied {
                 message: "Not authorized to create sub-tenant".to_string(),
             });
@@ -109,7 +92,7 @@ impl<S: Store> TenantClient<S> {
             .get_tenant(parent_id)
             .await?
             .ok_or_else(|| AmiError::ResourceNotFound {
-                resource: format!("Parent tenant {} not found", parent_id.as_str()),
+                resource: format!("Parent tenant {} not found", parent_id),
             })?;
 
         // 3. Validate constraints
@@ -184,17 +167,16 @@ impl<S: Store> TenantClient<S> {
 
     /// Get a tenant by ID
     pub async fn get_tenant(&mut self, tenant_id: &TenantId) -> Result<AmiResponse<Tenant>> {
-        // Check permission
-        let has_perm = self
+        let has_permission = self
             .store
             .tenant_store()
             .await?
             .check_tenant_permission(&self.current_principal, tenant_id, TenantAction::Read)
             .await?;
 
-        if !has_perm {
+        if !has_permission {
             return Err(AmiError::AccessDenied {
-                message: "Not authorized to view tenant".to_string(),
+                message: "Not authorized to read tenant".to_string(),
             });
         }
 
@@ -216,15 +198,14 @@ impl<S: Store> TenantClient<S> {
         &mut self,
         parent_id: &TenantId,
     ) -> Result<AmiResponse<Vec<Tenant>>> {
-        // Check permission
-        let has_perm = self
+        let has_permission = self
             .store
             .tenant_store()
             .await?
             .check_tenant_permission(&self.current_principal, parent_id, TenantAction::Read)
             .await?;
 
-        if !has_perm {
+        if !has_permission {
             return Err(AmiError::AccessDenied {
                 message: "Not authorized to list child tenants".to_string(),
             });
@@ -240,83 +221,43 @@ impl<S: Store> TenantClient<S> {
         Ok(AmiResponse::success(children))
     }
 
-    /// Get tenant usage statistics
-    pub async fn get_tenant_usage(
-        &mut self,
-        tenant_id: &TenantId,
-    ) -> Result<AmiResponse<TenantUsage>> {
-        // Check permission
-        let has_perm = self
-            .store
-            .tenant_store()
-            .await?
-            .check_tenant_permission(&self.current_principal, tenant_id, TenantAction::Read)
-            .await?;
-
-        if !has_perm {
-            return Err(AmiError::AccessDenied {
-                message: "Not authorized to view tenant usage".to_string(),
-            });
-        }
-
-        let usage = self
-            .store
-            .tenant_store()
-            .await?
-            .get_tenant_usage(tenant_id)
-            .await?;
-
-        Ok(AmiResponse::success(usage))
-    }
-
-    /// Delete a tenant (and optionally its descendants)
-    pub async fn delete_tenant(
-        &mut self,
-        tenant_id: &TenantId,
-        cascade: bool,
-    ) -> Result<AmiResponse<()>> {
-        // Check permission
-        let has_perm = self
+    /// Delete a tenant and all its descendants
+    pub async fn delete_tenant_cascade(&mut self, tenant_id: &TenantId) -> Result<AmiResponse<()>> {
+        let has_permission = self
             .store
             .tenant_store()
             .await?
             .check_tenant_permission(&self.current_principal, tenant_id, TenantAction::Delete)
             .await?;
 
-        if !has_perm {
+        if !has_permission {
             return Err(AmiError::AccessDenied {
                 message: "Not authorized to delete tenant".to_string(),
             });
         }
 
-        if cascade {
-            // Delete all descendants first (leaf to root)
-            let descendants = self
-                .store
-                .tenant_store()
-                .await?
-                .get_descendants(tenant_id)
-                .await?;
-
-            // Sort by depth (deepest first)
-            let mut sorted_descendants = descendants;
-            sorted_descendants.sort_by_key(|b| std::cmp::Reverse(b.depth()));
-
-            for desc_id in sorted_descendants {
-                self.store
-                    .tenant_store()
-                    .await?
-                    .delete_tenant(&desc_id)
-                    .await?;
-            }
-        }
-
-        // Delete the tenant itself
-        self.store
+        // Get all descendants
+        let mut descendants = self
+            .store
             .tenant_store()
             .await?
-            .delete_tenant(tenant_id)
+            .get_descendants(tenant_id)
             .await?;
+
+        // Add the tenant itself
+        descendants.push(tenant_id.clone());
+
+        // Sort by depth (deepest first) to delete in correct order
+        descendants.sort_by_key(|b| std::cmp::Reverse(b.depth()));
+
+        // Delete all in order
+        for desc_id in descendants {
+            self.store
+                .tenant_store()
+                .await?
+                .delete_tenant(&desc_id)
+                .await?;
+        }
 
         Ok(AmiResponse::success(()))
     }
@@ -327,11 +268,11 @@ impl<S: Store> TenantClient<S> {
 pub struct CreateRootTenantRequest {
     pub name: String,
     pub organization: Option<String>,
-    pub provider_accounts: std::collections::HashMap<String, String>,
+    pub provider_accounts: Option<HashMap<String, String>>,
     pub quotas: Option<TenantQuotas>,
     pub max_child_depth: Option<usize>,
     pub admin_principals: Vec<String>,
-    pub metadata: std::collections::HashMap<String, String>,
+    pub metadata: Option<HashMap<String, String>>,
     pub billing_info: Option<BillingInfo>,
 }
 
@@ -341,9 +282,9 @@ pub struct CreateSubTenantRequest {
     pub name: String,
     pub organization: Option<String>,
     pub tenant_type: TenantType,
-    pub provider_accounts: Option<std::collections::HashMap<String, String>>,
+    pub provider_accounts: Option<HashMap<String, String>>,
     pub quotas: Option<TenantQuotas>,
     pub admin_principals: Vec<String>,
-    pub metadata: Option<std::collections::HashMap<String, String>>,
+    pub metadata: Option<HashMap<String, String>>,
     pub billing_info: Option<BillingInfo>,
 }
