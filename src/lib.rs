@@ -109,6 +109,11 @@ pub use iam::policy_evaluation::{
     ContextEntry, EvaluationResult, SimulateCustomPolicyRequest, SimulatePolicyResponse,
     SimulatePrincipalPolicyRequest, StatementMatch,
 };
+pub use iam::reports::{
+    AccountSummaryMap, CredentialReport, GenerateCredentialReportRequest,
+    GenerateCredentialReportResponse, GetAccountSummaryRequest, GetAccountSummaryResponse,
+    GetCredentialReportRequest, GetCredentialReportResponse, ReportState,
+};
 pub use iam::roles::{CreateRoleRequest, ListRolesRequest, ListRolesResponse, UpdateRoleRequest};
 pub use iam::tags::{ListResourceTagsRequest, TagResourceRequest, UntagResourceRequest};
 pub use iam::users::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
