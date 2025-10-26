@@ -283,7 +283,7 @@ impl<S: Store> IamClient<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iam::groups::CreateGroupRequest;
+    use crate::iam::group::CreateGroupRequest;
     use crate::iam::policies::CreatePolicyRequest;
     use crate::iam::roles::CreateRoleRequest;
     use crate::store::memory::InMemoryStore;

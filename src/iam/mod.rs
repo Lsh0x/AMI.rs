@@ -57,7 +57,7 @@
 //! ```
 
 pub mod access_keys;
-pub mod groups;
+pub mod group;
 pub mod identity_providers;
 pub mod mfa_devices;
 pub mod passwords;
@@ -163,47 +163,8 @@ impl<S: Store> IamClient<S> {
 
 // User is now defined in iam::user::model
 pub use user::User;
-
-/// Represents an IAM group
-///
-/// A group is a collection of IAM users. Groups let you specify permissions for multiple users.
-///
-/// # Example
-///
-/// ```rust
-/// use wami::Group;
-/// use chrono::Utc;
-///
-/// let group = Group {
-///     group_name: "Developers".to_string(),
-///     group_id: "AGPACKCEVSQ6C2EXAMPLE".to_string(),
-///     arn: "arn:aws:iam::123456789012:group/Developers".to_string(),
-///     path: "/engineering/".to_string(),
-///     create_date: Utc::now(),
-///     tags: vec![],
-///     wami_arn: "arn:wami:iam::123456789012:group/Developers".to_string(),
-///     providers: vec![],
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Group {
-    /// The friendly name identifying the group
-    pub group_name: String,
-    /// The stable and unique identifier for the group
-    pub group_id: String,
-    /// The Amazon Resource Name (ARN) that identifies the group
-    pub arn: String,
-    /// The path to the group
-    pub path: String,
-    /// The date and time when the group was created
-    pub create_date: chrono::DateTime<chrono::Utc>,
-    /// A list of tags associated with the group
-    pub tags: Vec<crate::types::Tag>,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
-    /// List of cloud providers where this resource exists
-    pub providers: Vec<crate::provider::ProviderConfig>,
-}
+// Group is now defined in iam::group::model
+pub use group::Group;
 
 /// Represents an IAM role
 ///
@@ -395,10 +356,11 @@ pub struct LoginProfile {
 
 // Re-export all sub-modules for easy access
 pub use access_keys::*;
-pub use groups::*;
 pub use server_certificates::{ServerCertificate, ServerCertificateMetadata};
 pub use service_credentials::{ServiceSpecificCredential, ServiceSpecificCredentialMetadata};
 pub use signing_certificates::{CertificateStatus, SigningCertificate};
 // User operations are in iam::user::operations
+// Group operations are in iam::group::operations
 // Re-export request types for convenience
+pub use group::{CreateGroupRequest, ListGroupsRequest, ListGroupsResponse, UpdateGroupRequest};
 pub use user::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};

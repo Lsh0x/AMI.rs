@@ -1,42 +1,12 @@
+//! Group Operations
+
+use super::{builder, model::Group, requests::*};
 use crate::error::Result;
-use crate::iam::Group;
-use crate::provider::ResourceType;
+use crate::iam::IamClient;
 use crate::store::{IamStore, Store};
-use crate::types::{AmiResponse, Tag};
-use serde::{Deserialize, Serialize};
+use crate::types::AmiResponse;
 
-/// Parameters for creating a group
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CreateGroupRequest {
-    pub group_name: String,
-    pub path: Option<String>,
-    pub tags: Option<Vec<Tag>>,
-}
-
-/// Parameters for updating a group
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateGroupRequest {
-    pub group_name: String,
-    pub new_group_name: Option<String>,
-    pub new_path: Option<String>,
-}
-
-/// Parameters for listing groups
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListGroupsRequest {
-    pub path_prefix: Option<String>,
-    pub pagination: Option<crate::types::PaginationParams>,
-}
-
-/// Response for listing groups
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListGroupsResponse {
-    pub groups: Vec<Group>,
-    pub is_truncated: bool,
-    pub marker: Option<String>,
-}
-
-impl<S: Store> crate::iam::IamClient<S> {
+impl<S: Store> IamClient<S> {
     /// Create a new group
     pub async fn create_group(
         &mut self,
@@ -46,30 +16,13 @@ impl<S: Store> crate::iam::IamClient<S> {
         let account_id = store.account_id();
         let provider = store.cloud_provider();
 
-        // Use provider for ID and ARN generation
-        let group_id = provider.generate_resource_id(ResourceType::Group);
-        let path = request.path.unwrap_or_else(|| "/".to_string());
-        let arn = provider.generate_resource_identifier(
-            ResourceType::Group,
+        let group = builder::build_group(
+            request.group_name,
+            request.path,
+            request.tags,
+            provider,
             account_id,
-            &path,
-            &request.group_name,
         );
-
-        // Generate WAMI ARN for cross-provider identification
-        let wami_arn =
-            provider.generate_wami_arn(ResourceType::Group, account_id, &path, &request.group_name);
-
-        let group = Group {
-            group_name: request.group_name.clone(),
-            group_id: group_id.clone(),
-            arn: arn.clone(),
-            path,
-            create_date: chrono::Utc::now(),
-            tags: request.tags.unwrap_or_default(),
-            wami_arn,
-            providers: Vec::new(),
-        };
 
         let created_group = store.create_group(group).await?;
 
@@ -86,7 +39,7 @@ impl<S: Store> crate::iam::IamClient<S> {
         let account_id = store.account_id();
 
         // Get the existing group
-        let mut group = match store.get_group(&request.group_name).await? {
+        let group = match store.get_group(&request.group_name).await? {
             Some(group) => group,
             None => {
                 return Err(crate::error::AmiError::ResourceNotFound {
@@ -95,24 +48,17 @@ impl<S: Store> crate::iam::IamClient<S> {
             }
         };
 
-        // Update group properties
-        if let Some(new_name) = request.new_group_name {
-            group.group_name = new_name.clone();
-            // Use provider for ARN generation
-            group.arn = provider.generate_resource_identifier(
-                ResourceType::Group,
-                account_id,
-                &group.path,
-                &new_name,
-            );
-        }
-        if let Some(new_path) = request.new_path {
-            group.path = new_path;
-        }
+        let updated_group = builder::update_group(
+            group,
+            request.new_group_name,
+            request.new_path,
+            provider,
+            account_id,
+        );
 
-        let updated_group = store.update_group(group).await?;
+        let result = store.update_group(updated_group).await?;
 
-        Ok(AmiResponse::success(updated_group))
+        Ok(AmiResponse::success(result))
     }
 
     /// Delete a group
@@ -232,7 +178,8 @@ impl<S: Store> crate::iam::IamClient<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iam::{CreateUserRequest, IamClient};
+    use crate::iam::user::CreateUserRequest;
+    use crate::iam::IamClient;
     use crate::store::memory::InMemoryStore;
 
     fn create_test_client() -> IamClient<InMemoryStore> {

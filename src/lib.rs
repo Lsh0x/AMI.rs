@@ -103,7 +103,7 @@ pub use iam::access_keys::{
     AccessKeyLastUsed, CreateAccessKeyRequest, ListAccessKeysRequest, ListAccessKeysResponse,
     UpdateAccessKeyRequest,
 };
-pub use iam::groups::{
+pub use iam::group::{
     CreateGroupRequest, ListGroupsRequest, ListGroupsResponse, UpdateGroupRequest,
 };
 pub use iam::mfa_devices::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
