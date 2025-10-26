@@ -117,35 +117,35 @@ pub use iam::policy_evaluation::{
     ContextEntry, EvaluationResult, SimulateCustomPolicyRequest, SimulatePolicyResponse,
     SimulatePrincipalPolicyRequest, StatementMatch,
 };
-pub use iam::reports::{
+pub use iam::report::{
     AccountSummaryMap, CredentialReport, GenerateCredentialReportRequest,
     GenerateCredentialReportResponse, GetAccountSummaryRequest, GetAccountSummaryResponse,
     GetCredentialReportRequest, GetCredentialReportResponse, ReportState,
 };
 pub use iam::role::{CreateRoleRequest, ListRolesRequest, ListRolesResponse, UpdateRoleRequest};
-pub use iam::server_certificates::{
+pub use iam::server_certificate::{
     DeleteServerCertificateRequest, GetServerCertificateRequest, GetServerCertificateResponse,
     ListServerCertificatesRequest, ListServerCertificatesResponse, UpdateServerCertificateRequest,
     UploadServerCertificateRequest, UploadServerCertificateResponse,
 };
-pub use iam::service_credentials::{
+pub use iam::service_credential::{
     CreateServiceSpecificCredentialRequest, CreateServiceSpecificCredentialResponse,
     DeleteServiceSpecificCredentialRequest, ListServiceSpecificCredentialsRequest,
     ListServiceSpecificCredentialsResponse, ResetServiceSpecificCredentialRequest,
     ResetServiceSpecificCredentialResponse, UpdateServiceSpecificCredentialRequest,
 };
-pub use iam::service_linked_roles::{
+pub use iam::service_linked_role::{
     CreateServiceLinkedRoleRequest, CreateServiceLinkedRoleResponse,
     DeleteServiceLinkedRoleRequest, DeleteServiceLinkedRoleResponse, DeletionTaskFailureReason,
     DeletionTaskInfo, DeletionTaskStatus, GetServiceLinkedRoleDeletionStatusRequest,
     GetServiceLinkedRoleDeletionStatusResponse, RoleUsageType,
 };
-pub use iam::signing_certificates::{
+pub use iam::signing_certificate::{
     CertificateStatus, DeleteSigningCertificateRequest, ListSigningCertificatesRequest,
     ListSigningCertificatesResponse, SigningCertificate, UpdateSigningCertificateRequest,
     UploadSigningCertificateRequest, UploadSigningCertificateResponse,
 };
-pub use iam::tags::{ListResourceTagsRequest, TagResourceRequest, UntagResourceRequest};
+pub use iam::tag::{ListResourceTagsRequest, TagResourceRequest, UntagResourceRequest};
 pub use iam::user::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
 pub use sso_admin::{CreateAccountAssignmentRequest, CreatePermissionSetRequest};
 pub use sts::{AssumeRoleRequest, GetFederationTokenRequest, GetSessionTokenRequest};

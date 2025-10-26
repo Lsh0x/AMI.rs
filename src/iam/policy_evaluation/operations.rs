@@ -1,84 +1,11 @@
+//! Policy Evaluation Operations
+
+use super::model::*;
+use super::requests::*;
 use crate::error::Result;
 use crate::iam::IamClient;
 use crate::store::Store;
 use crate::types::{AmiResponse, PolicyDocument};
-use serde::{Deserialize, Serialize};
-
-/// Request to simulate a custom policy
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SimulateCustomPolicyRequest {
-    /// List of policy documents to simulate (JSON strings)
-    pub policy_input_list: Vec<String>,
-    /// List of actions to simulate (e.g., ["s3:GetObject", "s3:PutObject"])
-    pub action_names: Vec<String>,
-    /// List of resources to simulate (ARNs or patterns)
-    pub resource_arns: Option<Vec<String>>,
-    /// Optional context entries for condition evaluation
-    pub context_entries: Option<Vec<ContextEntry>>,
-}
-
-/// Request to simulate a principal's policy
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SimulatePrincipalPolicyRequest {
-    /// The ARN of the principal (user, group, or role) whose policies to simulate
-    pub policy_source_arn: String,
-    /// List of actions to simulate
-    pub action_names: Vec<String>,
-    /// List of resources to simulate (ARNs or patterns)
-    pub resource_arns: Option<Vec<String>>,
-    /// Optional additional policy documents to include in simulation
-    pub policy_input_list: Option<Vec<String>>,
-    /// Optional context entries for condition evaluation
-    pub context_entries: Option<Vec<ContextEntry>>,
-}
-
-/// Context entry for policy condition evaluation
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContextEntry {
-    /// The key for the context entry (e.g., "aws:CurrentTime")
-    pub context_key_name: String,
-    /// The value for the context entry
-    pub context_key_values: Vec<String>,
-    /// The data type (String, StringList, Numeric, Boolean, etc.)
-    pub context_key_type: String,
-}
-
-/// Result of a policy simulation for a single action/resource combination
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct EvaluationResult {
-    /// The action that was evaluated
-    pub eval_action_name: String,
-    /// The resource that was evaluated
-    pub eval_resource_name: String,
-    /// The evaluation decision ("allowed" or "denied")
-    pub eval_decision: String,
-    /// List of statements that matched
-    pub matched_statements: Vec<StatementMatch>,
-    /// List of statements that didn't match
-    pub missing_context_values: Vec<String>,
-}
-
-/// Information about a policy statement that matched
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct StatementMatch {
-    /// The policy document that contained this statement (if available)
-    pub source_policy_id: Option<String>,
-    /// The effect of the statement ("Allow" or "Deny")
-    pub effect: String,
-    /// Whether this statement matched the action
-    pub matched_action: bool,
-    /// Whether this statement matched the resource
-    pub matched_resource: bool,
-}
-
-/// Response from policy simulation
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SimulatePolicyResponse {
-    /// The evaluation results
-    pub evaluation_results: Vec<EvaluationResult>,
-    /// Whether there are more results (for pagination)
-    pub is_truncated: bool,
-}
 
 impl<S: Store> IamClient<S> {
     /// Simulate a custom IAM policy

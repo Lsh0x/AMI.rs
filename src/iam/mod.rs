@@ -58,19 +58,19 @@
 
 pub mod access_key;
 pub mod group;
-pub mod identity_providers;
+pub mod identity_provider;
 pub mod login_profile;
 pub mod mfa_device;
-pub mod permissions_boundaries;
+pub mod permissions_boundary;
 pub mod policy;
 pub mod policy_evaluation;
-pub mod reports;
+pub mod report;
 pub mod role;
-pub mod server_certificates;
-pub mod service_credentials;
-pub mod service_linked_roles;
-pub mod signing_certificates;
-pub mod tags;
+pub mod server_certificate;
+pub mod service_credential;
+pub mod service_linked_role;
+pub mod signing_certificate;
+pub mod tag;
 pub mod user;
 
 use crate::error::Result;
@@ -184,9 +184,25 @@ pub use login_profile::{
     CreateLoginProfileRequest, GetLoginProfileRequest, UpdateLoginProfileRequest,
 };
 pub use mfa_device::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
-pub use server_certificates::{ServerCertificate, ServerCertificateMetadata};
-pub use service_credentials::{ServiceSpecificCredential, ServiceSpecificCredentialMetadata};
-pub use signing_certificates::{CertificateStatus, SigningCertificate};
+pub use policy_evaluation::{
+    ContextEntry, EvaluationResult, SimulateCustomPolicyRequest, SimulatePolicyResponse,
+    SimulatePrincipalPolicyRequest, StatementMatch,
+};
+pub use report::{
+    AccountSummaryMap, CredentialReport, GenerateCredentialReportRequest,
+    GenerateCredentialReportResponse, GetAccountSummaryRequest, GetAccountSummaryResponse,
+    GetCredentialReportRequest, GetCredentialReportResponse, ReportState,
+};
+pub use server_certificate::{ServerCertificate, ServerCertificateMetadata};
+pub use service_credential::{ServiceSpecificCredential, ServiceSpecificCredentialMetadata};
+pub use service_linked_role::{
+    CreateServiceLinkedRoleRequest, CreateServiceLinkedRoleResponse,
+    DeleteServiceLinkedRoleRequest, DeleteServiceLinkedRoleResponse, DeletionTaskFailureReason,
+    DeletionTaskInfo, DeletionTaskStatus, GetServiceLinkedRoleDeletionStatusRequest,
+    GetServiceLinkedRoleDeletionStatusResponse, RoleUsageType,
+};
+pub use signing_certificate::{CertificateStatus, SigningCertificate};
+pub use tag::{ListResourceTagsRequest, TagResourceRequest, UntagResourceRequest};
 // User operations are in iam::user::operations
 // Group operations are in iam::group::operations
 // Role operations are in iam::role::operations

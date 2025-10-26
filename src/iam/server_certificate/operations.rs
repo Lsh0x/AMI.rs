@@ -1,184 +1,12 @@
-//! IAM Server Certificate Management
-//!
-//! This module provides functionality for managing SSL/TLS server certificates
-//! used with AWS services like Elastic Load Balancing and CloudFront.
+//! Server Certificate Operations
 
+use super::model::*;
+use super::requests::*;
 use crate::error::{AmiError, Result};
 use crate::iam::IamClient;
 use crate::provider::ResourceType;
 use crate::store::{IamStore, Store};
 use crate::types::AmiResponse;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-
-/// Server certificate metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServerCertificateMetadata {
-    /// Path to the server certificate
-    #[serde(rename = "Path")]
-    pub path: String,
-
-    /// Name of the server certificate
-    #[serde(rename = "ServerCertificateName")]
-    pub server_certificate_name: String,
-
-    /// ARN of the server certificate
-    #[serde(rename = "Arn")]
-    pub arn: String,
-
-    /// Server certificate ID
-    #[serde(rename = "ServerCertificateId")]
-    pub server_certificate_id: String,
-
-    /// Date and time when the certificate was uploaded
-    #[serde(rename = "UploadDate")]
-    pub upload_date: DateTime<Utc>,
-
-    /// Date and time when the certificate expires
-    #[serde(rename = "Expiration", skip_serializing_if = "Option::is_none")]
-    pub expiration: Option<DateTime<Utc>>,
-}
-
-/// Server certificate with body
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServerCertificate {
-    /// Certificate metadata
-    #[serde(rename = "ServerCertificateMetadata")]
-    pub server_certificate_metadata: ServerCertificateMetadata,
-
-    /// Contents of the public key certificate in PEM-encoded format
-    #[serde(rename = "CertificateBody")]
-    pub certificate_body: String,
-
-    /// Contents of the certificate chain in PEM-encoded format
-    #[serde(rename = "CertificateChain", skip_serializing_if = "Option::is_none")]
-    pub certificate_chain: Option<String>,
-
-    /// Tags associated with the certificate
-    #[serde(rename = "Tags", skip_serializing_if = "Vec::is_empty", default)]
-    pub tags: Vec<crate::types::Tag>,
-
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
-
-    /// List of cloud providers where this resource exists
-    pub providers: Vec<crate::provider::ProviderConfig>,
-}
-
-/// Request to upload a server certificate
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UploadServerCertificateRequest {
-    /// Name for the server certificate
-    #[serde(rename = "ServerCertificateName")]
-    pub server_certificate_name: String,
-
-    /// Contents of the public key certificate in PEM-encoded format
-    #[serde(rename = "CertificateBody")]
-    pub certificate_body: String,
-
-    /// Contents of the private key in PEM-encoded format
-    #[serde(rename = "PrivateKey")]
-    pub private_key: String,
-
-    /// Contents of the certificate chain in PEM-encoded format
-    #[serde(rename = "CertificateChain", skip_serializing_if = "Option::is_none")]
-    pub certificate_chain: Option<String>,
-
-    /// Path for the server certificate
-    #[serde(rename = "Path", skip_serializing_if = "Option::is_none")]
-    pub path: Option<String>,
-
-    /// Tags to attach to the certificate
-    #[serde(rename = "Tags", skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<crate::types::Tag>>,
-}
-
-/// Response from uploading a server certificate
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UploadServerCertificateResponse {
-    /// Information about the uploaded certificate
-    #[serde(rename = "ServerCertificateMetadata")]
-    pub server_certificate_metadata: ServerCertificateMetadata,
-
-    /// Tags attached to the certificate
-    #[serde(rename = "Tags", skip_serializing_if = "Vec::is_empty", default)]
-    pub tags: Vec<crate::types::Tag>,
-}
-
-/// Request to get a server certificate
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GetServerCertificateRequest {
-    /// Name of the server certificate to retrieve
-    #[serde(rename = "ServerCertificateName")]
-    pub server_certificate_name: String,
-}
-
-/// Response from getting a server certificate
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GetServerCertificateResponse {
-    /// The server certificate
-    #[serde(rename = "ServerCertificate")]
-    pub server_certificate: ServerCertificate,
-}
-
-/// Request to list server certificates
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListServerCertificatesRequest {
-    /// Path prefix to filter certificates
-    #[serde(rename = "PathPrefix", skip_serializing_if = "Option::is_none")]
-    pub path_prefix: Option<String>,
-
-    /// Marker for pagination
-    #[serde(rename = "Marker", skip_serializing_if = "Option::is_none")]
-    pub marker: Option<String>,
-
-    /// Maximum number of items to return
-    #[serde(rename = "MaxItems", skip_serializing_if = "Option::is_none")]
-    pub max_items: Option<i32>,
-}
-
-/// Response from listing server certificates
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListServerCertificatesResponse {
-    /// List of server certificate metadata
-    #[serde(rename = "ServerCertificateMetadataList")]
-    pub server_certificate_metadata_list: Vec<ServerCertificateMetadata>,
-
-    /// Indicates whether the list is truncated
-    #[serde(rename = "IsTruncated")]
-    pub is_truncated: bool,
-
-    /// Marker for next page
-    #[serde(rename = "Marker", skip_serializing_if = "Option::is_none")]
-    pub marker: Option<String>,
-}
-
-/// Request to delete a server certificate
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeleteServerCertificateRequest {
-    /// Name of the server certificate to delete
-    #[serde(rename = "ServerCertificateName")]
-    pub server_certificate_name: String,
-}
-
-/// Request to update a server certificate
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateServerCertificateRequest {
-    /// Current name of the server certificate
-    #[serde(rename = "ServerCertificateName")]
-    pub server_certificate_name: String,
-
-    /// New name for the server certificate
-    #[serde(
-        rename = "NewServerCertificateName",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub new_server_certificate_name: Option<String>,
-
-    /// New path for the server certificate
-    #[serde(rename = "NewPath", skip_serializing_if = "Option::is_none")]
-    pub new_path: Option<String>,
-}
 
 impl<S: Store> IamClient<S> {
     /// Upload a server certificate
@@ -277,41 +105,17 @@ impl<S: Store> IamClient<S> {
         // Validate path using provider
         provider.validate_path(&path)?;
 
-        // Use provider for certificate ID and ARN generation
-        let cert_id = provider.generate_resource_id(ResourceType::ServerCertificate);
-        let arn = provider.generate_resource_identifier(
-            ResourceType::ServerCertificate,
+        let certificate = super::builder::build_server_certificate(
+            request.server_certificate_name,
+            request.certificate_body,
+            request.certificate_chain,
+            path,
+            tags.clone(),
+            provider,
             account_id,
-            &path,
-            &request.server_certificate_name,
         );
 
-        // Generate WAMI ARN for cross-provider identification
-        let wami_arn = provider.generate_wami_arn(
-            ResourceType::ServerCertificate,
-            account_id,
-            &path,
-            &request.server_certificate_name,
-        );
-
-        let metadata = ServerCertificateMetadata {
-            path: path.clone(),
-            server_certificate_name: request.server_certificate_name.clone(),
-            arn,
-            server_certificate_id: cert_id,
-            upload_date: Utc::now(),
-            expiration: None, // Would need to parse cert to get actual expiration
-        };
-
-        let certificate = ServerCertificate {
-            server_certificate_metadata: metadata.clone(),
-            certificate_body: request.certificate_body,
-            certificate_chain: request.certificate_chain,
-            tags: tags.clone(),
-            wami_arn,
-            providers: Vec::new(),
-        };
-
+        let metadata = certificate.server_certificate_metadata.clone();
         store.create_server_certificate(certificate).await?;
 
         Ok(AmiResponse::success(UploadServerCertificateResponse {

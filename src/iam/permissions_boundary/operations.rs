@@ -1,3 +1,5 @@
+//! Permissions Boundary Operations
+
 use crate::error::Result;
 use crate::types::AmiResponse;
 
