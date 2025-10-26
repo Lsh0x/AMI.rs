@@ -433,7 +433,7 @@ impl<S: Store> IamClient<S> {
 mod tests {
     use super::*;
     use crate::iam::mfa_devices::EnableMfaDeviceRequest;
-    use crate::iam::users::CreateUserRequest;
+    use crate::resources::user::CreateUserRequest;
 
     #[tokio::test]
     async fn test_generate_and_get_credential_report() {

@@ -64,6 +64,7 @@ pub mod builders;
 pub mod error;
 pub mod iam;
 pub mod provider;
+pub mod resources;
 pub mod sso_admin;
 pub mod store;
 pub mod sts;
@@ -147,7 +148,9 @@ pub use iam::signing_certificates::{
     UploadSigningCertificateRequest, UploadSigningCertificateResponse,
 };
 pub use iam::tags::{ListResourceTagsRequest, TagResourceRequest, UntagResourceRequest};
-pub use iam::users::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
+pub use resources::user::{
+    CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest,
+};
 pub use sso_admin::{CreateAccountAssignmentRequest, CreatePermissionSetRequest};
 pub use sts::{AssumeRoleRequest, GetFederationTokenRequest, GetSessionTokenRequest};
 

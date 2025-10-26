@@ -582,7 +582,7 @@ impl<S: Store> IamClient<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::iam::users::CreateUserRequest;
+    use crate::resources::user::CreateUserRequest;
 
     #[tokio::test]
     async fn test_create_service_specific_credential() {

@@ -71,7 +71,7 @@ pub mod service_credentials;
 pub mod service_linked_roles;
 pub mod signing_certificates;
 pub mod tags;
-pub mod users;
+// users module moved to resources::user
 
 use crate::error::Result;
 use crate::store::{IamStore, Store};
@@ -133,7 +133,7 @@ impl<S: Store> IamClient<S> {
     }
 
     /// Get mutable reference to the IAM store
-    async fn iam_store(&mut self) -> Result<&mut S::IamStore> {
+    pub async fn iam_store(&mut self) -> Result<&mut S::IamStore> {
         self.store.iam_store().await
     }
 
@@ -161,52 +161,8 @@ impl<S: Store> IamClient<S> {
 
 // Common IAM resource types
 
-/// Represents an IAM user
-///
-/// An IAM user is an entity that represents a person or service that interacts with AWS.
-///
-/// # Example
-///
-/// ```rust
-/// use wami::User;
-/// use chrono::Utc;
-///
-/// let user = User {
-///     user_name: "alice".to_string(),
-///     user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
-///     arn: "arn:aws:iam::123456789012:user/alice".to_string(),
-///     path: "/".to_string(),
-///     create_date: Utc::now(),
-///     password_last_used: None,
-///     permissions_boundary: None,
-///     tags: vec![],
-///     wami_arn: "arn:wami:iam::123456789012:user/alice".to_string(),
-///     providers: vec![],
-/// };
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct User {
-    /// The friendly name identifying the user
-    pub user_name: String,
-    /// The stable and unique identifier for the user
-    pub user_id: String,
-    /// The Amazon Resource Name (ARN) that identifies the user
-    pub arn: String,
-    /// The path to the user
-    pub path: String,
-    /// The date and time when the user was created
-    pub create_date: chrono::DateTime<chrono::Utc>,
-    /// The date and time when the user's password was last used
-    pub password_last_used: Option<chrono::DateTime<chrono::Utc>>,
-    /// The ARN of the policy used to set the permissions boundary
-    pub permissions_boundary: Option<String>,
-    /// A list of tags associated with the user
-    pub tags: Vec<crate::types::Tag>,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
-    /// List of cloud providers where this resource exists
-    pub providers: Vec<crate::provider::ProviderConfig>,
-}
+// User is now defined in resources::user::model
+pub use crate::resources::user::User;
 
 /// Represents an IAM group
 ///
@@ -443,4 +399,8 @@ pub use groups::*;
 pub use server_certificates::{ServerCertificate, ServerCertificateMetadata};
 pub use service_credentials::{ServiceSpecificCredential, ServiceSpecificCredentialMetadata};
 pub use signing_certificates::{CertificateStatus, SigningCertificate};
-pub use users::*;
+// User operations are in resources::user::operations
+// Re-export request types for convenience
+pub use crate::resources::user::{
+    CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest,
+};
