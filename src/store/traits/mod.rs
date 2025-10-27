@@ -11,4 +11,4 @@ mod tenant;
 pub use iam::IamStore;
 pub use sso_admin::SsoAdminStore;
 pub use sts::StsStore;
-pub use tenant::{TenantAction, TenantStore};
+pub use tenant::TenantStore;

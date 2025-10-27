@@ -12,8 +12,10 @@ impl<S: Store> IamClient<S> {
         &mut self,
         request: CreateAccessKeyRequest,
     ) -> Result<AmiResponse<AccessKey>> {
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
+
         let store = self.iam_store().await?;
-        let provider = store.cloud_provider();
 
         // Check if user exists
         if store.get_user(&request.user_name).await?.is_none() {
@@ -34,8 +36,8 @@ impl<S: Store> IamClient<S> {
             });
         }
 
-        let account_id = store.account_id();
-        let access_key = builder::build_access_key(request.user_name, provider, account_id);
+        let access_key =
+            builder::build_access_key(request.user_name, provider.as_ref(), &account_id);
 
         let created_key = store.create_access_key(access_key).await?;
 

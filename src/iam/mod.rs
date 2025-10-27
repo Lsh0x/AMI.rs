@@ -74,7 +74,9 @@ pub mod tag;
 pub mod user;
 
 use crate::error::Result;
-use crate::store::{IamStore, Store};
+use crate::provider::{AwsProvider, CloudProvider};
+use crate::store::Store;
+use std::sync::Arc;
 
 /// IAM client for managing AWS Identity and Access Management resources
 ///
@@ -110,10 +112,12 @@ use crate::store::{IamStore, Store};
 #[derive(Debug)]
 pub struct IamClient<S: Store> {
     store: S,
+    provider: Arc<dyn CloudProvider>,
+    account_id: String,
 }
 
 impl<S: Store> IamClient<S> {
-    /// Creates a new IAM client with the specified store
+    /// Creates a new IAM client with the specified store, a default AWS provider, and a generated account ID
     ///
     /// # Arguments
     ///
@@ -128,7 +132,69 @@ impl<S: Store> IamClient<S> {
     /// let iam_client = IamClient::new(store);
     /// ```
     pub fn new(store: S) -> Self {
-        Self { store }
+        let account_id = crate::types::AwsConfig::generate_account_id();
+        Self::with_provider_and_account(store, Arc::new(AwsProvider::new()), account_id)
+    }
+
+    /// Creates a new IAM client with the specified store and provider
+    ///
+    /// # Arguments
+    ///
+    /// * `store` - The storage backend for IAM resources
+    /// * `provider` - The cloud provider for ARN and ID generation
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wami::{IamClient, InMemoryStore};
+    /// use wami::provider::{AwsProvider, GcpProvider};
+    /// use std::sync::Arc;
+    ///
+    /// let store = InMemoryStore::new();
+    /// let iam_client = IamClient::with_provider(store, Arc::new(GcpProvider::new("my-project")));
+    /// ```
+    pub fn with_provider(store: S, provider: Arc<dyn CloudProvider>) -> Self {
+        let account_id = crate::types::AwsConfig::generate_account_id();
+        Self::with_provider_and_account(store, provider, account_id)
+    }
+
+    /// Creates a new IAM client with the specified store, provider, and account ID
+    ///
+    /// # Arguments
+    ///
+    /// * `store` - The storage backend for IAM resources
+    /// * `provider` - The cloud provider for ARN and ID generation
+    /// * `account_id` - The account ID for this client (typically from tenant context)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wami::{IamClient, InMemoryStore};
+    /// use wami::provider::AwsProvider;
+    /// use std::sync::Arc;
+    ///
+    /// let store = InMemoryStore::new();
+    /// let iam_client = IamClient::with_provider_and_account(
+    ///     store,
+    ///     Arc::new(AwsProvider::new()),
+    ///     "123456789012".to_string()
+    /// );
+    /// ```
+    pub fn with_provider_and_account(
+        store: S,
+        provider: Arc<dyn CloudProvider>,
+        account_id: String,
+    ) -> Self {
+        Self {
+            store,
+            provider,
+            account_id,
+        }
+    }
+
+    /// Get the cloud provider (returns a cloned Arc for flexibility)
+    pub(crate) fn cloud_provider(&self) -> Arc<dyn CloudProvider> {
+        Arc::clone(&self.provider)
     }
 
     /// Get mutable reference to the IAM store
@@ -153,8 +219,7 @@ impl<S: Store> IamClient<S> {
     /// # }
     /// ```
     pub async fn account_id(&mut self) -> Result<String> {
-        let store = self.iam_store().await?;
-        Ok(store.account_id().to_string())
+        Ok(self.account_id.clone())
     }
 }
 

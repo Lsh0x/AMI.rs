@@ -13,6 +13,13 @@ impl<S: Store> IamClient<S> {
         &mut self,
         request: CreateServiceSpecificCredentialRequest,
     ) -> Result<AmiResponse<CreateServiceSpecificCredentialResponse>> {
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
+
+        provider
+            .as_ref()
+            .validate_service_name(&request.service_name)?;
+
         let store = self.iam_store().await?;
 
         // Validate user exists
@@ -21,9 +28,6 @@ impl<S: Store> IamClient<S> {
                 resource: format!("User {}", request.user_name),
             });
         }
-
-        let provider = store.cloud_provider();
-        provider.validate_service_name(&request.service_name)?;
 
         // Check if user already has max credentials for this service
         let existing = store
@@ -44,12 +48,11 @@ impl<S: Store> IamClient<S> {
             });
         }
 
-        let account_id = store.account_id();
         let credential = super::builder::build_service_specific_credential(
             request.user_name,
             request.service_name,
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
         );
 
         store

@@ -65,9 +65,6 @@ src/tenant/
 ├── mod.rs              # Module declaration and exports
 ├── model.rs            # TenantId, Tenant, TenantQuotas, TenantStatus, etc.
 ├── client.rs           # TenantClient with operations
-├── store/
-│   ├── mod.rs         # TenantStore trait
-│   └── memory.rs      # InMemoryTenantStore implementation
 └── tests.rs           # Comprehensive test suite
 ```
 

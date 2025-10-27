@@ -142,16 +142,8 @@ mod sts_tests {
         assert!(!account_id.is_empty());
     }
 
-    #[tokio::test]
-    async fn test_account_id_consistency() {
-        let store = InMemoryStore::new();
-        let account_id_from_store = store.account_id().to_string();
-
-        let mut client = StsClient::new(store);
-        let client_account_id = client.account_id().await.unwrap();
-
-        assert_eq!(account_id_from_store, client_account_id);
-    }
+    // Note: test_account_id_consistency removed - account_id is no longer stored at the store level
+    // Resources now carry their own provider-specific information
 
     #[tokio::test]
     async fn test_credentials_have_valid_format() {

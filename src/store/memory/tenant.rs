@@ -1,7 +1,7 @@
 //! In-Memory Tenant Store Implementation
 
 use crate::error::{AmiError, Result};
-use crate::store::traits::{TenantAction, TenantStore};
+use crate::store::traits::TenantStore;
 use crate::tenant::{Tenant, TenantId, TenantQuotas, TenantUsage};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -99,30 +99,6 @@ impl TenantStore for InMemoryTenantStore {
         }
 
         Ok(descendants)
-    }
-
-    async fn check_tenant_permission(
-        &self,
-        user_arn: &str,
-        tenant_id: &TenantId,
-        _action: TenantAction,
-    ) -> Result<bool> {
-        // Check if user is admin of this tenant
-        if let Some(tenant) = self.tenants.get(tenant_id) {
-            if tenant.admin_principals.contains(&user_arn.to_string()) {
-                return Ok(true);
-            }
-        }
-
-        // Check if user is admin of any parent tenant
-        let ancestors = self.get_ancestors(tenant_id).await?;
-        for ancestor in ancestors {
-            if ancestor.admin_principals.contains(&user_arn.to_string()) {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
     }
 
     async fn get_effective_quotas(&self, tenant_id: &TenantId) -> Result<TenantQuotas> {

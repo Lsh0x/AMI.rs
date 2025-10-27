@@ -40,7 +40,9 @@
 //! ```
 
 use crate::error::Result;
-use crate::store::{Store, StsStore};
+use crate::provider::{AwsProvider, CloudProvider};
+use crate::store::Store;
+use std::sync::Arc;
 
 #[cfg(test)]
 mod tests;
@@ -88,10 +90,12 @@ pub use session_token::GetSessionTokenRequest;
 #[derive(Debug)]
 pub struct StsClient<S: Store> {
     pub(crate) store: S,
+    provider: Arc<dyn CloudProvider>,
+    account_id: String,
 }
 
 impl<S: Store> StsClient<S> {
-    /// Creates a new STS client with the specified store
+    /// Creates a new STS client with the specified store, a default AWS provider, and a generated account ID
     ///
     /// # Arguments
     ///
@@ -106,7 +110,69 @@ impl<S: Store> StsClient<S> {
     /// let sts_client = StsClient::new(store);
     /// ```
     pub fn new(store: S) -> Self {
-        Self { store }
+        let account_id = crate::types::AwsConfig::generate_account_id();
+        Self::with_provider_and_account(store, Arc::new(AwsProvider::new()), account_id)
+    }
+
+    /// Creates a new STS client with the specified store and provider
+    ///
+    /// # Arguments
+    ///
+    /// * `store` - The storage backend for STS resources
+    /// * `provider` - The cloud provider for ARN and ID generation
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wami::{StsClient, InMemoryStore};
+    /// use wami::provider::{AwsProvider, GcpProvider};
+    /// use std::sync::Arc;
+    ///
+    /// let store = InMemoryStore::new();
+    /// let sts_client = StsClient::with_provider(store, Arc::new(GcpProvider::new("my-project")));
+    /// ```
+    pub fn with_provider(store: S, provider: Arc<dyn CloudProvider>) -> Self {
+        let account_id = crate::types::AwsConfig::generate_account_id();
+        Self::with_provider_and_account(store, provider, account_id)
+    }
+
+    /// Creates a new STS client with the specified store, provider, and account ID
+    ///
+    /// # Arguments
+    ///
+    /// * `store` - The storage backend for STS resources
+    /// * `provider` - The cloud provider for ARN and ID generation
+    /// * `account_id` - The account ID for this client (typically from tenant context)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use wami::{StsClient, InMemoryStore};
+    /// use wami::provider::AwsProvider;
+    /// use std::sync::Arc;
+    ///
+    /// let store = InMemoryStore::new();
+    /// let sts_client = StsClient::with_provider_and_account(
+    ///     store,
+    ///     Arc::new(AwsProvider::new()),
+    ///     "123456789012".to_string()
+    /// );
+    /// ```
+    pub fn with_provider_and_account(
+        store: S,
+        provider: Arc<dyn CloudProvider>,
+        account_id: String,
+    ) -> Self {
+        Self {
+            store,
+            provider,
+            account_id,
+        }
+    }
+
+    /// Get the cloud provider
+    pub(crate) fn cloud_provider(&self) -> &dyn CloudProvider {
+        self.provider.as_ref()
     }
 
     /// Get mutable reference to the STS store
@@ -131,7 +197,6 @@ impl<S: Store> StsClient<S> {
     /// # }
     /// ```
     pub async fn account_id(&mut self) -> Result<String> {
-        let store = self.sts_store().await?;
-        Ok(store.account_id().to_string())
+        Ok(self.account_id.clone())
     }
 }

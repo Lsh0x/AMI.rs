@@ -15,9 +15,8 @@ impl<S: Store> IamClient<S> {
         // Validate policy document is valid JSON
         Self::validate_policy_document(&request.policy_document)?;
 
-        let store = self.iam_store().await?;
-        let account_id = store.account_id();
-        let provider = store.cloud_provider();
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
 
         let policy = builder::build_policy(
             request.policy_name,
@@ -25,10 +24,11 @@ impl<S: Store> IamClient<S> {
             request.path,
             request.description,
             request.tags,
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
         );
 
+        let store = self.iam_store().await?;
         let created_policy = store.create_policy(policy).await?;
 
         Ok(AmiResponse::success(created_policy))

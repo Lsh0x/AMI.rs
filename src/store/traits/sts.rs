@@ -1,6 +1,7 @@
 //! STS Store Trait
 //!
 //! Defines the interface for STS (Security Token Service) data storage operations.
+//! This is a pure persistence layer - sessions and identities carry their own tenant/account info.
 
 use crate::error::Result;
 use crate::sts::{CallerIdentity, StsSession};
@@ -9,9 +10,6 @@ use async_trait::async_trait;
 /// Trait for STS data storage operations
 #[async_trait]
 pub trait StsStore: Send + Sync {
-    /// Get the account ID for this store
-    fn account_id(&self) -> &str;
-
     // Session operations
     async fn create_session(&mut self, session: StsSession) -> Result<StsSession>;
     async fn get_session(&self, session_token: &str) -> Result<Option<StsSession>>;

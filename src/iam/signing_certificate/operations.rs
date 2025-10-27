@@ -15,6 +15,9 @@ where
         &mut self,
         request: UploadSigningCertificateRequest,
     ) -> Result<AmiResponse<UploadSigningCertificateResponse>> {
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
+
         let store = self.iam_store().await?;
 
         store.get_user(&request.user_name).await?.ok_or_else(|| {
@@ -31,7 +34,6 @@ where
             });
         }
 
-        let provider = store.cloud_provider();
         let existing_certs = store
             .list_signing_certificates(Some(&request.user_name))
             .await?;
@@ -45,12 +47,11 @@ where
             });
         }
 
-        let account_id = store.account_id();
         let certificate = super::builder::build_signing_certificate(
             request.user_name,
             request.certificate_body,
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
         );
 
         let created_cert = store.create_signing_certificate(certificate).await?;

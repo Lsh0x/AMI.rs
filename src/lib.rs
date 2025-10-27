@@ -22,24 +22,18 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Initialize logging to see account ID generation
+//!     // Initialize logging
 //!     env_logger::init();
 //!     
 //!     // Initialize clients with in-memory storage
 //!     let store = wami::create_memory_store();
-//!     let account_id = wami::get_account_id_from_store(&store);
-//!     println!("Using AWS account ID: {}", account_id);
-//!     
-//!     // Print AWS environment variables for export
-//!     wami::print_aws_environment_variables(&store);
-//!     
 //!     let mut iam_client = MemoryIamClient::new(store.clone());
 //!     let mut sts_client = MemoryStsClient::new(store.clone());
 //!     let mut sso_client = MemorySsoAdminClient::new(store);
 //!     
 //!     // Get account ID from client
-//!     let client_account_id = iam_client.account_id().await?;
-//!     println!("Account ID from IAM client: {}", client_account_id);
+//!     let account_id = iam_client.account_id().await?;
+//!     println!("Using AWS account ID: {}", account_id);
 //!     
 //!     // Create a user
 //!     let user_request = wami::CreateUserRequest {
@@ -101,9 +95,9 @@ pub use sso_admin::{
 };
 
 // Re-export Tenant types
-pub use store::TenantAction;
 pub use tenant::{
-    BillingInfo, QuotaMode, Tenant, TenantId, TenantQuotas, TenantStatus, TenantType, TenantUsage,
+    check_tenant_permission, BillingInfo, QuotaMode, Tenant, TenantAction, TenantId, TenantQuotas,
+    TenantStatus, TenantType, TenantUsage,
 };
 
 // Re-export request/response types
@@ -179,27 +173,9 @@ pub fn create_memory_store() -> InMemoryStore {
     InMemoryStore::new()
 }
 
-/// Create a new in-memory store with a specific account ID
-pub fn create_memory_store_with_account_id(account_id: String) -> InMemoryStore {
-    InMemoryStore::with_account_id(account_id)
-}
-
-/// Get the account ID from a store
-pub fn get_account_id_from_store(store: &InMemoryStore) -> &str {
-    store.account_id()
-}
-
-/// Get AWS environment variables from a store
-pub fn get_aws_environment_variables(
-    store: &InMemoryStore,
-) -> std::collections::HashMap<String, String> {
-    store.aws_environment_variables()
-}
-
-/// Print AWS environment variables from a store
-pub fn print_aws_environment_variables(store: &InMemoryStore) {
-    store.print_aws_environment_variables();
-}
+// Note: Provider-specific functionality has been removed from the unified store.
+// Resources now carry their own provider-specific information (ARNs, account IDs, etc.).
+// If you need provider-specific functionality, use the client-level providers.
 
 /// Type alias for convenience when using in-memory storage
 pub type MemoryIamClient = IamClient<InMemoryStore>;
