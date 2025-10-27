@@ -1,4 +1,5 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 
 /// Common response wrapper for AWS operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,10 +99,32 @@ pub struct PolicyDocument {
 pub struct PolicyStatement {
     #[serde(rename = "Effect")]
     pub effect: String,
-    #[serde(rename = "Action")]
+    #[serde(rename = "Action", deserialize_with = "string_or_vec")]
     pub action: Vec<String>,
-    #[serde(rename = "Resource")]
+    #[serde(rename = "Resource", deserialize_with = "string_or_vec")]
     pub resource: Vec<String>,
     #[serde(rename = "Condition", skip_serializing_if = "Option::is_none")]
-    pub condition: Option<serde_json::Value>,
+    pub condition: Option<Value>,
+}
+
+/// Deserialize either a single string or an array of strings into a Vec<String>
+fn string_or_vec<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Value::deserialize(deserializer)?;
+    match value {
+        Value::String(s) => Ok(vec![s]),
+        Value::Array(arr) => arr
+            .into_iter()
+            .map(|v| {
+                v.as_str()
+                    .map(String::from)
+                    .ok_or_else(|| serde::de::Error::custom("expected string"))
+            })
+            .collect(),
+        _ => Err(serde::de::Error::custom(
+            "expected string or array of strings",
+        )),
+    }
 }
