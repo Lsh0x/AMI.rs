@@ -34,6 +34,9 @@ pub enum AmiError {
 
     #[error("Resource already exists: {resource}")]
     ResourceExists { resource: String },
+
+    #[error("Store error: {0}")]
+    StoreError(String),
 }
 
 pub type Result<T> = std::result::Result<T, AmiError>;
