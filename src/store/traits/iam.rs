@@ -1,23 +1,16 @@
 //! IAM Store Trait
 //!
 //! Defines the interface for IAM data storage operations.
-//! This allows easy swapping between different storage backends (in-memory, database, cloud, etc.)
+//! This is a pure persistence layer - resources carry their own tenant/account/provider info.
 
 use crate::error::Result;
 use crate::iam::{AccessKey, Group, LoginProfile, MfaDevice, Policy, Role, User};
-use crate::provider::CloudProvider;
 use crate::types::{PaginationParams, Tag};
 use async_trait::async_trait;
 
 /// Trait for IAM data storage operations
 #[async_trait]
 pub trait IamStore: Send + Sync {
-    /// Get the account ID for this store
-    fn account_id(&self) -> &str;
-
-    /// Get the cloud provider for this store
-    fn cloud_provider(&self) -> &dyn CloudProvider;
-
     // User operations
     async fn create_user(&mut self, user: User) -> Result<User>;
     async fn get_user(&self, user_name: &str) -> Result<Option<User>>;

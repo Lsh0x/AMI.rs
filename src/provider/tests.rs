@@ -18,7 +18,7 @@ mod integration_tests {
         use crate::iam::user::CreateUserRequest;
 
         let provider = Arc::new(AwsProvider::default());
-        let store = InMemoryStore::with_account_and_provider("123456789012".to_string(), provider);
+        let store = InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         let request = CreateUserRequest {
@@ -43,7 +43,7 @@ mod integration_tests {
 
         let provider = Arc::new(GcpProvider::new("my-project-123"));
         let store =
-            InMemoryStore::with_account_and_provider("my-project-123".to_string(), provider);
+            InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         let request = CreateUserRequest {
@@ -71,7 +71,7 @@ mod integration_tests {
         use crate::iam::user::CreateUserRequest;
 
         let provider = Arc::new(AzureProvider::new("sub-123", "rg-prod"));
-        let store = InMemoryStore::with_account_and_provider("sub-123".to_string(), provider);
+        let store = InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         let request = CreateUserRequest {
@@ -104,7 +104,7 @@ mod integration_tests {
                 .id_prefix("MYC")
                 .build(),
         );
-        let store = InMemoryStore::with_account_and_provider("tenant-42".to_string(), provider);
+        let store = InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         let request = CreateUserRequest {
@@ -129,7 +129,7 @@ mod integration_tests {
         use crate::iam::user::CreateUserRequest;
 
         let provider = Arc::new(AwsProvider::default());
-        let store = InMemoryStore::with_account_and_provider("123456789012".to_string(), provider);
+        let store = InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create user first
@@ -167,7 +167,7 @@ mod integration_tests {
         use crate::iam::user::CreateUserRequest;
 
         let provider = Arc::new(GcpProvider::new("my-project"));
-        let store = InMemoryStore::with_account_and_provider("my-project".to_string(), provider);
+        let store = InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create user first
@@ -220,8 +220,7 @@ mod integration_tests {
                 .build(),
         );
 
-        let store =
-            InMemoryStore::with_account_and_provider("tenant-1".to_string(), provider.clone());
+        let store = InMemoryStore::new();
         let mut client = IamClient::new(store);
 
         // Create user

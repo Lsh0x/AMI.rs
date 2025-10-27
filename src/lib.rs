@@ -101,9 +101,9 @@ pub use sso_admin::{
 };
 
 // Re-export Tenant types
-pub use store::TenantAction;
 pub use tenant::{
-    BillingInfo, QuotaMode, Tenant, TenantId, TenantQuotas, TenantStatus, TenantType, TenantUsage,
+    check_tenant_permission, BillingInfo, QuotaMode, Tenant, TenantAction, TenantId,
+    TenantQuotas, TenantStatus, TenantType, TenantUsage,
 };
 
 // Re-export request/response types
@@ -179,27 +179,9 @@ pub fn create_memory_store() -> InMemoryStore {
     InMemoryStore::new()
 }
 
-/// Create a new in-memory store with a specific account ID
-pub fn create_memory_store_with_account_id(account_id: String) -> InMemoryStore {
-    InMemoryStore::with_account_id(account_id)
-}
-
-/// Get the account ID from a store
-pub fn get_account_id_from_store(store: &InMemoryStore) -> &str {
-    store.account_id()
-}
-
-/// Get AWS environment variables from a store
-pub fn get_aws_environment_variables(
-    store: &InMemoryStore,
-) -> std::collections::HashMap<String, String> {
-    store.aws_environment_variables()
-}
-
-/// Print AWS environment variables from a store
-pub fn print_aws_environment_variables(store: &InMemoryStore) {
-    store.print_aws_environment_variables();
-}
+// Note: Provider-specific functionality has been removed from the unified store.
+// Resources now carry their own provider-specific information (ARNs, account IDs, etc.).
+// If you need provider-specific functionality, use the client-level providers.
 
 /// Type alias for convenience when using in-memory storage
 pub type MemoryIamClient = IamClient<InMemoryStore>;

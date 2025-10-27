@@ -56,7 +56,7 @@ where
         let account_id = self.account_id().await?;
 
         // 5. Generate WAMI ARN
-        let wami_arn = self.store.cloud_provider().generate_wami_arn(
+        let wami_arn = self.cloud_provider().generate_wami_arn(
             ResourceType::StsSession,
             &account_id,
             "",
@@ -65,9 +65,9 @@ where
 
         // 6. Generate provider config
         let provider_config = crate::provider::ProviderConfig {
-            provider_name: self.store.cloud_provider().name().to_string(),
+            provider_name: self.cloud_provider().name().to_string(),
             account_id: account_id.clone(),
-            native_arn: self.store.cloud_provider().generate_resource_identifier(
+            native_arn: self.cloud_provider().generate_resource_identifier(
                 ResourceType::StsSession,
                 &account_id,
                 "/session/",

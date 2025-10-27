@@ -21,6 +21,7 @@
 //! assert_eq!(child_id.as_str(), "acme/engineering");
 //! ```
 
+pub mod authorization;
 pub mod client;
 pub mod hierarchy;
 pub mod model;
@@ -28,5 +29,6 @@ pub mod model;
 #[cfg(test)]
 mod tests;
 
+pub use authorization::{check_tenant_permission, TenantAction};
 pub use client::TenantClient;
 pub use model::*;

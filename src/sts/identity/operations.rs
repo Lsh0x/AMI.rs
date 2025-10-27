@@ -31,19 +31,19 @@ where
     /// # }
     /// ```
     pub async fn get_caller_identity(&mut self) -> Result<AmiResponse<CallerIdentity>> {
-        let store = self.sts_store().await?;
-        let account_id = store.account_id();
+        let account_id = self.account_id.clone();
 
         // Try to get existing identity, or create a default one
         let identity_arn = format!("arn:aws:iam::{}:user/example-user", account_id);
         let wami_arn = format!("arn:wami:iam::{}:user/example-user", account_id);
 
+        let store = self.sts_store().await?;
         let identity = store
             .get_identity(&identity_arn)
             .await?
             .unwrap_or_else(|| CallerIdentity {
                 user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
-                account: account_id.to_string(),
+                account: account_id.clone(),
                 arn: identity_arn,
                 wami_arn,
                 providers: Vec::new(),
@@ -57,9 +57,7 @@ where
         &mut self,
         _access_key_id: String,
     ) -> Result<AmiResponse<String>> {
-        let store = self.sts_store().await?;
-        let account_id = store.account_id();
-        Ok(AmiResponse::success(account_id.to_string()))
+        Ok(AmiResponse::success(self.account_id.clone()))
     }
 
     /// Decode authorization message

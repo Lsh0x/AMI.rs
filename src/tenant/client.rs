@@ -1,8 +1,11 @@
 //! Tenant Client for Managing Tenants
 
-use super::{BillingInfo, QuotaMode, Tenant, TenantId, TenantQuotas, TenantStatus, TenantType};
+use super::{
+    check_tenant_permission, BillingInfo, QuotaMode, Tenant, TenantAction, TenantId,
+    TenantQuotas, TenantStatus, TenantType,
+};
 use crate::error::{AmiError, Result};
-use crate::store::traits::{TenantAction, TenantStore};
+use crate::store::traits::TenantStore;
 use crate::store::Store;
 use crate::types::AmiResponse;
 use std::collections::HashMap;
@@ -65,16 +68,13 @@ impl<S: Store> TenantClient<S> {
         request: CreateSubTenantRequest,
     ) -> Result<AmiResponse<Tenant>> {
         // 1. Check permission
-        let has_permission = self
-            .store
-            .tenant_store()
-            .await?
-            .check_tenant_permission(
-                &self.current_principal,
-                parent_id,
-                TenantAction::CreateSubTenant,
-            )
-            .await?;
+        let has_permission = check_tenant_permission(
+            &mut self.store,
+            &self.current_principal,
+            parent_id,
+            TenantAction::CreateSubTenant,
+        )
+        .await?;
 
         if !has_permission {
             return Err(AmiError::AccessDenied {
@@ -165,12 +165,13 @@ impl<S: Store> TenantClient<S> {
 
     /// Get a tenant by ID
     pub async fn get_tenant(&mut self, tenant_id: &TenantId) -> Result<AmiResponse<Tenant>> {
-        let has_permission = self
-            .store
-            .tenant_store()
-            .await?
-            .check_tenant_permission(&self.current_principal, tenant_id, TenantAction::Read)
-            .await?;
+        let has_permission = check_tenant_permission(
+            &mut self.store,
+            &self.current_principal,
+            tenant_id,
+            TenantAction::Read,
+        )
+        .await?;
 
         if !has_permission {
             return Err(AmiError::AccessDenied {
@@ -196,12 +197,13 @@ impl<S: Store> TenantClient<S> {
         &mut self,
         parent_id: &TenantId,
     ) -> Result<AmiResponse<Vec<Tenant>>> {
-        let has_permission = self
-            .store
-            .tenant_store()
-            .await?
-            .check_tenant_permission(&self.current_principal, parent_id, TenantAction::Read)
-            .await?;
+        let has_permission = check_tenant_permission(
+            &mut self.store,
+            &self.current_principal,
+            parent_id,
+            TenantAction::Read,
+        )
+        .await?;
 
         if !has_permission {
             return Err(AmiError::AccessDenied {
@@ -221,12 +223,13 @@ impl<S: Store> TenantClient<S> {
 
     /// Delete a tenant and all its descendants
     pub async fn delete_tenant_cascade(&mut self, tenant_id: &TenantId) -> Result<AmiResponse<()>> {
-        let has_permission = self
-            .store
-            .tenant_store()
-            .await?
-            .check_tenant_permission(&self.current_principal, tenant_id, TenantAction::Delete)
-            .await?;
+        let has_permission = check_tenant_permission(
+            &mut self.store,
+            &self.current_principal,
+            tenant_id,
+            TenantAction::Delete,
+        )
+        .await?;
 
         if !has_permission {
             return Err(AmiError::AccessDenied {

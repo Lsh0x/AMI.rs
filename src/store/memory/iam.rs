@@ -1,17 +1,16 @@
 use crate::error::Result;
 use crate::iam::{AccessKey, Group, LoginProfile, MfaDevice, Policy, Role, User};
-use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::traits::IamStore;
 use crate::types::{PaginationParams, Tag};
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 /// In-memory implementation of IAM store
-#[derive(Debug, Clone)]
+///
+/// This is a pure persistence layer that stores IAM resources for ALL tenants.
+/// Each resource carries its own tenant_id, account_id, and provider information.
+#[derive(Debug, Clone, Default)]
 pub struct InMemoryIamStore {
-    account_id: String,
-    provider: Arc<dyn CloudProvider>,
     users: HashMap<String, User>,
     access_keys: HashMap<String, AccessKey>,
     groups: HashMap<String, Group>,
@@ -29,72 +28,15 @@ pub struct InMemoryIamStore {
     signing_certificates: HashMap<String, crate::iam::signing_certificate::SigningCertificate>, // cert_id -> certificate
 }
 
-impl Default for InMemoryIamStore {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl InMemoryIamStore {
+    /// Create a new empty IAM store
     pub fn new() -> Self {
-        Self::with_provider(Arc::new(AwsProvider::new()))
-    }
-
-    pub fn with_account_id(account_id: String) -> Self {
-        Self::with_account_and_provider(account_id, Arc::new(AwsProvider::new()))
-    }
-
-    /// Creates a new in-memory IAM store with a custom provider
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::store::memory::InMemoryIamStore;
-    /// use wami::provider::{AwsProvider, GcpProvider};
-    /// use std::sync::Arc;
-    ///
-    /// // AWS provider
-    /// let aws_store = InMemoryIamStore::with_provider(Arc::new(AwsProvider::new()));
-    ///
-    /// // GCP provider
-    /// let gcp_store = InMemoryIamStore::with_provider(Arc::new(GcpProvider::new("my-project")));
-    /// ```
-    pub fn with_provider(provider: Arc<dyn CloudProvider>) -> Self {
-        Self::with_account_and_provider(crate::types::AwsConfig::generate_account_id(), provider)
-    }
-
-    /// Creates a new in-memory IAM store with a specific account ID and provider
-    pub fn with_account_and_provider(account_id: String, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            account_id,
-            provider,
-            users: HashMap::new(),
-            access_keys: HashMap::new(),
-            groups: HashMap::new(),
-            roles: HashMap::new(),
-            policies: HashMap::new(),
-            mfa_devices: HashMap::new(),
-            login_profiles: HashMap::new(),
-            user_groups: HashMap::new(),
-            credential_report: None,
-            server_certificates: HashMap::new(),
-            service_specific_credentials: HashMap::new(),
-            service_linked_role_deletion_tasks: HashMap::new(),
-            signing_certificates: HashMap::new(),
-        }
+        Self::default()
     }
 }
 
 #[async_trait]
 impl IamStore for InMemoryIamStore {
-    fn account_id(&self) -> &str {
-        &self.account_id
-    }
-
-    fn cloud_provider(&self) -> &dyn CloudProvider {
-        self.provider.as_ref()
-    }
-
     async fn create_user(&mut self, user: User) -> Result<User> {
         self.users.insert(user.user_name.clone(), user.clone());
         Ok(user)
