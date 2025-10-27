@@ -1,7 +1,7 @@
 //! In-Memory Tenant Store Implementation
 
-use super::{TenantAction, TenantStore};
 use crate::error::{AmiError, Result};
+use crate::store::traits::{TenantAction, TenantStore};
 use crate::tenant::{Tenant, TenantId, TenantQuotas, TenantUsage};
 use async_trait::async_trait;
 use std::collections::HashMap;

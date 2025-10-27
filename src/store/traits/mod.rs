@@ -6,7 +6,9 @@
 mod iam;
 mod sso_admin;
 mod sts;
+mod tenant;
 
 pub use iam::IamStore;
 pub use sso_admin::SsoAdminStore;
 pub use sts::StsStore;
+pub use tenant::{TenantAction, TenantStore};

@@ -4,9 +4,10 @@
 
 use crate::error::Result;
 use crate::provider::{AwsProvider, CloudProvider};
-use crate::store::memory::{InMemoryIamStore, InMemorySsoAdminStore, InMemoryStsStore};
+use crate::store::memory::{
+    InMemoryIamStore, InMemorySsoAdminStore, InMemoryStsStore, InMemoryTenantStore,
+};
 use crate::store::Store;
-use crate::tenant::store::InMemoryTenantStore;
 use async_trait::async_trait;
 use std::sync::Arc;
 
