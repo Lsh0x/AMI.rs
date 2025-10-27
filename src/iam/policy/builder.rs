@@ -1,6 +1,7 @@
 //! Policy Builder
 
 use super::model::Policy;
+use crate::provider::arn_builder::WamiArnBuilder;
 use crate::provider::{CloudProvider, ProviderConfig, ResourceType};
 use crate::types::Tag;
 
@@ -22,8 +23,10 @@ pub fn build_policy(
         &path,
         &policy_name,
     );
-    let wami_arn =
-        provider.generate_wami_arn(ResourceType::Policy, account_id, &path, &policy_name);
+
+    // Generate WAMI ARN with opaque tenant hash
+    let arn_builder = WamiArnBuilder::new();
+    let wami_arn = arn_builder.build_arn("iam", account_id, "policy", &path, &policy_name);
 
     Policy {
         policy_name,
