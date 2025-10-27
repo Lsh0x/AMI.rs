@@ -29,6 +29,9 @@ pub mod model;
 #[cfg(test)]
 mod tests;
 
-pub use authorization::{check_tenant_permission, TenantAction};
+pub use authorization::{
+    build_tenant_admin_policy, build_tenant_readonly_policy, check_tenant_permission, TenantAction,
+    TenantAuthorizer,
+};
 pub use client::TenantClient;
 pub use model::*;
