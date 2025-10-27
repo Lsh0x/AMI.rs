@@ -12,9 +12,8 @@ use super::{builder, model::User, requests::*};
 impl<S: Store> IamClient<S> {
     /// Create a new IAM user
     pub async fn create_user(&mut self, request: CreateUserRequest) -> Result<AmiResponse<User>> {
-        let store = self.iam_store().await?;
-        let account_id = store.account_id();
-        let provider = store.cloud_provider();
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
 
         // Use builder to construct the user
         // TODO: Extract tenant_id from request or context
@@ -23,11 +22,12 @@ impl<S: Store> IamClient<S> {
             request.path,
             request.permissions_boundary,
             request.tags,
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
             None, // tenant_id - single-tenant mode for now
         );
 
+        let store = self.iam_store().await?;
         let created_user = store.create_user(user).await?;
 
         Ok(AmiResponse::success(created_user))
@@ -53,10 +53,10 @@ impl<S: Store> IamClient<S> {
 
     /// Update an IAM user
     pub async fn update_user(&mut self, request: UpdateUserRequest) -> Result<AmiResponse<User>> {
-        let store = self.iam_store().await?;
-        let provider = store.cloud_provider();
-        let account_id = store.account_id();
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
 
+        let store = self.iam_store().await?;
         // Get existing user
         let user = store.get_user(&request.user_name).await?.ok_or_else(|| {
             crate::error::AmiError::ResourceNotFound {
@@ -69,8 +69,8 @@ impl<S: Store> IamClient<S> {
             user,
             request.new_user_name,
             request.new_path,
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
         );
 
         let saved_user = store.update_user(updated_user).await?;

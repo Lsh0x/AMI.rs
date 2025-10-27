@@ -75,7 +75,7 @@ pub mod user;
 
 use crate::error::Result;
 use crate::provider::{AwsProvider, CloudProvider};
-use crate::store::{IamStore, Store};
+use crate::store::Store;
 use std::sync::Arc;
 
 /// IAM client for managing AWS Identity and Access Management resources
@@ -192,9 +192,9 @@ impl<S: Store> IamClient<S> {
         }
     }
 
-    /// Get the cloud provider
-    pub(crate) fn cloud_provider(&self) -> &dyn CloudProvider {
-        self.provider.as_ref()
+    /// Get the cloud provider (returns a cloned Arc for flexibility)
+    pub(crate) fn cloud_provider(&self) -> Arc<dyn CloudProvider> {
+        Arc::clone(&self.provider)
     }
 
     /// Get mutable reference to the IAM store

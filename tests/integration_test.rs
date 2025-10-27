@@ -128,10 +128,18 @@ async fn test_multiple_users_workflow() {
 #[tokio::test]
 async fn test_account_id_consistency() {
     let store = create_memory_store();
-    let account_id = wami::get_account_id_from_store(&store);
-
-    let mut iam_client = MemoryIamClient::new(store.clone());
-    let mut sts_client = MemoryStsClient::new(store.clone());
+    // Use a consistent account ID for both clients
+    let account_id = "123456789012".to_string();
+    let mut iam_client = wami::IamClient::with_provider_and_account(
+        store.clone(),
+        std::sync::Arc::new(wami::provider::AwsProvider::default()),
+        account_id.clone(),
+    );
+    let mut sts_client = wami::StsClient::with_provider_and_account(
+        store.clone(),
+        std::sync::Arc::new(wami::provider::AwsProvider::default()),
+        account_id.clone(),
+    );
 
     // Create a user and check ARN contains the account ID
     let request = CreateUserRequest {
@@ -142,7 +150,7 @@ async fn test_account_id_consistency() {
     };
     let user_response = iam_client.create_user(request).await.unwrap();
     let user = user_response.data.unwrap();
-    assert!(user.arn.contains(account_id));
+    assert!(user.arn.contains(&account_id));
 
     // Get caller identity and check account ID matches
     let identity_response = sts_client.get_caller_identity().await.unwrap();

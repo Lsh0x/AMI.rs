@@ -22,24 +22,18 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Initialize logging to see account ID generation
+//!     // Initialize logging
 //!     env_logger::init();
 //!     
 //!     // Initialize clients with in-memory storage
 //!     let store = wami::create_memory_store();
-//!     let account_id = wami::get_account_id_from_store(&store);
-//!     println!("Using AWS account ID: {}", account_id);
-//!     
-//!     // Print AWS environment variables for export
-//!     wami::print_aws_environment_variables(&store);
-//!     
 //!     let mut iam_client = MemoryIamClient::new(store.clone());
 //!     let mut sts_client = MemoryStsClient::new(store.clone());
 //!     let mut sso_client = MemorySsoAdminClient::new(store);
 //!     
 //!     // Get account ID from client
-//!     let client_account_id = iam_client.account_id().await?;
-//!     println!("Account ID from IAM client: {}", client_account_id);
+//!     let account_id = iam_client.account_id().await?;
+//!     println!("Using AWS account ID: {}", account_id);
 //!     
 //!     // Create a user
 //!     let user_request = wami::CreateUserRequest {
@@ -102,8 +96,8 @@ pub use sso_admin::{
 
 // Re-export Tenant types
 pub use tenant::{
-    check_tenant_permission, BillingInfo, QuotaMode, Tenant, TenantAction, TenantId,
-    TenantQuotas, TenantStatus, TenantType, TenantUsage,
+    check_tenant_permission, BillingInfo, QuotaMode, Tenant, TenantAction, TenantId, TenantQuotas,
+    TenantStatus, TenantType, TenantUsage,
 };
 
 // Re-export request/response types

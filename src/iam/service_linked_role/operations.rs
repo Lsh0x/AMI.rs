@@ -16,18 +16,18 @@ where
         &mut self,
         request: CreateServiceLinkedRoleRequest,
     ) -> Result<AmiResponse<CreateServiceLinkedRoleResponse>> {
-        let store = self.iam_store().await?;
-        let account_id = store.account_id();
-        let provider = store.cloud_provider();
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
 
         let role = super::builder::build_service_linked_role(
             &request.aws_service_name,
             request.description,
             request.custom_suffix.as_deref(),
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
         );
 
+        let store = self.iam_store().await?;
         let created_role = store.create_role(role).await?;
 
         Ok(AmiResponse::success(CreateServiceLinkedRoleResponse {

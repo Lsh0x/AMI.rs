@@ -12,18 +12,18 @@ impl<S: Store> IamClient<S> {
         &mut self,
         request: CreateGroupRequest,
     ) -> Result<AmiResponse<Group>> {
-        let store = self.iam_store().await?;
-        let account_id = store.account_id();
-        let provider = store.cloud_provider();
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
 
         let group = builder::build_group(
             request.group_name,
             request.path,
             request.tags,
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
         );
 
+        let store = self.iam_store().await?;
         let created_group = store.create_group(group).await?;
 
         Ok(AmiResponse::success(created_group))
@@ -34,10 +34,10 @@ impl<S: Store> IamClient<S> {
         &mut self,
         request: UpdateGroupRequest,
     ) -> Result<AmiResponse<Group>> {
-        let store = self.iam_store().await?;
-        let provider = store.cloud_provider();
-        let account_id = store.account_id();
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
 
+        let store = self.iam_store().await?;
         // Get the existing group
         let group = match store.get_group(&request.group_name).await? {
             Some(group) => group,
@@ -52,8 +52,8 @@ impl<S: Store> IamClient<S> {
             group,
             request.new_group_name,
             request.new_path,
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
         );
 
         let result = store.update_group(updated_group).await?;

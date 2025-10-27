@@ -1,8 +1,8 @@
 //! Tenant Client for Managing Tenants
 
 use super::{
-    check_tenant_permission, BillingInfo, QuotaMode, Tenant, TenantAction, TenantId,
-    TenantQuotas, TenantStatus, TenantType,
+    check_tenant_permission, BillingInfo, QuotaMode, Tenant, TenantAction, TenantId, TenantQuotas,
+    TenantStatus, TenantType,
 };
 use crate::error::{AmiError, Result};
 use crate::store::traits::TenantStore;

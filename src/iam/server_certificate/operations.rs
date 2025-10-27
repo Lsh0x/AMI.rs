@@ -97,13 +97,13 @@ impl<S: Store> IamClient<S> {
             }
         }
 
-        let provider = store.cloud_provider();
-        let account_id = store.account_id();
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
         let path = request.path.unwrap_or_else(|| "/".to_string());
         let tags = request.tags.unwrap_or_default();
 
         // Validate path using provider
-        provider.validate_path(&path)?;
+        provider.as_ref().validate_path(&path)?;
 
         let certificate = super::builder::build_server_certificate(
             request.server_certificate_name,
@@ -111,11 +111,12 @@ impl<S: Store> IamClient<S> {
             request.certificate_chain,
             path,
             tags.clone(),
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
         );
 
         let metadata = certificate.server_certificate_metadata.clone();
+        let store = self.iam_store().await?;
         store.create_server_certificate(certificate).await?;
 
         Ok(AmiResponse::success(UploadServerCertificateResponse {
@@ -317,6 +318,9 @@ impl<S: Store> IamClient<S> {
         &mut self,
         request: UpdateServerCertificateRequest,
     ) -> Result<AmiResponse<()>> {
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
+
         let store = self.iam_store().await?;
 
         // Get existing certificate
@@ -348,13 +352,11 @@ impl<S: Store> IamClient<S> {
 
             // Update ARN if name changed using provider
             {
-                let provider = store.cloud_provider();
-                let account_id = store.account_id();
                 let path = certificate.server_certificate_metadata.path.clone();
-                certificate.server_certificate_metadata.arn = provider
-                    .generate_resource_identifier(
+                certificate.server_certificate_metadata.arn =
+                    provider.as_ref().generate_resource_identifier(
                         ResourceType::ServerCertificate,
-                        account_id,
+                        &account_id,
                         &path,
                         &new_name,
                     );
@@ -364,25 +366,22 @@ impl<S: Store> IamClient<S> {
         // Update path if provided
         if let Some(new_path) = request.new_path {
             {
-                let provider = store.cloud_provider();
                 // Validate path using provider
-                provider.validate_path(&new_path)?;
+                provider.as_ref().validate_path(&new_path)?;
             }
 
             certificate.server_certificate_metadata.path = new_path.clone();
 
             // Update ARN with new path using provider
             {
-                let provider = store.cloud_provider();
-                let account_id = store.account_id();
                 let cert_name = certificate
                     .server_certificate_metadata
                     .server_certificate_name
                     .clone();
-                certificate.server_certificate_metadata.arn = provider
-                    .generate_resource_identifier(
+                certificate.server_certificate_metadata.arn =
+                    provider.as_ref().generate_resource_identifier(
                         ResourceType::ServerCertificate,
-                        account_id,
+                        &account_id,
                         &new_path,
                         &cert_name,
                     );

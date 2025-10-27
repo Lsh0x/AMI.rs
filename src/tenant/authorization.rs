@@ -62,4 +62,3 @@ pub async fn check_tenant_permission<S: Store>(
 
     Ok(false)
 }
-

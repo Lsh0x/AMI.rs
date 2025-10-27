@@ -12,6 +12,9 @@ impl<S: Store> IamClient<S> {
         &mut self,
         request: EnableMfaDeviceRequest,
     ) -> Result<AmiResponse<MfaDevice>> {
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
+
         let store = self.iam_store().await?;
 
         // Validate user exists
@@ -28,14 +31,11 @@ impl<S: Store> IamClient<S> {
             });
         }
 
-        let provider = store.cloud_provider();
-        let account_id = store.account_id();
-
         let mfa_device = builder::build_mfa_device(
             request.user_name,
             request.serial_number,
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
         );
 
         let created_device = store.create_mfa_device(mfa_device).await?;

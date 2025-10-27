@@ -26,8 +26,7 @@ where
         let duration = request.duration_seconds.unwrap_or(3600);
 
         // 3. Generate temporary credentials
-        let creds =
-            credentials::build_temporary_credentials(self.cloud_provider(), duration)?;
+        let creds = credentials::build_temporary_credentials(self.cloud_provider(), duration)?;
 
         // 4. Get account ID
         let account_id = self.account_id().await?;

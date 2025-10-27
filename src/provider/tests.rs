@@ -19,7 +19,8 @@ mod integration_tests {
 
         let provider = Arc::new(AwsProvider::default());
         let store = InMemoryStore::new();
-        let mut client = IamClient::new(store);
+        let mut client =
+            IamClient::with_provider_and_account(store, provider, "123456789012".to_string());
 
         let request = CreateUserRequest {
             user_name: "alice".to_string(),
@@ -42,9 +43,8 @@ mod integration_tests {
         use crate::iam::user::CreateUserRequest;
 
         let provider = Arc::new(GcpProvider::new("my-project-123"));
-        let store =
-            InMemoryStore::new();
-        let mut client = IamClient::new(store);
+        let store = InMemoryStore::new();
+        let mut client = IamClient::with_provider(store, provider);
 
         let request = CreateUserRequest {
             user_name: "bob".to_string(),
@@ -72,7 +72,7 @@ mod integration_tests {
 
         let provider = Arc::new(AzureProvider::new("sub-123", "rg-prod"));
         let store = InMemoryStore::new();
-        let mut client = IamClient::new(store);
+        let mut client = IamClient::with_provider(store, provider);
 
         let request = CreateUserRequest {
             user_name: "charlie".to_string(),
@@ -105,7 +105,8 @@ mod integration_tests {
                 .build(),
         );
         let store = InMemoryStore::new();
-        let mut client = IamClient::new(store);
+        let mut client =
+            IamClient::with_provider_and_account(store, provider, "tenant-42".to_string());
 
         let request = CreateUserRequest {
             user_name: "dana".to_string(),
@@ -130,7 +131,7 @@ mod integration_tests {
 
         let provider = Arc::new(AwsProvider::default());
         let store = InMemoryStore::new();
-        let mut client = IamClient::new(store);
+        let mut client = IamClient::with_provider(store, provider);
 
         // Create user first
         client
@@ -168,7 +169,7 @@ mod integration_tests {
 
         let provider = Arc::new(GcpProvider::new("my-project"));
         let store = InMemoryStore::new();
-        let mut client = IamClient::new(store);
+        let mut client = IamClient::with_provider(store, provider);
 
         // Create user first
         client
@@ -212,16 +213,16 @@ mod integration_tests {
             max_signing_certificates_per_user: 2,
         };
 
-        let provider = Arc::new(
-            CustomProvider::builder()
-                .name("restrictive-cloud")
-                .id_prefix("RC")
-                .limits(custom_limits)
-                .build(),
-        );
+        let provider_impl = CustomProvider::builder()
+            .name("restrictive-cloud")
+            .id_prefix("RC")
+            .limits(custom_limits)
+            .build();
+
+        let provider: Arc<dyn CloudProvider> = Arc::new(provider_impl.clone());
 
         let store = InMemoryStore::new();
-        let mut client = IamClient::new(store);
+        let mut client = IamClient::with_provider(store, Arc::clone(&provider));
 
         // Create user
         client
@@ -257,7 +258,7 @@ mod integration_tests {
         );
 
         // Verify limits are correctly set
-        let limits = provider.resource_limits();
+        let limits = provider_impl.resource_limits();
         assert_eq!(limits.max_access_keys_per_user, 5);
         assert_eq!(limits.max_tags_per_resource, 100);
         assert_eq!(limits.session_duration_max, 7200);

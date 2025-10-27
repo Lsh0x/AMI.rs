@@ -15,6 +15,9 @@ impl<S: Store> IamClient<S> {
         // Validate password first (before borrowing store)
         Self::validate_password(&request.password)?;
 
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
+
         let store = self.iam_store().await?;
 
         // Check if user exists
@@ -34,14 +37,11 @@ impl<S: Store> IamClient<S> {
             });
         }
 
-        let account_id = store.account_id();
-        let provider = store.cloud_provider();
-
         let profile = builder::build_login_profile(
             request.user_name,
             request.password_reset_required,
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
         );
 
         let created_profile = store.create_login_profile(profile).await?;

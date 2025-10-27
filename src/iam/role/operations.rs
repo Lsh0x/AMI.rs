@@ -9,13 +9,12 @@ use crate::types::AmiResponse;
 impl<S: Store> IamClient<S> {
     /// Create a new IAM role
     pub async fn create_role(&mut self, request: CreateRoleRequest) -> Result<AmiResponse<Role>> {
-        let store = self.iam_store().await?;
-        let account_id = store.account_id();
-        let provider = store.cloud_provider();
+        let account_id = self.account_id().await?;
+        let provider = self.cloud_provider();
 
         // Validate max session duration using provider
         if let Some(duration) = request.max_session_duration {
-            provider.validate_session_duration(duration)?;
+            provider.as_ref().validate_session_duration(duration)?;
         }
 
         // Validate that assume_role_policy_document is valid JSON
@@ -34,10 +33,11 @@ impl<S: Store> IamClient<S> {
             request.max_session_duration,
             request.permissions_boundary,
             request.tags,
-            provider,
-            account_id,
+            provider.as_ref(),
+            &account_id,
         );
 
+        let store = self.iam_store().await?;
         let created_role = store.create_role(role).await?;
 
         Ok(AmiResponse::success(created_role))
@@ -45,14 +45,14 @@ impl<S: Store> IamClient<S> {
 
     /// Update an IAM role
     pub async fn update_role(&mut self, request: UpdateRoleRequest) -> Result<AmiResponse<Role>> {
-        let store = self.iam_store().await?;
-        let provider = store.cloud_provider();
+        let provider = self.cloud_provider();
 
         // Validate max session duration if provided using provider
         if let Some(duration) = request.max_session_duration {
-            provider.validate_session_duration(duration)?;
+            provider.as_ref().validate_session_duration(duration)?;
         }
 
+        let store = self.iam_store().await?;
         // Get existing role
         let role = match store.get_role(&request.role_name).await? {
             Some(role) => role,
