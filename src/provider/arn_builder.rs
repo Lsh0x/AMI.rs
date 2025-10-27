@@ -146,6 +146,7 @@ impl ParsedArn {
     /// assert_eq!(parsed.resource_type, "user");
     /// assert_eq!(parsed.name, "alice");
     /// ```
+    #[allow(clippy::result_large_err)]
     pub fn from_arn(arn: &str) -> Result<Self> {
         let parts: Vec<&str> = arn.split(':').collect();
 
@@ -191,6 +192,7 @@ impl ParsedArn {
     /// - `user/alice` → ("user", "", "alice")
     /// - `user/tenants/acme/alice` → ("user", "/tenants/acme/", "alice")
     /// - `role/Admin` → ("role", "", "Admin")
+    #[allow(clippy::result_large_err)]
     fn parse_resource_path(resource_path: &str) -> Result<(String, String, String)> {
         let parts: Vec<&str> = resource_path.split('/').collect();
 
