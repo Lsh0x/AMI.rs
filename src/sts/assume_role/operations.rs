@@ -101,8 +101,16 @@ where
             assumed_role_arn: Some(request.role_arn.clone()),
             federated_user_name: None,
             principal_arn: None,
+            arn: format!(
+                "arn:{}:sts::{}:assumed-role/{}/{}",
+                self.cloud_provider().name(),
+                account_id,
+                role_name,
+                request.role_session_name
+            ),
             wami_arn,
             providers: vec![provider_config],
+            tenant_id: None,
             created_at: chrono::Utc::now(),
             last_used: None,
         };

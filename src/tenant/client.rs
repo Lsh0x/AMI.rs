@@ -33,6 +33,11 @@ impl<S: Store> TenantClient<S> {
     ) -> Result<AmiResponse<Tenant>> {
         let tenant_id = TenantId::root(&request.name);
 
+        // Generate WAMI ARN for tenant using ARN builder
+        let arn_builder = crate::provider::arn_builder::WamiArnBuilder::new();
+        let tenant_arn =
+            arn_builder.build_arn("tenant", tenant_id.as_str(), "tenant", "/", &request.name);
+
         let tenant = Tenant {
             id: tenant_id,
             parent_id: None,
@@ -40,6 +45,8 @@ impl<S: Store> TenantClient<S> {
             organization: request.organization,
             tenant_type: TenantType::Root,
             provider_accounts: request.provider_accounts.unwrap_or_default(),
+            arn: tenant_arn,
+            providers: Vec::new(), // Providers will be added as they're configured
             created_at: chrono::Utc::now(),
             status: TenantStatus::Active,
             quotas: request.quotas.unwrap_or_default(),
@@ -131,6 +138,12 @@ impl<S: Store> TenantClient<S> {
         // 6. Create the child tenant
         let child_id = parent_id.child(&request.name);
         let has_custom_quotas = request.quotas.is_some();
+
+        // Generate WAMI ARN for child tenant
+        let arn_builder = crate::provider::arn_builder::WamiArnBuilder::new();
+        let child_arn =
+            arn_builder.build_arn("tenant", child_id.as_str(), "tenant", "/", &request.name);
+
         let child = Tenant {
             id: child_id,
             parent_id: Some(parent_id.clone()),
@@ -138,6 +151,8 @@ impl<S: Store> TenantClient<S> {
             organization: request.organization,
             tenant_type: request.tenant_type,
             provider_accounts: request.provider_accounts.unwrap_or_default(),
+            arn: child_arn,
+            providers: Vec::new(), // Providers will be added as they're configured
             created_at: chrono::Utc::now(),
             status: TenantStatus::Active,
             quotas: request.quotas.unwrap_or_else(|| parent.quotas.clone()),

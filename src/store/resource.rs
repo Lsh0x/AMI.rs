@@ -13,10 +13,9 @@ use crate::iam::server_certificate::ServerCertificate;
 use crate::iam::service_credential::ServiceSpecificCredential;
 use crate::iam::signing_certificate::SigningCertificate;
 use crate::iam::user::User;
-// Note: STS and Tenant resources don't have `arn` field yet
-// use crate::sts::credentials::Credentials;
-// use crate::sts::session::StsSession;
-// use crate::tenant::Tenant;
+use crate::sts::credentials::Credentials;
+use crate::sts::session::StsSession;
+use crate::tenant::Tenant;
 use serde::{Deserialize, Serialize};
 
 /// Unified resource type for generic store operations
@@ -66,13 +65,12 @@ pub enum Resource {
     ServiceCredential(ServiceSpecificCredential),
     /// Signing Certificate
     SigningCertificate(SigningCertificate),
-    // TODO: Enable once STS/Tenant models have `arn` field
-    // /// STS Session
-    // StsSession(StsSession),
-    // /// STS Credentials
-    // Credentials(Credentials),
-    // /// Tenant
-    // Tenant(Tenant),
+    /// STS Session
+    StsSession(StsSession),
+    /// STS Credentials
+    Credentials(Credentials),
+    /// Tenant
+    Tenant(Tenant),
 }
 
 impl Resource {
@@ -91,9 +89,9 @@ impl Resource {
             Resource::ServerCertificate(r) => &r.server_certificate_metadata.arn,
             Resource::ServiceCredential(r) => &r.wami_arn,
             Resource::SigningCertificate(r) => &r.wami_arn,
-            // Resource::StsSession(r) => &r.arn,
-            // Resource::Credentials(r) => &r.arn,
-            // Resource::Tenant(r) => &r.arn,
+            Resource::StsSession(r) => &r.arn,
+            Resource::Credentials(r) => &r.arn,
+            Resource::Tenant(r) => &r.arn,
         }
     }
 
@@ -110,9 +108,9 @@ impl Resource {
             Resource::ServerCertificate(_) => "server-certificate",
             Resource::ServiceCredential(_) => "service-credential",
             Resource::SigningCertificate(_) => "signing-certificate",
-            // Resource::StsSession(_) => "sts-session",
-            // Resource::Credentials(_) => "credentials",
-            // Resource::Tenant(_) => "tenant",
+            Resource::StsSession(_) => "session",
+            Resource::Credentials(_) => "credentials",
+            Resource::Tenant(_) => "tenant",
         }
     }
 
@@ -152,15 +150,32 @@ impl Resource {
         }
     }
 
-    // TODO: Enable once Tenant model has `arn` field
-    // /// Tries to downcast to Tenant
-    // pub fn as_tenant(&self) -> Option<&Tenant> {
-    //     if let Resource::Tenant(t) = self {
-    //         Some(t)
-    //     } else {
-    //         None
-    //     }
-    // }
+    /// Tries to downcast to StsSession
+    pub fn as_sts_session(&self) -> Option<&StsSession> {
+        if let Resource::StsSession(s) = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    /// Tries to downcast to Credentials
+    pub fn as_credentials(&self) -> Option<&Credentials> {
+        if let Resource::Credentials(c) = self {
+            Some(c)
+        } else {
+            None
+        }
+    }
+
+    /// Tries to downcast to Tenant
+    pub fn as_tenant(&self) -> Option<&Tenant> {
+        if let Resource::Tenant(t) = self {
+            Some(t)
+        } else {
+            None
+        }
+    }
 
     /// Unwraps to User (panics if not User)
     pub fn into_user(self) -> User {
@@ -198,15 +213,32 @@ impl Resource {
         }
     }
 
-    // TODO: Enable once Tenant model has `arn` field
-    // /// Unwraps to Tenant (panics if not Tenant)
-    // pub fn into_tenant(self) -> Tenant {
-    //     if let Resource::Tenant(t) = self {
-    //         t
-    //     } else {
-    //         panic!("Expected Tenant, got {}", self.resource_type());
-    //     }
-    // }
+    /// Unwraps to StsSession (panics if not StsSession)
+    pub fn into_sts_session(self) -> StsSession {
+        if let Resource::StsSession(s) = self {
+            s
+        } else {
+            panic!("Expected StsSession, got {}", self.resource_type());
+        }
+    }
+
+    /// Unwraps to Credentials (panics if not Credentials)
+    pub fn into_credentials(self) -> Credentials {
+        if let Resource::Credentials(c) = self {
+            c
+        } else {
+            panic!("Expected Credentials, got {}", self.resource_type());
+        }
+    }
+
+    /// Unwraps to Tenant (panics if not Tenant)
+    pub fn into_tenant(self) -> Tenant {
+        if let Resource::Tenant(t) = self {
+            t
+        } else {
+            panic!("Expected Tenant, got {}", self.resource_type());
+        }
+    }
 }
 
 #[cfg(test)]
