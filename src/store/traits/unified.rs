@@ -55,11 +55,12 @@
 //! # Example Usage
 //!
 //! ```rust,no_run
-//! use wami::store::{Store, Resource};
-//! use wami::store::memory::InMemoryStore;
+//! use wami::store::traits::Store;
+//! use wami::store::resource::Resource;
+//! use wami::store::memory::UnifiedInMemoryStore;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let mut store = InMemoryStore::new();
+//! let store = UnifiedInMemoryStore::new();
 //!
 //! // 1. Get resource by exact ARN
 //! if let Some(resource) = store.get("arn:wami:iam:a1b2c3:user/admin/alice").await? {
@@ -203,8 +204,9 @@ pub trait Store: Send + Sync {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use wami::store::{Store, Resource};
-    /// # async fn example(store: &impl Store) -> Result<(), Box<dyn std::error::Error>> {
+    /// # use wami::store::traits::Store;
+    /// # use wami::store::resource::Resource;
+    /// # async fn example<S: Store>(store: &S) -> Result<(), Box<dyn std::error::Error>> {
     /// // Get a specific user
     /// let user_arn = "arn:wami:iam:a1b2c3:user/admin/alice";
     /// if let Some(resource) = store.get(user_arn).await? {
@@ -250,8 +252,9 @@ pub trait Store: Send + Sync {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use wami::store::{Store, Resource};
-    /// # async fn example(store: &impl Store) -> Result<(), Box<dyn std::error::Error>> {
+    /// # use wami::store::traits::Store;
+    /// # use wami::store::resource::Resource;
+    /// # async fn example<S: Store>(store: &S) -> Result<(), Box<dyn std::error::Error>> {
     /// // Find all users in a tenant
     /// let users = store.query("arn:wami:iam:a1b2c3:user/*").await?;
     /// for resource in users {
@@ -300,9 +303,10 @@ pub trait Store: Send + Sync {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use wami::store::{Store, Resource};
+    /// # use wami::store::traits::Store;
+    /// # use wami::store::resource::Resource;
     /// # use wami::iam::user::User;
-    /// # async fn example(store: &impl Store) -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn example<S: Store>(store: &S) -> Result<(), Box<dyn std::error::Error>> {
     /// // Store a user
     /// // let user = User { /* ... */ };
     /// // store.put(Resource::User(user)).await?;
@@ -339,8 +343,8 @@ pub trait Store: Send + Sync {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use wami::store::Store;
-    /// # async fn example(store: &impl Store) -> Result<(), Box<dyn std::error::Error>> {
+    /// # use wami::store::traits::Store;
+    /// # async fn example<S: Store>(store: &S) -> Result<(), Box<dyn std::error::Error>> {
     /// let arn = "arn:wami:iam:a1b2c3:user/alice";
     /// if store.delete(arn).await? {
     ///     println!("User deleted");
@@ -381,8 +385,8 @@ pub trait Store: Send + Sync {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use wami::store::Store;
-    /// # async fn example(store: &impl Store) -> Result<(), Box<dyn std::error::Error>> {
+    /// # use wami::store::traits::Store;
+    /// # async fn example<S: Store>(store: &S) -> Result<(), Box<dyn std::error::Error>> {
     /// let resources = store.list_tenant_resources("a1b2c3").await?;
     /// println!("Tenant has {} resources", resources.len());
     /// # Ok(())
@@ -411,8 +415,8 @@ pub trait Store: Send + Sync {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use wami::store::Store;
-    /// # async fn example(store: &impl Store) -> Result<(), Box<dyn std::error::Error>> {
+    /// # use wami::store::traits::Store;
+    /// # async fn example<S: Store>(store: &S) -> Result<(), Box<dyn std::error::Error>> {
     /// // Delete all resources for tenant "a1b2c3"
     /// let deleted = store.delete_tenant_resources("a1b2c3").await?;
     /// println!("Deleted {} resources", deleted);
@@ -488,8 +492,8 @@ pub trait Store: Send + Sync {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use wami::store::Store;
-    /// # async fn example(store: &impl Store) -> Result<(), Box<dyn std::error::Error>> {
+    /// # use wami::store::traits::Store;
+    /// # async fn example<S: Store>(store: &S) -> Result<(), Box<dyn std::error::Error>> {
     /// // Get all users in tenant
     /// let users = store.list_by_type("a1b2c3", "user").await?;
     ///
@@ -517,8 +521,8 @@ pub trait Store: Send + Sync {
     /// # Example
     ///
     /// ```rust,no_run
-    /// # use wami::store::Store;
-    /// # async fn example(store: &impl Store) -> Result<(), Box<dyn std::error::Error>> {
+    /// # use wami::store::traits::Store;
+    /// # async fn example<S: Store>(store: &S) -> Result<(), Box<dyn std::error::Error>> {
     /// // Get all users across all tenants (admin operation)
     /// let all_users = store.list_by_type_global("user").await?;
     /// # Ok(())

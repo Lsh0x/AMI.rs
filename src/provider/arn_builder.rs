@@ -225,10 +225,22 @@ impl ParsedArn {
 
     /// Reconstructs the full ARN
     pub fn to_arn(&self) -> String {
-        format!(
-            "arn:{}:{}:{}:{}{}{}",
-            self.provider, self.service, self.tenant_hash, self.resource_type, self.path, self.name
-        )
+        if self.path.is_empty() {
+            format!(
+                "arn:{}:{}:{}:{}/{}",
+                self.provider, self.service, self.tenant_hash, self.resource_type, self.name
+            )
+        } else {
+            format!(
+                "arn:{}:{}:{}:{}{}{}",
+                self.provider,
+                self.service,
+                self.tenant_hash,
+                self.resource_type,
+                self.path,
+                self.name
+            )
+        }
     }
 
     /// Checks if this ARN matches a wildcard pattern

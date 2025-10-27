@@ -34,7 +34,8 @@
 //!
 //! ```rust
 //! use wami::store::memory::UnifiedInMemoryStore;
-//! use wami::store::{Store, Resource};
+//! use wami::store::traits::Store;
+//! use wami::store::resource::Resource;
 //! use wami::iam::user::User;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {

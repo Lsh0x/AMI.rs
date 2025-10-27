@@ -29,9 +29,11 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
 /// use wami::store::resource::Resource;
+/// use wami::store::traits::Store;
 ///
+/// # async fn example<S: Store>(store: &S) -> Result<(), Box<dyn std::error::Error>> {
 /// // Store can return any resource type
 /// let resource = store.get("arn:wami:iam:tenant-x:user/alice").await?;
 ///
@@ -41,6 +43,8 @@ use serde::{Deserialize, Serialize};
 ///     None => println!("Not found"),
 ///     _ => println!("Other resource type"),
 /// }
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "resource_type", content = "data")]
