@@ -46,10 +46,14 @@ where
         let expiration = chrono::Utc::now() + chrono::Duration::seconds(duration as i64);
 
         let creds = crate::sts::Credentials {
-            access_key_id,
-            secret_access_key,
-            session_token,
+            access_key_id: access_key_id.clone(),
+            secret_access_key: secret_access_key.clone(),
+            session_token: session_token.clone(),
             expiration,
+            arn: String::new(),      // Will be set below
+            wami_arn: String::new(), // Will be set below
+            providers: Vec::new(),   // Will be set below
+            tenant_id: None,
         };
 
         // 4. Get account ID
@@ -77,7 +81,18 @@ where
             tenant_id: None, // STS sessions are not currently tenant-scoped
         };
 
-        // 7. Create session
+        // 7. Update creds with ARNs and providers
+        let mut creds = creds;
+        creds.arn = format!(
+            "arn:{}:sts::{}:session-token/{}",
+            self.cloud_provider().name(),
+            account_id,
+            creds.session_token
+        );
+        creds.wami_arn = wami_arn.clone();
+        creds.providers = vec![provider_config.clone()];
+
+        // 8. Create session
         let session_obj = session::StsSession {
             session_token: creds.session_token.clone(),
             access_key_id: creds.access_key_id.clone(),
@@ -87,8 +102,15 @@ where
             assumed_role_arn: None,
             federated_user_name: None,
             principal_arn: None,
+            arn: format!(
+                "arn:{}:sts::{}:session-token/{}",
+                self.cloud_provider().name(),
+                account_id,
+                creds.session_token
+            ),
             wami_arn,
             providers: vec![provider_config],
+            tenant_id: None,
             created_at: chrono::Utc::now(),
             last_used: None,
         };

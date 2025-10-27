@@ -1,6 +1,7 @@
 //! Role Builder
 
 use super::model::Role;
+use crate::provider::arn_builder::WamiArnBuilder;
 use crate::provider::{CloudProvider, ProviderConfig, ResourceType};
 use crate::types::Tag;
 
@@ -21,7 +22,10 @@ pub fn build_role(
     let role_id = provider.generate_resource_id(ResourceType::Role);
     let arn =
         provider.generate_resource_identifier(ResourceType::Role, account_id, &path, &role_name);
-    let wami_arn = provider.generate_wami_arn(ResourceType::Role, account_id, &path, &role_name);
+
+    // Generate WAMI ARN with opaque tenant hash
+    let arn_builder = WamiArnBuilder::new();
+    let wami_arn = arn_builder.build_arn("iam", account_id, "role", &path, &role_name);
 
     Role {
         role_name,

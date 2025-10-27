@@ -124,6 +124,13 @@ pub struct Tenant {
     /// Maps: provider_name -> account_id
     pub provider_accounts: HashMap<String, String>,
 
+    /// The WAMI ARN for this tenant (opaque tenant hash)
+    /// Format: arn:wami:tenant:global:tenant/tenant-hash
+    pub arn: String,
+
+    /// List of cloud providers where this tenant exists
+    pub providers: Vec<crate::provider::ProviderConfig>,
+
     /// Creation timestamp
     pub created_at: chrono::DateTime<chrono::Utc>,
 

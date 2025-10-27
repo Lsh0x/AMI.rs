@@ -3,6 +3,7 @@
 //! Pure functions for building User resources without side effects.
 
 use super::model::User;
+use crate::provider::arn_builder::WamiArnBuilder;
 use crate::provider::{CloudProvider, ProviderConfig, ResourceType};
 use crate::types::Tag;
 
@@ -52,7 +53,10 @@ pub fn build_user(
     let user_id = provider.generate_resource_id(ResourceType::User);
     let arn =
         provider.generate_resource_identifier(ResourceType::User, account_id, &path, &user_name);
-    let wami_arn = provider.generate_wami_arn(ResourceType::User, account_id, &path, &user_name);
+
+    // Generate WAMI ARN with opaque tenant hash
+    let arn_builder = WamiArnBuilder::new();
+    let wami_arn = arn_builder.build_arn("iam", account_id, "user", &path, &user_name);
 
     User {
         user_name,
@@ -91,6 +95,8 @@ pub fn update_user(
     provider: &dyn CloudProvider,
     account_id: &str,
 ) -> User {
+    let arn_builder = WamiArnBuilder::new();
+
     if let Some(new_name) = new_user_name {
         user.user_name = new_name.clone();
         user.arn = provider.generate_resource_identifier(
@@ -99,8 +105,7 @@ pub fn update_user(
             &user.path,
             &new_name,
         );
-        user.wami_arn =
-            provider.generate_wami_arn(ResourceType::User, account_id, &user.path, &new_name);
+        user.wami_arn = arn_builder.build_arn("iam", account_id, "user", &user.path, &new_name);
     }
     if let Some(new_path) = new_path {
         user.path = new_path.clone();
@@ -111,7 +116,7 @@ pub fn update_user(
             &user.user_name,
         );
         user.wami_arn =
-            provider.generate_wami_arn(ResourceType::User, account_id, &new_path, &user.user_name);
+            arn_builder.build_arn("iam", account_id, "user", &new_path, &user.user_name);
     }
     user
 }
@@ -158,9 +163,9 @@ mod tests {
         assert!(user
             .arn
             .contains("arn:aws:iam::123456789012:user/engineering/test-user"));
-        assert!(user
-            .wami_arn
-            .contains("arn:wami:iam::123456789012:user/engineering/test-user"));
+        // WAMI ARN now uses opaque tenant hash instead of raw account ID
+        assert!(user.wami_arn.starts_with("arn:wami:iam:tenant-"));
+        assert!(user.wami_arn.contains(":user/engineering/test-user"));
         assert_eq!(user.providers.len(), 0);
         assert_eq!(user.tags.len(), 0);
         assert_eq!(user.tenant_id, None);
@@ -205,6 +210,8 @@ mod tests {
 
         assert_eq!(updated.user_name, "new-name");
         assert!(updated.arn.contains("new-name"));
+        // WAMI ARN uses opaque tenant hash
+        assert!(updated.wami_arn.starts_with("arn:wami:iam:tenant-"));
         assert!(updated.wami_arn.contains("new-name"));
     }
 

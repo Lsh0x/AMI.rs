@@ -63,8 +63,15 @@ where
             assumed_role_arn: None,
             federated_user_name: Some(request.name.clone()),
             principal_arn: None,
+            arn: format!(
+                "arn:{}:sts::{}:federated-user/{}",
+                self.cloud_provider().name(),
+                account_id,
+                request.name
+            ),
             wami_arn: wami_arn.clone(),
             providers: vec![provider_config.clone()],
+            tenant_id: None,
             created_at: chrono::Utc::now(),
             last_used: None,
         };

@@ -40,5 +40,10 @@ pub fn build_temporary_credentials(
         secret_access_key,
         session_token,
         expiration,
+        // These fields will be filled by the caller with proper context
+        arn: String::new(),
+        wami_arn: String::new(),
+        providers: Vec::new(),
+        tenant_id: None,
     })
 }
