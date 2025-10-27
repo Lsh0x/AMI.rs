@@ -6,9 +6,11 @@
 mod iam;
 mod sso_admin;
 mod sts;
+mod tenant;
 mod unified;
 
 pub use iam::InMemoryIamStore;
 pub use sso_admin::InMemorySsoAdminStore;
 pub use sts::InMemoryStsStore;
+pub use tenant::InMemoryTenantStore;
 pub use unified::InMemoryStore;

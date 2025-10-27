@@ -1,10 +1,8 @@
 //! Tenant Client for Managing Tenants
 
-use super::{
-    store::{TenantAction, TenantStore},
-    BillingInfo, QuotaMode, Tenant, TenantId, TenantQuotas, TenantStatus, TenantType,
-};
+use super::{BillingInfo, QuotaMode, Tenant, TenantId, TenantQuotas, TenantStatus, TenantType};
 use crate::error::{AmiError, Result};
+use crate::store::traits::{TenantAction, TenantStore};
 use crate::store::Store;
 use crate::types::AmiResponse;
 use std::collections::HashMap;

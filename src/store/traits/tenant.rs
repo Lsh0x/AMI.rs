@@ -1,11 +1,7 @@
-//! Tenant Store Trait and Implementations
+//! Tenant Store Trait
 
-pub mod memory;
-
-pub use memory::InMemoryTenantStore;
-
-use super::{Tenant, TenantId, TenantQuotas, TenantUsage};
 use crate::error::Result;
+use crate::tenant::{Tenant, TenantId, TenantQuotas, TenantUsage};
 use async_trait::async_trait;
 
 /// Tenant actions for permission checking

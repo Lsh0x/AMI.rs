@@ -24,11 +24,9 @@
 pub mod client;
 pub mod hierarchy;
 pub mod model;
-pub mod store;
 
 #[cfg(test)]
 mod tests;
 
 pub use client::TenantClient;
 pub use model::*;
-pub use store::{InMemoryTenantStore, TenantStore};

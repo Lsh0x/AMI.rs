@@ -101,7 +101,7 @@ pub use sso_admin::{
 };
 
 // Re-export Tenant types
-pub use tenant::store::TenantAction;
+pub use store::TenantAction;
 pub use tenant::{
     BillingInfo, QuotaMode, Tenant, TenantId, TenantQuotas, TenantStatus, TenantType, TenantUsage,
 };

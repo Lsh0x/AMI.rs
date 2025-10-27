@@ -8,12 +8,11 @@ pub mod memory;
 pub mod traits;
 
 // Re-export traits for convenience
-pub use traits::{IamStore, SsoAdminStore, StsStore};
+pub use traits::{IamStore, SsoAdminStore, StsStore, TenantAction, TenantStore};
 
 // Re-export the Store trait
 use crate::error::Result;
 use crate::provider::CloudProvider;
-use crate::tenant::store::TenantStore;
 use async_trait::async_trait;
 
 /// Generic store trait that can be implemented by any backend
