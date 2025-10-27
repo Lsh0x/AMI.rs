@@ -8,6 +8,7 @@
 //! Resources themselves carry their provider-specific information.
 
 pub mod memory;
+pub mod resource;
 pub mod traits;
 
 // Re-export traits for convenience

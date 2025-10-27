@@ -30,10 +30,12 @@
 //! // → "projects/my-project-123/serviceAccounts/alice@my-project-123.iam.gserviceaccount.com"
 //! ```
 
+pub mod arn_builder;
 pub mod aws;
 pub mod azure;
 pub mod custom;
 pub mod gcp;
+pub mod provider_info;
 
 #[cfg(test)]
 mod tests;
