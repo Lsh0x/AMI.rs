@@ -5,7 +5,7 @@
 
 #[cfg(test)]
 mod integration_tests {
-    use crate::iam::IamClient;
+    use crate::wami::IamClient;
     use crate::provider::{
         aws::AwsProvider, azure::AzureProvider, custom::CustomProvider, gcp::GcpProvider,
         CloudProvider, ResourceLimits, ResourceType,
@@ -15,7 +15,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_aws_provider_with_user_creation() {
-        use crate::iam::user::CreateUserRequest;
+        use crate::wami::identity::user::CreateUserRequest;
 
         let provider = Arc::new(AwsProvider::default());
         let store = InMemoryStore::new();
@@ -40,7 +40,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_gcp_provider_with_user_creation() {
-        use crate::iam::user::CreateUserRequest;
+        use crate::wami::identity::user::CreateUserRequest;
 
         let provider = Arc::new(GcpProvider::new("my-project-123"));
         let store = InMemoryStore::new();
@@ -68,7 +68,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_azure_provider_with_user_creation() {
-        use crate::iam::user::CreateUserRequest;
+        use crate::wami::identity::user::CreateUserRequest;
 
         let provider = Arc::new(AzureProvider::new("sub-123", "rg-prod"));
         let store = InMemoryStore::new();
@@ -95,7 +95,7 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_custom_provider_with_user_creation() {
-        use crate::iam::user::CreateUserRequest;
+        use crate::wami::identity::user::CreateUserRequest;
 
         let provider = Arc::new(
             CustomProvider::builder()
@@ -126,8 +126,8 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_access_key_limit_enforcement_aws() {
-        use crate::iam::access_key::CreateAccessKeyRequest;
-        use crate::iam::user::CreateUserRequest;
+        use crate::wami::credentials::access_key::CreateAccessKeyRequest;
+        use crate::wami::identity::user::CreateUserRequest;
 
         let provider = Arc::new(AwsProvider::default());
         let store = InMemoryStore::new();
@@ -164,8 +164,8 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_access_key_limit_enforcement_gcp() {
-        use crate::iam::access_key::CreateAccessKeyRequest;
-        use crate::iam::user::CreateUserRequest;
+        use crate::wami::credentials::access_key::CreateAccessKeyRequest;
+        use crate::wami::identity::user::CreateUserRequest;
 
         let provider = Arc::new(GcpProvider::new("my-project"));
         let store = InMemoryStore::new();
@@ -200,8 +200,8 @@ mod integration_tests {
 
     #[tokio::test]
     async fn test_custom_provider_with_custom_limits() {
-        use crate::iam::access_key::CreateAccessKeyRequest;
-        use crate::iam::user::CreateUserRequest;
+        use crate::wami::credentials::access_key::CreateAccessKeyRequest;
+        use crate::wami::identity::user::CreateUserRequest;
 
         let custom_limits = ResourceLimits {
             max_access_keys_per_user: 5,

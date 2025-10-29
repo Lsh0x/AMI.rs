@@ -3,41 +3,30 @@
 //! This module contains in-memory implementations of all store traits.
 //! These implementations are primarily used for testing and development.
 //!
-//! # Architecture Evolution
+//! # Architecture
 //!
-//! ## Legacy Stores (Backward Compatibility)
-//!
-//! The original store implementations were service-specific:
-//! - `InMemoryIamStore` - Separate HashMaps for users, roles, policies, groups, etc.
-//! - `InMemoryStsStore` - Separate HashMaps for sessions and credentials
-//! - `InMemoryTenantStore` - HashMap for tenants
-//! - `InMemorySsoAdminStore` - SSO Admin data
-//!
-//! These are still available for backward compatibility.
-//!
-//! ## New Unified Store (Recommended)
-//!
-//! The new `UnifiedInMemoryStore` uses a single HashMap for all resources:
-//! - Single data structure indexed by WAMI ARN
-//! - Simpler implementation
-//! - Better performance for cross-resource queries
-//! - Easier to maintain and extend
-//!
-//! See the `unified_store` module for detailed documentation.
+//! Store implementations are organized by service:
+//! - `InMemoryWamiStore` - Multi-cloud IAM (identity + credentials + policies)
+//! - `InMemoryStsStore` - Security Token Service (sessions + identities)
+//! - `InMemorySsoAdminStore` - SSO Administration (permission sets, assignments, etc.)
+//! - `InMemoryTenantStore` - Tenant management
+//! - `InMemoryStore` - Combines all stores into a single unified interface
 
-mod iam;
 mod sso_admin;
 mod sts;
 mod tenant;
 mod unified;
-mod unified_store;
+mod wami;
 
-// Legacy stores (backward compatibility)
-pub use iam::InMemoryIamStore;
+// Sub-directories for sub-trait implementations
+mod credentials;
+mod identity;
+mod policies;
+mod reports;
+
+// Store implementations
 pub use sso_admin::InMemorySsoAdminStore;
 pub use sts::InMemoryStsStore;
 pub use tenant::InMemoryTenantStore;
 pub use unified::InMemoryStore;
-
-// New unified store (recommended)
-pub use unified_store::UnifiedInMemoryStore;
+pub use wami::InMemoryWamiStore;

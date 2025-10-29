@@ -1,522 +1,577 @@
 # WAMI Architecture
 
-Understanding WAMI's design and components.
+Understanding WAMI's design principles and components.
 
 ## Overview
 
-WAMI (WebAssembly AWS IAM) is a pluggable, cloud-agnostic IAM library built in Rust. It provides AWS-compatible IAM operations while supporting multiple cloud providers and custom storage backends.
+WAMI (Who Am I) is a **domain-driven**, cloud-agnostic Identity and Access Management library built in Rust. It separates business logic from storage, providing maximum flexibility while maintaining type safety and performance.
 
-## Core Principles
+## Design Principles
 
-1. **Cloud Agnostic** - Works with AWS, GCP, Azure, or custom providers
-2. **Pluggable Storage** - Memory, database, or custom backends
-3. **Multi-Tenant** - Built-in hierarchical tenant isolation
-4. **Type Safe** - Rust's type system prevents common errors
-5. **Async First** - Built on Tokio for high performance
-6. **Extensible** - Easy to add new features and integrations
+1. **Pure Domain Logic** - Business rules without storage dependencies
+2. **Storage Agnostic** - Works with any backend (memory, SQL, NoSQL)
+3. **Multi-cloud** - Unified API across AWS, GCP, Azure
+4. **Multi-tenant** - Built-in hierarchical tenant isolation
+5. **Type Safe** - Rust's type system prevents common errors
+6. **Async First** - Built on Tokio for high performance
+7. **Testable** - Pure functions are easy to test in isolation
+
+---
 
 ## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Application Layer                        │
-│  (Your Code using IamClient, StsClient, SsoAdminClient)     │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-┌────────────────────────┼────────────────────────────────────┐
-│                   Client Layer                               │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │   IAM    │  │   STS    │  │ SSO Admin│  │  Tenant  │   │
-│  │  Client  │  │  Client  │  │  Client  │  │  Client  │   │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-┌────────────────────────┼────────────────────────────────────┐
-│                   Store Layer                                │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │  Store Trait (pluggable persistence)               │    │
-│  ├────────────────────────────────────────────────────┤    │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐        │    │
-│  │  │ IamStore │  │ StsStore │  │TenantStore│  ...   │    │
-│  │  └──────────┘  └──────────┘  └──────────┘        │    │
-│  └────────────────────────────────────────────────────┘    │
-│                         │                                    │
-│  ┌──────────────────┐  │  ┌──────────────────┐            │
-│  │  InMemoryStore   │──┘  │  Your Custom     │            │
-│  │  (built-in)      │     │  Store (DB, etc) │            │
-│  └──────────────────┘     └──────────────────┘            │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-┌────────────────────────┼────────────────────────────────────┐
-│                 Provider Layer                               │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │  CloudProvider Trait (resource identifiers)        │    │
-│  ├────────────────────────────────────────────────────┤    │
-│  │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────────┐      │    │
-│  │  │ AWS  │  │ GCP  │  │Azure │  │ Custom   │      │    │
-│  │  └──────┘  └──────┘  └──────┘  └──────────┘      │    │
-│  └────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│                    Application Layer                          │
+│                                                               │
+│  Your application code using WAMI domain functions           │
+│  and store traits                                            │
+└────────────────────────────┬──────────────────────────────────┘
+                             │
+┌────────────────────────────┼──────────────────────────────────┐
+│                    Domain Layer                               │
+│                    (wami::*)                                  │
+│                                                               │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │  Pure Functions (No Storage Dependencies)          │     │
+│  │                                                     │     │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐       │     │
+│  │  │ Identity │  │Credentials│  │ Policies │       │     │
+│  │  │  • User  │  │ • AccessKey│  │ • Policy │       │     │
+│  │  │  • Group │  │ • MFA     │  │ • Eval   │       │     │
+│  │  │  • Role  │  │ • Login   │  └──────────┘       │     │
+│  │  └──────────┘  └──────────┘                       │     │
+│  │                                                     │     │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐       │     │
+│  │  │   STS    │  │SSO Admin │  │  Tenant  │       │     │
+│  │  │ • Session│  │ • PermSet│  │ • Hierarchy│      │     │
+│  │  │ • Assume │  │ • Assign │  │ • Quotas │       │     │
+│  │  └──────────┘  └──────────┘  └──────────┘       │     │
+│  │                                                     │     │
+│  │  Each module contains:                            │     │
+│  │  • model.rs    - Domain entities                 │     │
+│  │  • builder.rs  - Construction functions          │     │
+│  │  • operations.rs - Business logic & validation   │     │
+│  └────────────────────────────────────────────────────┘     │
+└────────────────────────────┬──────────────────────────────────┘
+                             │
+┌────────────────────────────┼──────────────────────────────────┐
+│                    Storage Layer                              │
+│                    (store::*)                                 │
+│                                                               │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │  Storage Traits (Persistence Interfaces)           │     │
+│  │                                                     │     │
+│  │  ┌─────────────────────────────────────┐          │     │
+│  │  │  WamiStore (Composite Trait)        │          │     │
+│  │  │  ├─ UserStore                       │          │     │
+│  │  │  ├─ GroupStore                      │          │     │
+│  │  │  ├─ RoleStore                       │          │     │
+│  │  │  ├─ AccessKeyStore                  │          │     │
+│  │  │  ├─ MfaDeviceStore                  │          │     │
+│  │  │  ├─ PolicyStore                     │          │     │
+│  │  │  └─ ... (12 sub-traits)             │          │     │
+│  │  └─────────────────────────────────────┘          │     │
+│  │                                                     │     │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐       │     │
+│  │  │ StsStore │  │TenantStore│  │SsoAdminStore│    │     │
+│  │  └──────────┘  └──────────┘  └──────────┘       │     │
+│  └────────────────────────────────────────────────────┘     │
+│                             │                                │
+│  ┌────────────────────────────────────────────────────┐     │
+│  │  Storage Implementations                            │     │
+│  │                                                     │     │
+│  │  ┌───────────────────┐  ┌───────────────────┐    │     │
+│  │  │InMemoryWamiStore  │  │ Your Custom Store │    │     │
+│  │  │ (Built-in)        │  │ (SQL, NoSQL, etc) │    │     │
+│  │  │                   │  │                   │    │     │
+│  │  │ • HashMap-based   │  │ • PostgreSQL      │    │     │
+│  │  │ • Thread-safe     │  │ • DynamoDB        │    │     │
+│  │  │ • RwLock          │  │ • Redis           │    │     │
+│  │  └───────────────────┘  └───────────────────┘    │     │
+│  └────────────────────────────────────────────────────┘     │
+└────────────────────────────┬──────────────────────────────────┘
+                             │
+┌────────────────────────────┼──────────────────────────────────┐
+│                    Provider Layer                             │
+│                                                               │
+│  Cloud provider abstractions for ARN generation and          │
+│  resource identification                                      │
+│                                                               │
+│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────────┐               │
+│  │ AWS  │  │ GCP  │  │Azure │  │ Custom   │               │
+│  └──────┘  └──────┘  └──────┘  └──────────┘               │
+└───────────────────────────────────────────────────────────────┘
 ```
+
+---
 
 ## Core Components
 
-### 1. Client Layer
+### 1. Domain Layer (wami::*)
 
-**Purpose**: High-level API for IAM operations
+**Purpose**: Pure business logic without storage dependencies
 
-**Components**:
-- `IamClient<S>` - User, role, policy, group management
-- `StsClient<S>` - Temporary credentials and sessions
-- `SsoAdminClient<S>` - SSO permission sets and assignments
-- `TenantClient` - Multi-tenant hierarchy management
+**Structure**:
+```
+wami/
+├── identity/         # Users, groups, roles, service-linked roles
+├── credentials/      # Access keys, MFA devices, login profiles, certificates
+├── policies/         # IAM policies and policy evaluation
+├── sts/             # Sessions, temporary credentials, identity
+├── sso_admin/       # Permission sets, account assignments, applications
+└── tenant/          # Multi-tenant models and quotas
+```
 
-**Responsibilities**:
-- Validate request parameters
-- Call appropriate store methods
-- Handle errors
-- Return structured responses
+**Each module contains**:
+- `model.rs` - Domain entities (structs, enums)
+- `builder.rs` - Pure construction functions
+- `operations.rs` - Business logic and validation functions (optional)
+- `requests.rs` - Request/response types (optional)
 
-**Example**:
+**Example - User Module**:
 ```rust
-pub struct IamClient<S: Store> {
-    store: S,
-}
-
-impl<S: Store> IamClient<S> {
-    pub async fn create_user(&mut self, request: CreateUserRequest) -> Result<Response<User>> {
-        // 1. Validate request
-        validate_user_name(&request.user_name)?;
-        
-        // 2. Get store
-        let iam_store = self.store.iam_store().await?;
-        
-        // 3. Build user
-        let user = builder::build_user(request, &self.store)?;
-        
-        // 4. Store user
-        let created = iam_store.create_user(user).await?;
-        
-        // 5. Return response
-        Ok(Response::success(created))
-    }
-}
-```
-
-### 2. Store Layer
-
-**Purpose**: Abstract persistence mechanism
-
-**Key Traits**:
-```rust
-#[async_trait]
-pub trait Store: Send + Sync {
-    type IamStore: IamStore;
-    type StsStore: StsStore;
-    type SsoAdminStore: SsoAdminStore;
-    type TenantStore: TenantStore;
-    
-    fn cloud_provider(&self) -> &dyn CloudProvider;
-    
-    async fn iam_store(&mut self) -> Result<&mut Self::IamStore>;
-    async fn sts_store(&mut self) -> Result<&mut Self::StsStore>;
-    async fn sso_admin_store(&mut self) -> Result<&mut Self::SsoAdminStore>;
-    async fn tenant_store(&mut self) -> Result<&mut Self::TenantStore>;
-}
-```
-
-**Built-in Implementations**:
-- `InMemoryStore` - HashMap-based (dev/testing)
-
-**Custom Implementations** (examples):
-- `PostgresStore` - PostgreSQL persistence
-- `RedisStore` - Redis for sessions
-- `DynamoDbStore` - AWS DynamoDB
-
-### 3. Provider Layer
-
-**Purpose**: Generate cloud-specific identifiers
-
-**Key Trait**:
-```rust
-pub trait CloudProvider: Send + Sync {
-    fn name(&self) -> &str;
-    fn generate_resource_identifier(&self, type: &str, name: &str, path: Option<&str>) -> String;
-    fn generate_account_id(&self) -> String;
-    fn max_session_duration(&self) -> u32;
-    fn max_users(&self) -> Option<u32>;
-    fn max_roles(&self) -> Option<u32>;
-    fn max_policies(&self) -> Option<u32>;
-}
-```
-
-**Built-in Providers**:
-- `AwsProvider` - AWS ARNs (`arn:aws:iam::123456789012:user/alice`)
-- `GcpProvider` - GCP service accounts (`projects/proj/serviceAccounts/...`)
-- `AzureProvider` - Azure ARM paths (`/subscriptions/.../users/alice`)
-
-## Module Structure
-
-```
-src/
-├── lib.rs                    # Public API exports
-├── error.rs                  # Error types
-├── types.rs                  # Shared types
-│
-├── iam/                      # IAM domain
-│   ├── mod.rs               # IAM client
-│   ├── user/                # Self-contained modules
-│   │   ├── mod.rs
-│   │   ├── model.rs         # User struct
-│   │   ├── requests.rs      # CreateUserRequest, etc.
-│   │   ├── operations.rs    # create_user, get_user, etc.
-│   │   └── builder.rs       # User construction logic
-│   ├── role/                # Similar structure
-│   ├── policy/
-│   ├── group/
-│   └── ...
-│
-├── sts/                      # STS domain
-│   ├── mod.rs               # STS client
-│   ├── assume_role/
-│   ├── session_token/
-│   ├── federation/
-│   ├── credentials/         # Shared credential logic
-│   └── session/             # Session management
-│
-├── sso_admin/                # SSO Admin domain
-│   ├── mod.rs
-│   ├── permission_set/
-│   └── assignment/
-│
-├── tenant/                   # Multi-tenant domain
-│   ├── mod.rs
-│   ├── model.rs             # Tenant, TenantId
-│   ├── client.rs            # TenantClient
-│   ├── hierarchy.rs         # Hierarchy utilities
-│   └── store/               # Tenant persistence
-│
-├── store/                    # Storage abstraction
-│   ├── mod.rs               # Store trait
-│   ├── traits/              # Domain store traits
-│   │   ├── iam.rs           # IamStore trait
-│   │   ├── sts.rs           # StsStore trait
-│   │   └── sso_admin.rs     # SsoAdminStore trait
-│   └── memory/              # In-memory implementation
-│       ├── mod.rs
-│       ├── iam.rs           # InMemoryIamStore
-│       ├── sts.rs           # InMemoryStsStore
-│       ├── sso_admin.rs     # InMemorySsoAdminStore
-│       ├── tenant.rs        # InMemoryTenantStore
-│       └── unified.rs       # InMemoryStore (combines all)
-│
-└── provider/                 # Cloud provider abstraction
-    ├── mod.rs               # CloudProvider trait
-    ├── aws.rs               # AwsProvider
-    ├── gcp.rs               # GcpProvider
-    ├── azure.rs             # AzureProvider
-    └── custom.rs            # CustomProvider
-```
-
-## Data Flow
-
-### Example: Create User
-
-```
-1. Application
-   ├─> IamClient::create_user(CreateUserRequest)
-         │
-2. Client Layer
-   ├─> Validate request (user_name, path, etc.)
-   ├─> Get CloudProvider from Store
-   │     └─> provider.generate_resource_identifier("user", "alice", "/")
-   │           → "arn:aws:iam::123456789012:user/alice"
-   ├─> builder::build_user(request, provider)
-   │     └─> Create User struct with ARN, timestamps, etc.
-   │
-3. Store Layer
-   ├─> store.iam_store().await
-   ├─> iam_store.create_user(user)
-   │     └─> HashMap.insert(user_name, user)  [in-memory]
-   │     └─> INSERT INTO users ... [database]
-   │
-4. Return
-   └─> Response<User>
-```
-
-### Example: Assume Role
-
-```
-1. Application
-   ├─> StsClient::assume_role(AssumeRoleRequest)
-         │
-2. Client Layer
-   ├─> Validate request (role_arn, duration, etc.)
-   ├─> Get role from IAM store
-   ├─> Validate assume role policy
-   ├─> Generate temporary credentials
-   │     ├─> AccessKeyId: ASIA...
-   │     ├─> SecretAccessKey: random
-   │     ├─> SessionToken: random
-   │     └─> Expiration: now + duration
-   │
-3. Store Layer
-   ├─> store.sts_store().await
-   ├─> sts_store.create_session(session)
-   │     └─> Store session with expiration
-   │
-4. Return
-   └─> Response<AssumeRoleResponse>
-         └─> credentials: Credentials
-```
-
-## Self-Contained Module Pattern
-
-WAMI uses a consistent module structure:
-
-```
-resource_name/
-├── mod.rs          # Module declaration, exports
-├── model.rs        # Data structures (User, Role, etc.)
-├── requests.rs     # Request/Response types
-├── operations.rs   # Client methods (create, get, list, delete)
-└── builder.rs      # Construction logic
-```
-
-**Benefits**:
-- **Encapsulation**: Each resource is self-contained
-- **Discoverability**: Easy to find related code
-- **Consistency**: Predictable structure across all resources
-- **Maintainability**: Changes are localized
-
-**Example**: `src/iam/user/`
-```rust
-// mod.rs
-pub mod model;
-pub mod requests;
-pub mod operations;
-pub mod builder;
-
-pub use model::*;
-pub use requests::*;
-
-// model.rs
+// wami/identity/user/model.rs
 pub struct User {
     pub user_name: String,
     pub arn: String,
-    // ...
+    pub user_id: String,
+    pub path: Option<String>,
+    pub created_at: DateTime<Utc>,
+    // ... more fields
 }
 
-// requests.rs
-pub struct CreateUserRequest {
-    pub user_name: String,
-    // ...
-}
-
-pub struct CreateUserResponse {
-    pub user: User,
-}
-
-// operations.rs
-impl<S: Store> IamClient<S> {
-    pub async fn create_user(&mut self, request: CreateUserRequest) -> Result<Response<User>> {
-        // Implementation
+// wami/identity/user/builder.rs
+pub fn build_user(
+    user_name: String,
+    path: Option<String>,
+    provider: &dyn CloudProvider,
+    account_id: &str,
+) -> User {
+    User {
+        user_name: user_name.clone(),
+        arn: provider.generate_arn("user", &user_name, account_id),
+        user_id: generate_user_id(),
+        path,
+        created_at: Utc::now(),
+        // ...
     }
 }
 
-// builder.rs
-pub fn build_user(request: CreateUserRequest, provider: &dyn CloudProvider) -> Result<User> {
-    // Construction logic
+// wami/identity/user/operations.rs (optional)
+pub fn validate_user_name(name: &str) -> Result<()> {
+    if name.len() > 64 {
+        return Err(AmiError::ValidationError("User name too long".into()));
+    }
+    Ok(())
 }
 ```
 
-## Multi-Tenancy
+**Key Characteristics**:
+- ✅ No `impl` blocks with storage dependencies
+- ✅ Pure functions only
+- ✅ Easy to test in isolation
+- ✅ Can be used with any storage backend
+
+---
+
+### 2. Storage Layer (store::*)
+
+**Purpose**: Define persistence contracts and provide implementations
+
+**Structure**:
+```
+store/
+├── traits/          # Storage trait definitions
+│   ├── wami/       # WamiStore composite trait
+│   │   ├── identity/
+│   │   │   ├── user.rs          # UserStore trait
+│   │   │   ├── group.rs         # GroupStore trait
+│   │   │   └── role.rs          # RoleStore trait
+│   │   ├── credentials/
+│   │   ├── policies/
+│   │   └── ...
+│   ├── sts/        # STS store traits
+│   ├── tenant/     # Tenant store traits
+│   └── sso_admin/  # SSO store traits
+│
+└── memory/         # In-memory implementations
+    ├── wami/       # InMemoryWamiStore
+    ├── sts/        # InMemoryStsStore
+    ├── tenant/     # InMemoryTenantStore
+    └── sso_admin/  # InMemorySsoAdminStore
+```
+
+**Storage Trait Example**:
+```rust
+// store/traits/wami/identity/user.rs
+#[async_trait]
+pub trait UserStore: Send + Sync {
+    async fn create_user(&mut self, user: User) -> Result<User>;
+    async fn get_user(&self, user_name: &str) -> Result<Option<User>>;
+    async fn update_user(&mut self, user: User) -> Result<User>;
+    async fn delete_user(&mut self, user_name: &str) -> Result<()>;
+    async fn list_users(
+        &self,
+        path_prefix: Option<&str>,
+        pagination: Option<&PaginationParams>,
+    ) -> Result<(Vec<User>, bool, Option<String>)>;
+}
+```
+
+**Composite Trait Pattern**:
+```rust
+// store/traits/wami/mod.rs
+pub trait WamiStore: 
+    UserStore + 
+    GroupStore + 
+    RoleStore + 
+    AccessKeyStore + 
+    PolicyStore + 
+    // ... all sub-traits
+    Send + Sync 
+{}
+
+// Automatic implementation for any type that implements all sub-traits
+impl<T> WamiStore for T where
+    T: UserStore + GroupStore + RoleStore + /* ... */ + Send + Sync
+{}
+```
+
+**Benefits**:
+- ✅ **Interface Segregation** - Clients only depend on what they need
+- ✅ **Composability** - Combine traits as needed
+- ✅ **Easy Testing** - Mock individual traits
+- ✅ **Flexibility** - Implement only what you need
+
+---
+
+### 3. In-Memory Store
+
+**Purpose**: Production-ready reference implementation
+
+**Implementation**:
+```rust
+// store/memory/wami/mod.rs
+#[derive(Debug, Clone)]
+pub struct InMemoryWamiStore {
+    users: Arc<RwLock<HashMap<String, User>>>,
+    groups: Arc<RwLock<HashMap<String, Group>>>,
+    roles: Arc<RwLock<HashMap<String, Role>>>,
+    // ... more collections
+}
+
+impl InMemoryWamiStore {
+    pub fn new() -> Self {
+        Self {
+            users: Arc::new(RwLock::new(HashMap::new())),
+            groups: Arc::new(RwLock::new(HashMap::new())),
+            roles: Arc::new(RwLock::new(HashMap::new())),
+            // ...
+        }
+    }
+}
+```
+
+**Features**:
+- Thread-safe with `Arc<RwLock<T>>`
+- Suitable for testing and small deployments
+- Full trait compliance
+- Well-tested (256+ tests)
+
+---
+
+### 4. Provider Layer
+
+**Purpose**: Cloud provider abstractions for resource identification
+
+```rust
+pub trait CloudProvider: Send + Sync {
+    fn name(&self) -> &str;
+    fn generate_arn(&self, resource_type: &str, resource_name: &str, account_id: &str) -> String;
+    fn generate_id(&self, prefix: &str) -> String;
+}
+
+// Implementations
+pub struct AwsProvider;
+pub struct GcpProvider;
+pub struct AzureProvider;
+pub struct CustomProvider;
+```
+
+**Usage in builders**:
+```rust
+let user = user::builder::build_user(
+    "alice".to_string(),
+    None,
+    &AwsProvider::new(),  // Provider determines ARN format
+    "123456789012"
+);
+// user.arn = "arn:aws:iam::123456789012:user/alice"
+```
+
+---
+
+## Data Flow
+
+### Creating a Resource
+
+```
+1. Application builds domain model
+   ↓
+   user_builder::build_user(...) 
+   → Returns User struct
+
+2. Application persists to store
+   ↓
+   store.create_user(user)
+   → UserStore::create_user()
+   → Returns Result<User>
+```
+
+### Retrieving a Resource
+
+```
+1. Application queries store
+   ↓
+   store.get_user("alice")
+   → UserStore::get_user()
+   → Returns Result<Option<User>>
+
+2. Application uses domain model
+   ↓
+   Operations on User struct
+```
+
+---
+
+## Multi-Tenant Architecture
 
 ### Tenant Hierarchy
 
 ```
-Root Tenant (Organization)
-├── Department Tenant
-│   ├── Team Tenant
-│   └── Team Tenant
-└── Department Tenant
-    └── Team Tenant
+┌─────────────────────────────────────┐
+│         Root Tenant                  │
+│         (acme-corp)                  │
+└──────────┬───────────────────────────┘
+           │
+    ┌──────┴──────┐
+    │             │
+┌───┴────┐   ┌───┴────┐
+│ Eng    │   │ Sales  │
+│ Dept   │   │ Dept   │
+└───┬────┘   └────────┘
+    │
+┌───┴────┐
+│ Team A │
+└────────┘
 ```
 
-### Tenant ID Format
+### Tenant Isolation
 
-```
-{root}                    # Root tenant
-{root}/{dept}             # Department
-{root}/{dept}/{team}      # Team
-```
+Resources are isolated per tenant:
+- Each resource has optional `tenant_id: Option<TenantId>`
+- Store implementations enforce isolation
+- Hierarchical permissions via ancestor/descendant queries
 
-### Tenant-Aware Resources
-
-```rust
-pub struct User {
-    pub user_name: String,
-    pub arn: String,
-    pub tenant_id: Option<TenantId>,  // Tenant isolation
-    // ...
-}
-```
-
-### Tenant-Aware ARNs
-
-```
-Without tenant:
-arn:aws:iam::123456789012:user/alice
-
-With tenant:
-arn:aws:iam::123456789012:user/tenants/acme/engineering/alice
-```
-
-## Error Handling
-
-### Error Types
-
-```rust
-pub enum AmiError {
-    ResourceNotFound { resource: String },
-    ResourceExists { resource: String },
-    InvalidParameter { message: String },
-    LimitExceeded { message: String },
-    Unauthorized { message: String },
-    InternalError { message: String },
-    StoreError { source: Box<dyn Error> },
-}
-```
-
-### Error Propagation
-
-```rust
-// Client validates and returns detailed errors
-pub async fn create_user(&mut self, request: CreateUserRequest) -> Result<Response<User>> {
-    if request.user_name.is_empty() {
-        return Err(AmiError::InvalidParameter {
-            message: "User name cannot be empty".to_string(),
-        });
-    }
-    
-    // Store propagates errors
-    let iam_store = self.store.iam_store().await?;
-    let user = iam_store.create_user(user).await?;
-    
-    Ok(Response::success(user))
-}
-```
-
-## Performance Considerations
-
-### 1. Async/Await
-
-All I/O operations are async for high concurrency:
+### Tenant Store Operations
 
 ```rust
 #[async_trait]
-pub trait IamStore {
-    async fn create_user(&mut self, user: User) -> Result<User>;
-    async fn get_user(&self, user_name: &str) -> Result<Option<User>>;
+pub trait TenantStore: Send + Sync {
+    async fn create_tenant(&mut self, tenant: Tenant) -> Result<Tenant>;
+    async fn get_tenant(&self, tenant_id: &TenantId) -> Result<Option<Tenant>>;
+    async fn list_child_tenants(&self, parent_id: &TenantId) -> Result<Vec<Tenant>>;
+    async fn get_ancestors(&self, tenant_id: &TenantId) -> Result<Vec<Tenant>>;
+    async fn get_descendants(&self, tenant_id: &TenantId) -> Result<Vec<TenantId>>;
+    async fn get_effective_quotas(&self, tenant_id: &TenantId) -> Result<TenantQuotas>;
 }
 ```
 
-### 2. Connection Pooling
-
-For database stores:
-
-```rust
-let pool = PgPoolOptions::new()
-    .max_connections(20)
-    .connect(database_url).await?;
-```
-
-### 3. Caching
-
-Layer caching for frequently accessed data:
-
-```rust
-pub struct CachedStore<S: Store> {
-    store: S,
-    cache: Cache<String, User>,
-}
-```
-
-### 4. Batch Operations
-
-Support batch operations where possible:
-
-```rust
-async fn create_users(&mut self, users: Vec<User>) -> Result<Vec<User>>;
-```
+---
 
 ## Testing Strategy
 
-### Unit Tests
+### 1. Domain Layer Tests
 
-Test individual components:
+Pure functions are easy to test:
 
 ```rust
-#[tokio::test]
-async fn test_create_user() {
-    let store = create_memory_store();
-    let mut iam = MemoryIamClient::new(store);
+#[test]
+fn test_build_user() {
+    let provider = AwsProvider::new();
+    let user = user::builder::build_user(
+        "alice".to_string(),
+        Some("/".to_string()),
+        &provider,
+        "123456789012"
+    );
     
-    let result = iam.create_user(request).await;
-    assert!(result.is_ok());
+    assert_eq!(user.user_name, "alice");
+    assert_eq!(user.arn, "arn:aws:iam::123456789012:user/alice");
 }
 ```
 
-### Integration Tests
+### 2. Store Implementation Tests
 
-Test complete workflows:
+Test CRUD operations, pagination, isolation:
 
 ```rust
 #[tokio::test]
-async fn test_user_workflow() {
-    // Create user
-    // Create access keys
-    // Attach policy
-    // Verify permissions
+async fn test_user_store_crud() {
+    let mut store = InMemoryWamiStore::new();
+    let provider = AwsProvider::new();
+    
+    let user = user::builder::build_user("alice".into(), None, &provider, "123");
+    
+    // Create
+    store.create_user(user.clone()).await.unwrap();
+    
+    // Read
+    let retrieved = store.get_user("alice").await.unwrap();
+    assert!(retrieved.is_some());
+    
+    // Update
+    let mut updated = retrieved.unwrap();
+    updated.path = Some("/new/".into());
+    store.update_user(updated).await.unwrap();
+    
+    // Delete
+    store.delete_user("alice").await.unwrap();
+    assert!(store.get_user("alice").await.unwrap().is_none());
 }
 ```
 
-### Provider Tests
+### 3. Integration Tests
 
-Test all providers consistently:
+Test complete workflows across multiple stores.
+
+---
+
+## Extending WAMI
+
+### Adding a Custom Store
+
+1. **Implement storage traits**:
 
 ```rust
-async fn test_with_provider(provider: Arc<dyn CloudProvider>) {
-    // Same test, different provider
+pub struct PostgresWamiStore {
+    pool: PgPool,
 }
+
+#[async_trait]
+impl UserStore for PostgresWamiStore {
+    async fn create_user(&mut self, user: User) -> Result<User> {
+        sqlx::query!(
+            "INSERT INTO users (user_name, arn, ...) VALUES ($1, $2, ...)",
+            user.user_name, user.arn, ...
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(user)
+    }
+    
+    async fn get_user(&self, user_name: &str) -> Result<Option<User>> {
+        let user = sqlx::query_as!(
+            User,
+            "SELECT * FROM users WHERE user_name = $1",
+            user_name
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(user)
+    }
+    // ... implement other methods
+}
+
+// Implement all required sub-traits...
+// PostgresWamiStore automatically implements WamiStore!
 ```
 
-## Extension Points
+2. **Use it in your application**:
 
-### 1. Custom Store
+```rust
+let pool = PgPoolOptions::new().connect("postgres://...").await?;
+let mut store = PostgresWamiStore::new(pool);
 
-Implement `Store` trait for your persistence layer.
+// Same API as in-memory store!
+let user = user::builder::build_user(...);
+store.create_user(user).await?;
+```
 
-### 2. Custom Provider
+---
 
-Implement `CloudProvider` trait for your cloud.
+## Performance Considerations
 
-### 3. Custom Validation
+### In-Memory Store
 
-Add middleware or validation layers.
+- **Reads**: O(1) with HashMap
+- **Writes**: O(1) with locking overhead
+- **List**: O(n) iteration with filtering
+- **Thread-safe**: `Arc<RwLock<T>>` allows concurrent reads
 
-### 4. Custom Policies
+### Custom Stores
 
-Extend policy evaluation logic.
+- SQL stores: Optimize with indexes, prepared statements
+- NoSQL stores: Optimize with compound keys, indexes
+- Caching: Add caching layer for frequently accessed resources
 
-## Next Steps
+---
 
-- **[Getting Started](GETTING_STARTED.md)** - Quick start
-- **[Store Implementation](STORE_IMPLEMENTATION.md)** - Custom storage
-- **[Multicloud Providers](MULTICLOUD_PROVIDERS.md)** - Cloud abstraction
-- **[Examples](EXAMPLES.md)** - Code samples
+## Comparison with Other Architectures
 
-## Support
+### ❌ Traditional "Fat Client" Pattern
 
-Questions? Open an issue on [GitHub](https://github.com/lsh0x/wami/issues).
+```
+┌──────────────────────────────┐
+│   IamClient                  │
+│   ├─ store: Arc<S>           │
+│   ├─ create_user() {         │
+│   │    let user = User {...} │
+│   │    self.store.save(user) │
+│   │  }                        │
+│   └─ ...                      │
+└──────────────────────────────┘
+```
 
+**Problems**:
+- Storage tightly coupled to client
+- Hard to test business logic in isolation
+- Difficult to reuse domain logic
+- Cannot compose operations easily
+
+### ✅ WAMI's Pure Function Pattern
+
+```
+┌──────────────────────────────┐
+│   Pure Functions             │
+│   build_user(...) -> User    │
+└──────────────────────────────┘
+            ↓
+┌──────────────────────────────┐
+│   Store Traits               │
+│   create_user(user)          │
+└──────────────────────────────┘
+```
+
+**Benefits**:
+- ✅ Separation of concerns
+- ✅ Easy to test
+- ✅ Reusable domain logic
+- ✅ Flexible composition
+- ✅ Storage-agnostic
+
+---
+
+## Summary
+
+WAMI's architecture provides:
+
+- **Clean separation** between domain logic and storage
+- **Flexibility** to use any storage backend
+- **Testability** with pure functions
+- **Type safety** with Rust's type system
+- **Performance** with async operations
+- **Extensibility** through trait composition
+
+The result is a library that's easy to use, test, and extend while maintaining high performance and type safety.
