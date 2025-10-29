@@ -11,7 +11,7 @@ use super::model::FederatedUser;
 /// # Example
 ///
 /// ```rust
-/// use wami::sts::GetFederationTokenRequest;
+/// use wami::wami::sts::federation::GetFederationTokenRequest;
 ///
 /// let request = GetFederationTokenRequest {
 ///     name: "federated-user".to_string(),

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// # Example
 ///
 /// ```rust
-/// use wami::iam::group::Group;
+/// use wami::wami::identity::group::Group;
 /// use chrono::Utc;
 ///
 /// let group = Group {

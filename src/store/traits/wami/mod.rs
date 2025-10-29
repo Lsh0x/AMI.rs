@@ -19,24 +19,7 @@
 //!
 //! # Example
 //!
-//! ```rust
-//! use wami::store::traits::{UserStore, GroupStore, WamiStore};
-//!
-//! // Implementing just User and Group operations
-//! struct MyPartialStore {
-//!     // ... your storage implementation
-//! }
-//!
-//! impl UserStore for MyPartialStore {
-//!     // ... implement user methods
-//! }
-//!
-//! impl GroupStore for MyPartialStore {
-//!     // ... implement group methods
-//! }
-//!
-//! // Now you can use it with operations that only need users and groups
-//! ```
+//! See the `InMemoryWamiStore` for a complete example implementation of all sub-traits.
 
 use super::credentials::{AccessKeyStore, LoginProfileStore, MfaDeviceStore};
 use super::identity::{GroupStore, RoleStore, ServiceLinkedRoleStore, UserStore};

@@ -12,21 +12,23 @@
 //! ## Example
 //!
 //! ```rust
-//! use wami::iam::user::{User, CreateUserRequest};
-//! use wami::{IamClient, InMemoryStore};
+//! use wami::store::memory::InMemoryWamiStore;
+//! use wami::store::traits::UserStore;
+//! use wami::provider::AwsProvider;
+//! use wami::wami::identity::user::builder::build_user;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let store = InMemoryStore::new();
-//! let mut client = IamClient::new(store);
+//! let mut store = InMemoryWamiStore::default();
+//! let provider = AwsProvider::new();
 //!
-//! let request = CreateUserRequest {
-//!     user_name: "alice".to_string(),
-//!     path: Some("/engineering/".to_string()),
-//!     permissions_boundary: None,
-//!     tags: None,
-//! };
+//! let user = build_user(
+//!     "alice".to_string(),
+//!     Some("/engineering/".to_string()),
+//!     &provider,
+//!     "123456789012",
+//! );
 //!
-//! let response = client.create_user(request).await?;
+//! let created_user = store.create_user(user).await?;
 //! # Ok(())
 //! # }
 //! ```

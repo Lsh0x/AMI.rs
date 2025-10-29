@@ -46,17 +46,20 @@
 //! # Example with Store
 //!
 //! ```rust
-//! use wami::tenant::authorization::{TenantAuthorizer, TenantAction};
-//! use wami::MemoryIamClient;
+//! use wami::wami::tenant::authorization::{TenantAuthorizer, TenantAction};
+//! use wami::store::memory::InMemoryWamiStore;
+//! use wami::store::traits::PolicyStore;
+//! use wami::provider::AwsProvider;
+//! use wami::wami::policies::policy::builder::build_policy;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let store = wami::create_memory_store();
-//! let mut iam_client = MemoryIamClient::new(store);
+//! let mut store = InMemoryWamiStore::default();
+//! let provider = AwsProvider::new();
 //!
-//! // Create a policy in IAM
-//! let policy_request = wami::CreatePolicyRequest {
-//!     policy_name: "TenantAdminPolicy".to_string(),
-//!     policy_document: r#"{
+//! // Create a policy in the store
+//! let policy = build_policy(
+//!     "TenantAdminPolicy".to_string(),
+//!     r#"{
 //!         "Version": "2012-10-17",
 //!         "Statement": [{
 //!             "Effect": "Allow",
@@ -64,16 +67,17 @@
 //!             "Resource": "arn:wami:tenant::acme/*"
 //!         }]
 //!     }"#.to_string(),
-//!     path: None,
-//!     description: Some("Tenant admin policy".to_string()),
-//!     tags: None,
-//! };
+//!     Some("/".to_string()),
+//!     None, // description
+//!     None, // tags
+//!     &provider,
+//!     "123456789012",
+//! );
 //!
-//! let policy_response = iam_client.create_policy(policy_request).await?;
-//! let policy = policy_response.data.unwrap();
+//! let created_policy = store.create_policy(policy).await?;
 //!
 //! // Use the policy for authorization
-//! let authorizer = TenantAuthorizer::new(vec![policy.policy_document]);
+//! let authorizer = TenantAuthorizer::new(vec![created_policy.policy_document]);
 //!
 //! let allowed = authorizer.check_permission(
 //!     "arn:aws:iam::123456789012:user/admin",

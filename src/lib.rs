@@ -18,37 +18,40 @@
 //! ## Example
 //!
 //! ```rust
-//! use wami::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient, InMemoryStore};
+//! use wami::store::memory::InMemoryWamiStore;
+//! use wami::store::traits::UserStore;
+//! use wami::provider::{AwsProvider, CloudProvider};
+//! use wami::wami::identity::user::builder::build_user;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Initialize logging
 //!     env_logger::init();
 //!     
-//!     // Initialize clients with in-memory storage
-//!     let store = wami::create_memory_store();
-//!     let mut iam_client = MemoryIamClient::new(store.clone());
-//!     let mut sts_client = MemoryStsClient::new(store.clone());
-//!     let mut sso_client = MemorySsoAdminClient::new(store);
+//!     // Initialize store
+//!     let mut store = InMemoryWamiStore::default();
 //!     
-//!     // Get account ID from client
-//!     let account_id = iam_client.account_id().await?;
-//!     println!("Using AWS account ID: {}", account_id);
+//!     // Create provider
+//!     let provider = AwsProvider::new();
 //!     
-//!     // Create a user
-//!     let user_request = wami::CreateUserRequest {
-//!         user_name: "test-user".to_string(),
-//!         path: Some("/".to_string()),
-//!         permissions_boundary: None,
-//!         tags: None,
-//!     };
-//!     let user = iam_client.create_user(user_request).await?;
-//!     println!("Created user: {:?}", user.data);
-//!     println!("User ARN: {}", user.data.unwrap().arn);
+//!     // Build a user using pure functions
+//!     let user = build_user(
+//!         "alice".to_string(),
+//!         Some("/".to_string()),
+//!         &provider,
+//!         "123456789012",
+//!     );
 //!     
-//!     // Get caller identity
-//!     let identity = sts_client.get_caller_identity().await?;
-//!     println!("Caller identity: {:?}", identity.data);
+//!     // Store the user
+//!     let created_user = store.create_user(user).await?;
+//!     println!("Created user: {}", created_user.user_name);
+//!     println!("User ARN: {}", created_user.arn);
+//!     
+//!     // Retrieve the user
+//!     let retrieved = store.get_user("alice").await?;
+//!     if let Some(user) = retrieved {
+//!         println!("Retrieved user: {}", user.user_name);
+//!     }
 //!     
 //!     Ok(())
 //! }

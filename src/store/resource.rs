@@ -29,22 +29,28 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust
 /// use wami::store::resource::Resource;
-/// use wami::store::traits::Store;
+/// use wami::wami::identity::user::User;
+/// use chrono::Utc;
 ///
-/// # async fn example<S: Store>(store: &S) -> Result<(), Box<dyn std::error::Error>> {
-/// // Store can return any resource type
-/// let resource = store.get("arn:wami:iam:tenant-x:user/alice").await?;
+/// // Create a user resource
+/// let user = User {
+///     user_name: "alice".to_string(),
+///     user_id: "U123".to_string(),
+///     arn: "arn:aws:iam::123456789012:user/alice".to_string(),
+///     path: "/".to_string(),
+///     create_date: Utc::now(),
+///     password_last_used: None,
+///     permissions_boundary: None,
+///     tags: vec![],
+///     wami_arn: "arn:wami:iam:tenant-x:user/alice".to_string(),
+///     providers: vec![],
+///     tenant_id: None,
+/// };
 ///
-/// match resource {
-///     Some(Resource::User(user)) => println!("Found user: {}", user.user_name),
-///     Some(Resource::Role(role)) => println!("Found role: {}", role.role_name),
-///     None => println!("Not found"),
-///     _ => println!("Other resource type"),
-/// }
-/// # Ok(())
-/// # }
+/// let resource = Resource::User(user);
+/// println!("Resource ARN: {}", resource.arn());
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "resource_type", content = "data")]

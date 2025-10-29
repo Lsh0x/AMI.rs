@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// # Example
 ///
 /// ```rust
-/// use wami::sts::StsSession;
+/// use wami::wami::sts::session::{StsSession, SessionStatus};
 /// use chrono::Utc;
 ///
 /// let session = StsSession {
@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 ///     access_key_id: "ASIAIOSFODNN7EXAMPLE".to_string(),
 ///     secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_string(),
 ///     expiration: Utc::now() + chrono::Duration::hours(1),
-///     status: wami::sts::SessionStatus::Active,
+///     status: SessionStatus::Active,
 ///     assumed_role_arn: Some("arn:aws:iam::123456789012:role/MyRole".to_string()),
 ///     federated_user_name: None,
 ///     principal_arn: None,
