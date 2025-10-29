@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use crate::store::memory::{
-    InMemoryIamStore, InMemorySsoAdminStore, InMemoryStsStore, InMemoryTenantStore,
+    InMemorySsoAdminStore, InMemoryStsStore, InMemoryTenantStore, InMemoryWamiStore,
 };
 use crate::store::Store;
 use async_trait::async_trait;
@@ -16,7 +16,7 @@ use async_trait::async_trait;
 /// Resources themselves carry their provider-specific information (ARNs, account IDs, etc.).
 #[derive(Debug, Clone, Default)]
 pub struct InMemoryStore {
-    pub iam_store: InMemoryIamStore,
+    pub wami_store: InMemoryWamiStore,
     pub sts_store: InMemoryStsStore,
     pub sso_admin_store: InMemorySsoAdminStore,
     pub tenant_store: InMemoryTenantStore,
@@ -31,13 +31,13 @@ impl InMemoryStore {
 
 #[async_trait]
 impl Store for InMemoryStore {
-    type IamStore = InMemoryIamStore;
+    type WamiStore = InMemoryWamiStore;
     type StsStore = InMemoryStsStore;
     type SsoAdminStore = InMemorySsoAdminStore;
     type TenantStore = InMemoryTenantStore;
 
-    async fn iam_store(&mut self) -> Result<&mut Self::IamStore> {
-        Ok(&mut self.iam_store)
+    async fn wami_store(&mut self) -> Result<&mut Self::WamiStore> {
+        Ok(&mut self.wami_store)
     }
 
     async fn sts_store(&mut self) -> Result<&mut Self::StsStore> {

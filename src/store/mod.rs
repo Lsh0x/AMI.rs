@@ -12,7 +12,7 @@ pub mod resource;
 pub mod traits;
 
 // Re-export traits for convenience
-pub use traits::{IamStore, SsoAdminStore, StsStore, TenantStore};
+pub use traits::{SsoAdminStore, StsStore, TenantStore, WamiStore};
 
 // Re-export the Store trait
 use crate::error::Result;
@@ -24,12 +24,12 @@ use async_trait::async_trait;
 /// Resources carry their own provider-specific information (ARNs, account IDs, etc.).
 #[async_trait]
 pub trait Store: Send + Sync {
-    type IamStore: IamStore;
+    type WamiStore: WamiStore;
     type StsStore: StsStore;
     type SsoAdminStore: SsoAdminStore;
     type TenantStore: TenantStore;
 
-    async fn iam_store(&mut self) -> Result<&mut Self::IamStore>;
+    async fn wami_store(&mut self) -> Result<&mut Self::WamiStore>;
     async fn sts_store(&mut self) -> Result<&mut Self::StsStore>;
     async fn sso_admin_store(&mut self) -> Result<&mut Self::SsoAdminStore>;
     async fn tenant_store(&mut self) -> Result<&mut Self::TenantStore>;

@@ -18,50 +18,51 @@
 //! ## Example
 //!
 //! ```rust
-//! use wami::{MemoryIamClient, MemoryStsClient, MemorySsoAdminClient, InMemoryStore};
+//! use wami::store::memory::InMemoryWamiStore;
+//! use wami::store::traits::UserStore;
+//! use wami::provider::{AwsProvider, CloudProvider};
+//! use wami::wami::identity::user::builder::build_user;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Initialize logging
 //!     env_logger::init();
 //!     
-//!     // Initialize clients with in-memory storage
-//!     let store = wami::create_memory_store();
-//!     let mut iam_client = MemoryIamClient::new(store.clone());
-//!     let mut sts_client = MemoryStsClient::new(store.clone());
-//!     let mut sso_client = MemorySsoAdminClient::new(store);
+//!     // Initialize store
+//!     let mut store = InMemoryWamiStore::default();
 //!     
-//!     // Get account ID from client
-//!     let account_id = iam_client.account_id().await?;
-//!     println!("Using AWS account ID: {}", account_id);
+//!     // Create provider
+//!     let provider = AwsProvider::new();
 //!     
-//!     // Create a user
-//!     let user_request = wami::CreateUserRequest {
-//!         user_name: "test-user".to_string(),
-//!         path: Some("/".to_string()),
-//!         permissions_boundary: None,
-//!         tags: None,
-//!     };
-//!     let user = iam_client.create_user(user_request).await?;
-//!     println!("Created user: {:?}", user.data);
-//!     println!("User ARN: {}", user.data.unwrap().arn);
+//!     // Build a user using pure functions
+//!     let user = build_user(
+//!         "alice".to_string(),
+//!         Some("/".to_string()),
+//!         &provider,
+//!         "123456789012",
+//!     );
 //!     
-//!     // Get caller identity
-//!     let identity = sts_client.get_caller_identity().await?;
-//!     println!("Caller identity: {:?}", identity.data);
+//!     // Store the user
+//!     let created_user = store.create_user(user).await?;
+//!     println!("Created user: {}", created_user.user_name);
+//!     println!("User ARN: {}", created_user.arn);
+//!     
+//!     // Retrieve the user
+//!     let retrieved = store.get_user("alice").await?;
+//!     if let Some(user) = retrieved {
+//!         println!("Retrieved user: {}", user.user_name);
+//!     }
 //!     
 //!     Ok(())
 //! }
 //! ```
 
 pub mod error;
-pub mod iam;
 pub mod provider;
-pub mod sso_admin;
+// pub mod service;  // Removed - will rebuild later with proper architecture
 pub mod store;
-pub mod sts;
-pub mod tenant;
 pub mod types;
+pub mod wami;
 
 // Re-export main types for convenience
 pub use error::{AmiError, Result};
@@ -69,104 +70,119 @@ pub use types::{AmiResponse, AwsConfig, PaginationParams, PolicyDocument, Policy
 
 // Re-export store traits and implementations
 pub use store::memory::InMemoryStore;
-pub use store::{IamStore, SsoAdminStore, Store, StsStore};
+pub use store::{SsoAdminStore, Store, StsStore, WamiStore};
 
 // Re-export provider types
 pub use provider::ProviderConfig;
 
-// Re-export clients (now generic over stores)
-pub use iam::IamClient;
-pub use sso_admin::SsoAdminClient;
-pub use sts::StsClient;
-pub use tenant::TenantClient;
+// Re-export WAMI modules for convenience (Legacy compatibility)
+pub use wami::{sso_admin, sts, tenant};
 
-// Re-export IAM types
-pub use iam::{
-    AccessKey, Group, LoginProfile, MfaDevice, Policy, Role, ServerCertificate,
-    ServerCertificateMetadata, ServiceSpecificCredential, ServiceSpecificCredentialMetadata, User,
+// Re-export identity types
+pub use wami::identity::{Group, Role, User};
+
+// Re-export credential types
+pub use wami::credentials::{
+    AccessKey, LoginProfile, MfaDevice, ServerCertificate, ServiceSpecificCredential,
 };
+// pub use wami::credentials::server_certificate::ServerCertificateMetadata; // TODO: fix path
+
+// Re-export policy types
+pub use wami::policies::Policy;
+
+// Re-export report types
+pub use wami::reports::CredentialReport;
 
 // Re-export STS types
-pub use sts::{CallerIdentity, Credentials, StsSession};
+pub use wami::sts::{Credentials, StsSession};
 
-// Re-export SSO Admin types
-pub use sso_admin::{
-    AccountAssignment, Application, PermissionSet, SsoInstance, TrustedTokenIssuer,
-};
+// Re-export SSO Admin types (TODO: update when sso_admin is refactored)
+// pub use wami::sso_admin::{AccountAssignment, Application, PermissionSet, SsoInstance, TrustedTokenIssuer};
 
 // Re-export Tenant types
-pub use tenant::{
+pub use wami::tenant::{
     check_tenant_permission, BillingInfo, QuotaMode, Tenant, TenantAction, TenantId, TenantQuotas,
     TenantStatus, TenantType, TenantUsage,
 };
 
-// Re-export request/response types
-pub use iam::access_key::{
+// Legacy IAM module alias
+// #[deprecated(since = "0.2.0", note = "Use wami::identity, wami::credentials, etc. instead")]
+// pub use wami::iam; // Temporarily removed to avoid warnings
+
+// Re-export request/response types (updated paths)
+pub use wami::credentials::access_key::{
     AccessKeyLastUsed, CreateAccessKeyRequest, ListAccessKeysRequest, ListAccessKeysResponse,
     UpdateAccessKeyRequest,
 };
-pub use iam::group::{
-    CreateGroupRequest, ListGroupsRequest, ListGroupsResponse, UpdateGroupRequest,
-};
-pub use iam::login_profile::{
+pub use wami::credentials::login_profile::{
     CreateLoginProfileRequest, GetLoginProfileRequest, UpdateLoginProfileRequest,
 };
-pub use iam::mfa_device::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
-pub use iam::policy::{
-    CreatePolicyRequest, ListPoliciesRequest, ListPoliciesResponse, UpdatePolicyRequest,
-};
-pub use iam::policy_evaluation::{
-    ContextEntry, EvaluationResult, SimulateCustomPolicyRequest, SimulatePolicyResponse,
-    SimulatePrincipalPolicyRequest, StatementMatch,
-};
-pub use iam::report::{
-    AccountSummaryMap, CredentialReport, GenerateCredentialReportRequest,
-    GenerateCredentialReportResponse, GetAccountSummaryRequest, GetAccountSummaryResponse,
-    GetCredentialReportRequest, GetCredentialReportResponse, ReportState,
-};
-pub use iam::role::{CreateRoleRequest, ListRolesRequest, ListRolesResponse, UpdateRoleRequest};
-pub use iam::server_certificate::{
+pub use wami::credentials::mfa_device::{EnableMfaDeviceRequest, ListMfaDevicesRequest};
+pub use wami::credentials::server_certificate::{
     DeleteServerCertificateRequest, GetServerCertificateRequest, GetServerCertificateResponse,
     ListServerCertificatesRequest, ListServerCertificatesResponse, UpdateServerCertificateRequest,
     UploadServerCertificateRequest, UploadServerCertificateResponse,
 };
-pub use iam::service_credential::{
+pub use wami::credentials::service_credential::{
     CreateServiceSpecificCredentialRequest, CreateServiceSpecificCredentialResponse,
     DeleteServiceSpecificCredentialRequest, ListServiceSpecificCredentialsRequest,
     ListServiceSpecificCredentialsResponse, ResetServiceSpecificCredentialRequest,
     ResetServiceSpecificCredentialResponse, UpdateServiceSpecificCredentialRequest,
 };
-pub use iam::service_linked_role::{
+pub use wami::credentials::signing_certificate::{
+    CertificateStatus, DeleteSigningCertificateRequest, ListSigningCertificatesRequest,
+    ListSigningCertificatesResponse, SigningCertificate, UpdateSigningCertificateRequest,
+    UploadSigningCertificateRequest, UploadSigningCertificateResponse,
+};
+pub use wami::identity::group::{
+    CreateGroupRequest, ListGroupsRequest, ListGroupsResponse, UpdateGroupRequest,
+};
+pub use wami::identity::role::{
+    CreateRoleRequest, ListRolesRequest, ListRolesResponse, UpdateRoleRequest,
+};
+pub use wami::identity::service_linked_role::{
     CreateServiceLinkedRoleRequest, CreateServiceLinkedRoleResponse,
     DeleteServiceLinkedRoleRequest, DeleteServiceLinkedRoleResponse, DeletionTaskFailureReason,
     DeletionTaskInfo, DeletionTaskStatus, GetServiceLinkedRoleDeletionStatusRequest,
     GetServiceLinkedRoleDeletionStatusResponse, RoleUsageType,
 };
-pub use iam::signing_certificate::{
-    CertificateStatus, DeleteSigningCertificateRequest, ListSigningCertificatesRequest,
-    ListSigningCertificatesResponse, SigningCertificate, UpdateSigningCertificateRequest,
-    UploadSigningCertificateRequest, UploadSigningCertificateResponse,
+pub use wami::identity::user::{
+    CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest,
 };
-pub use iam::tag::{ListResourceTagsRequest, TagResourceRequest, UntagResourceRequest};
-pub use iam::user::{CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest};
-pub use sso_admin::{CreateAccountAssignmentRequest, CreatePermissionSetRequest};
-pub use sts::{AssumeRoleRequest, GetFederationTokenRequest, GetSessionTokenRequest};
+pub use wami::policies::evaluation::{
+    ContextEntry, EvaluationResult, SimulateCustomPolicyRequest, SimulatePolicyResponse,
+    SimulatePrincipalPolicyRequest, StatementMatch,
+};
+pub use wami::policies::policy::{
+    CreatePolicyRequest, ListPoliciesRequest, ListPoliciesResponse, UpdatePolicyRequest,
+};
+pub use wami::reports::credential_report::{
+    AccountSummaryMap, CredentialReport as CredentialReportType, GenerateCredentialReportRequest,
+    GenerateCredentialReportResponse, GetAccountSummaryRequest, GetAccountSummaryResponse,
+    GetCredentialReportRequest, GetCredentialReportResponse, ReportState,
+};
+pub use wami::tags::{ListResourceTagsRequest, TagResourceRequest, UntagResourceRequest};
+// SSO Admin request types (to be re-exported when needed)
+// pub use sso_admin::{CreateAccountAssignmentRequest, CreatePermissionSetRequest};
+pub use sts::{AssumeRoleRequest, GetSessionTokenRequest};
+// pub use sts::{GetFederationTokenRequest};  // Re-export when needed
 
-/// Initialize all clients with in-memory storage
-pub fn initialize_clients_with_memory_store() -> (
-    IamClient<InMemoryStore>,
-    StsClient<InMemoryStore>,
-    SsoAdminClient<InMemoryStore>,
-    TenantClient<InMemoryStore>,
-) {
-    let store = InMemoryStore::new();
-    let iam_client = IamClient::new(store.clone());
-    let sts_client = StsClient::new(store.clone());
-    let sso_client = SsoAdminClient::new(store.clone());
-    let tenant_client = TenantClient::new(store, "admin@example.com".to_string());
-
-    (iam_client, sts_client, sso_client, tenant_client)
-}
+// /// Initialize all clients with in-memory storage
+// /// TEMPORARILY DISABLED during pure functions refactor
+// pub fn initialize_clients_with_memory_store() -> (
+//     IamClient<InMemoryStore>,
+//     StsClient<InMemoryStore>,
+//     SsoAdminClient<InMemoryStore>,
+//     TenantClient<InMemoryStore>,
+// ) {
+//     let store = InMemoryStore::new();
+//     let iam_client = IamClient::new(store.clone());
+//     let sts_client = StsClient::new(store.clone());
+//     let sso_client = SsoAdminClient::new(store.clone());
+//     let tenant_client = TenantClient::new(store, "admin@example.com".to_string());
+//
+//     (iam_client, sts_client, sso_client, tenant_client)
+// }
 
 /// Create a new in-memory store
 pub fn create_memory_store() -> InMemoryStore {
@@ -177,8 +193,9 @@ pub fn create_memory_store() -> InMemoryStore {
 // Resources now carry their own provider-specific information (ARNs, account IDs, etc.).
 // If you need provider-specific functionality, use the client-level providers.
 
-/// Type alias for convenience when using in-memory storage
-pub type MemoryIamClient = IamClient<InMemoryStore>;
-pub type MemoryStsClient = StsClient<InMemoryStore>;
-pub type MemorySsoAdminClient = SsoAdminClient<InMemoryStore>;
-pub type MemoryTenantClient = TenantClient<InMemoryStore>;
+// /// Type alias for convenience when using in-memory storage
+// /// TODO: Rebuild these with service layer
+// pub type MemoryIamClient = IamClient<InMemoryStore>;
+// pub type MemoryStsClient = StsClient<InMemoryStore>;
+// pub type MemorySsoAdminClient = SsoAdminClient<InMemoryStore>;
+// pub type MemoryTenantClient = TenantClient<InMemoryStore>;

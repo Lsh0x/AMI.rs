@@ -1,345 +1,542 @@
 # API Reference
 
-Quick reference for WAMI APIs.
+Complete API documentation for WAMI.
 
-## Client Initialization
+## Overview
 
-```rust
-// IAM Client
-let store = wami::create_memory_store();
-let mut iam = MemoryIamClient::new(store);
+WAMI's API is organized into two main layers:
 
-// STS Client
-let mut sts = MemoryStsClient::new(store);
+1. **Domain Layer** (`wami::*`) - Pure functions and models
+2. **Storage Layer** (`store::*`) - Persistence traits and implementations
 
-// SSO Admin Client
-let mut sso = MemorySsoAdminClient::new(store);
+---
 
-// Tenant Client
-let principal = "admin".to_string();
-let mut tenant = TenantClient::new(store, principal);
-```
+## Domain Layer (wami::*)
 
-## IAM Operations
+### Identity Module (`wami::identity`)
 
-### Users
+#### User (`wami::identity::user`)
 
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Create user | `iam.create_user(request)` | `User` |
-| Get user | `iam.get_user(user_name)` | `Option<User>` |
-| List users | `iam.list_users(path, marker)` | `Vec<User>` |
-| Update user | `iam.update_user(request)` | `User` |
-| Delete user | `iam.delete_user(user_name)` | `()` |
-
-### Roles
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Create role | `iam.create_role(request)` | `Role` |
-| Get role | `iam.get_role(role_name)` | `Option<Role>` |
-| List roles | `iam.list_roles(path, marker)` | `Vec<Role>` |
-| Update role | `iam.update_role(request)` | `Role` |
-| Delete role | `iam.delete_role(role_name)` | `()` |
-| Attach policy | `iam.attach_role_policy(role, arn)` | `()` |
-| Detach policy | `iam.detach_role_policy(role, arn)` | `()` |
-
-### Policies
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Create policy | `iam.create_policy(request)` | `Policy` |
-| Get policy | `iam.get_policy(arn)` | `Option<Policy>` |
-| List policies | `iam.list_policies(...)` | `Vec<Policy>` |
-| Delete policy | `iam.delete_policy(arn)` | `()` |
-| Attach to user | `iam.attach_user_policy(user, arn)` | `()` |
-| Detach from user | `iam.detach_user_policy(user, arn)` | `()` |
-
-### Groups
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Create group | `iam.create_group(request)` | `Group` |
-| Get group | `iam.get_group(group_name)` | `Option<Group>` |
-| List groups | `iam.list_groups(path, marker)` | `Vec<Group>` |
-| Delete group | `iam.delete_group(group_name)` | `()` |
-| Add user | `iam.add_user_to_group(user, group)` | `()` |
-| Remove user | `iam.remove_user_from_group(user, group)` | `()` |
-
-### Access Keys
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Create key | `iam.create_access_key(request)` | `AccessKey` |
-| List keys | `iam.list_access_keys(user, ...)` | `Vec<AccessKey>` |
-| Update key | `iam.update_access_key(request)` | `()` |
-| Delete key | `iam.delete_access_key(user, key_id)` | `()` |
-| Get last used | `iam.get_access_key_last_used(key_id)` | `Option<DateTime>` |
-
-### Passwords
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Create login | `iam.create_login_profile(request)` | `LoginProfile` |
-| Get login | `iam.get_login_profile(user)` | `Option<LoginProfile>` |
-| Update login | `iam.update_login_profile(request)` | `()` |
-| Delete login | `iam.delete_login_profile(user)` | `()` |
-
-### MFA Devices
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Enable MFA | `iam.enable_mfa_device(request)` | `()` |
-| Deactivate MFA | `iam.deactivate_mfa_device(user, serial)` | `()` |
-| List MFA | `iam.list_mfa_devices(user, ...)` | `Vec<MfaDevice>` |
-| Resync MFA | `iam.resync_mfa_device(request)` | `()` |
-
-## STS Operations
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Assume role | `sts.assume_role(request)` | `Credentials` |
-| Assume role (SAML) | `sts.assume_role_with_saml(request)` | `Credentials` |
-| Assume role (WebID) | `sts.assume_role_with_web_identity(request)` | `Credentials` |
-| Get session token | `sts.get_session_token(request)` | `Credentials` |
-| Get federation token | `sts.get_federation_token(request)` | `Credentials` |
-| Get caller identity | `sts.get_caller_identity()` | `CallerIdentity` |
-| Get access key info | `sts.get_access_key_info(key_id)` | `AccessKeyInfo` |
-
-## SSO Admin Operations
-
-### Permission Sets
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Create | `sso.create_permission_set(request)` | `PermissionSet` |
-| Describe | `sso.describe_permission_set(instance, arn)` | `PermissionSet` |
-| List | `sso.list_permission_sets(instance, ...)` | `Vec<String>` |
-| Update | `sso.update_permission_set(request)` | `()` |
-| Delete | `sso.delete_permission_set(instance, arn)` | `()` |
-
-### Managed Policies
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Attach | `sso.attach_managed_policy_to_permission_set(...)` | `()` |
-| List | `sso.list_managed_policies_in_permission_set(...)` | `Vec<Policy>` |
-| Detach | `sso.detach_managed_policy_from_permission_set(...)` | `()` |
-
-### Inline Policies
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Put | `sso.put_inline_policy_to_permission_set(...)` | `()` |
-| Get | `sso.get_inline_policy_for_permission_set(...)` | `Option<String>` |
-| Delete | `sso.delete_inline_policy_from_permission_set(...)` | `()` |
-
-### Account Assignments
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Create | `sso.create_account_assignment(request)` | `Assignment` |
-| List | `sso.list_account_assignments(...)` | `Vec<Assignment>` |
-| Delete | `sso.delete_account_assignment(request)` | `()` |
-
-## Tenant Operations
-
-| Operation | Method | Returns |
-|-----------|--------|---------|
-| Create root | `tenant.create_root_tenant(request)` | `Tenant` |
-| Create sub-tenant | `tenant.create_sub_tenant(parent, request)` | `Tenant` |
-| Get tenant | `tenant.get_tenant(id)` | `Option<Tenant>` |
-| List children | `tenant.list_child_tenants(id)` | `Vec<Tenant>` |
-| Delete cascade | `tenant.delete_tenant_cascade(id)` | `()` |
-
-## Data Structures
-
-### User
-
+**Model**:
 ```rust
 pub struct User {
     pub user_name: String,
     pub user_id: String,
     pub arn: String,
-    pub path: String,
-    pub create_date: DateTime<Utc>,
-    pub password_last_used: Option<DateTime<Utc>>,
-    pub permissions_boundary: Option<String>,
-    pub tags: Vec<Tag>,
+    pub path: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub wami_arn: String,
+    pub providers: Vec<ProviderConfig>,
     pub tenant_id: Option<TenantId>,
 }
 ```
 
-### Role
+**Builder**:
+```rust
+pub fn build_user(
+    user_name: String,
+    path: Option<String>,
+    provider: &dyn CloudProvider,
+    account_id: &str,
+) -> User
+```
 
+#### Group (`wami::identity::group`)
+
+**Model**:
+```rust
+pub struct Group {
+    pub group_name: String,
+    pub group_id: String,
+    pub arn: String,
+    pub path: Option<String>,
+    pub created_at: DateTime<Utc>,
+    // ...
+}
+```
+
+**Builder**:
+```rust
+pub fn build_group(
+    group_name: String,
+    path: Option<String>,
+    provider: &dyn CloudProvider,
+    account_id: &str,
+) -> Group
+```
+
+#### Role (`wami::identity::role`)
+
+**Model**:
 ```rust
 pub struct Role {
     pub role_name: String,
     pub role_id: String,
     pub arn: String,
-    pub path: String,
     pub assume_role_policy_document: String,
-    pub create_date: DateTime<Utc>,
+    pub path: Option<String>,
     pub description: Option<String>,
-    pub max_session_duration: u32,
-    pub tenant_id: Option<TenantId>,
+    // ...
 }
 ```
 
-### Policy
-
+**Builder**:
 ```rust
-pub struct Policy {
-    pub policy_name: String,
-    pub policy_id: String,
-    pub arn: String,
-    pub path: String,
-    pub default_version_id: String,
-    pub attachment_count: u32,
-    pub create_date: DateTime<Utc>,
-    pub update_date: DateTime<Utc>,
-    pub tenant_id: Option<TenantId>,
-}
+pub fn build_role(
+    role_name: String,
+    assume_role_policy_document: String,
+    path: Option<String>,
+    description: Option<String>,
+    tags: Option<Vec<Tag>>,
+    provider: &dyn CloudProvider,
+    account_id: &str,
+) -> Role
 ```
 
-### Credentials
+### Credentials Module (`wami::credentials`)
 
+#### Access Key (`wami::credentials::access_key`)
+
+**Model**:
 ```rust
-pub struct Credentials {
+pub struct AccessKey {
+    pub user_name: String,
     pub access_key_id: String,
     pub secret_access_key: String,
-    pub session_token: Option<String>,
-    pub expiration: DateTime<Utc>,
+    pub status: AccessKeyStatus,
+    pub created_at: DateTime<Utc>,
+    // ...
+}
+
+pub enum AccessKeyStatus {
+    Active,
+    Inactive,
 }
 ```
 
-### Tenant
+**Builder**:
+```rust
+pub fn build_access_key(
+    user_name: String,
+    provider: &dyn CloudProvider,
+    account_id: &str,
+) -> AccessKey
+```
 
+#### MFA Device (`wami::credentials::mfa_device`)
+
+**Model**:
+```rust
+pub struct MfaDevice {
+    pub serial_number: String,
+    pub user_name: String,
+    pub enable_date: DateTime<Utc>,
+    pub arn: String,
+    // ...
+}
+```
+
+#### Login Profile (`wami::credentials::login_profile`)
+
+**Model**:
+```rust
+pub struct LoginProfile {
+    pub user_name: String,
+    pub created_at: DateTime<Utc>,
+    pub password_reset_required: bool,
+    // ...
+}
+```
+
+### STS Module (`wami::sts`)
+
+#### Session (`wami::sts::session`)
+
+**Model**:
+```rust
+pub struct StsSession {
+    pub session_token: String,
+    pub access_key_id: String,
+    pub secret_access_key: String,
+    pub expiration: DateTime<Utc>,
+    pub status: SessionStatus,
+    pub assumed_role_arn: Option<String>,
+    // ...
+}
+
+pub enum SessionStatus {
+    Active,
+    Expired,
+    Revoked,
+}
+```
+
+**Builder**:
+```rust
+pub fn build_session(
+    session_token: String,
+    access_key_id: String,
+    secret_access_key: String,
+    duration_seconds: i64,
+    assumed_role_arn: Option<String>,
+    provider: &dyn CloudProvider,
+    account_id: &str,
+) -> StsSession
+```
+
+#### Caller Identity (`wami::sts::identity`)
+
+**Model**:
+```rust
+pub struct CallerIdentity {
+    pub user_id: String,
+    pub account: String,
+    pub arn: String,
+    pub wami_arn: String,
+    pub providers: Vec<ProviderConfig>,
+}
+```
+
+### Tenant Module (`wami::tenant`)
+
+**Model**:
 ```rust
 pub struct Tenant {
     pub id: TenantId,
     pub name: String,
+    pub parent_id: Option<TenantId>,
+    pub organization: Option<String>,
     pub tenant_type: TenantType,
     pub status: TenantStatus,
-    pub parent_id: Option<TenantId>,
     pub quotas: TenantQuotas,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    // ...
+}
+
+pub struct TenantId(String);
+
+impl TenantId {
+    pub fn root(name: &str) -> Self;
+    pub fn child(&self, name: &str) -> Self;
+    pub fn parent(&self) -> Option<Self>;
+    pub fn depth(&self) -> usize;
+    pub fn ancestors(&self) -> Vec<TenantId>;
+    pub fn is_descendant_of(&self, other: &TenantId) -> bool;
+}
+
+pub enum TenantType {
+    Root,
+    Enterprise,
+    Department,
+    Team,
+    Project,
+    Custom(String),
+}
+
+pub enum TenantStatus {
+    Active,
+    Suspended,
+    Pending,
+    Deleted,
 }
 ```
 
-## Request Structures
+---
 
-### CreateUserRequest
+## Storage Layer (store::*)
+
+### Store Traits
+
+#### WamiStore Composite Trait
 
 ```rust
-pub struct CreateUserRequest {
-    pub user_name: String,
-    pub path: Option<String>,
-    pub permissions_boundary: Option<String>,
-    pub tags: Option<Vec<Tag>>,
-}
+pub trait WamiStore: 
+    UserStore + 
+    GroupStore + 
+    RoleStore + 
+    AccessKeyStore + 
+    MfaDeviceStore + 
+    LoginProfileStore + 
+    PolicyStore + 
+    ServerCertificateStore + 
+    SigningCertificateStore + 
+    ServiceCredentialStore + 
+    ServiceLinkedRoleStore + 
+    CredentialReportStore +
+    Send + Sync 
+{}
 ```
 
-### CreateRoleRequest
+#### UserStore
 
 ```rust
-pub struct CreateRoleRequest {
-    pub role_name: String,
-    pub assume_role_policy_document: String,
-    pub path: Option<String>,
-    pub description: Option<String>,
-    pub max_session_duration: Option<u32>,
-    pub permissions_boundary: Option<String>,
-    pub tags: Option<Vec<Tag>>,
+#[async_trait]
+pub trait UserStore: Send + Sync {
+    async fn create_user(&mut self, user: User) -> Result<User>;
+    async fn get_user(&self, user_name: &str) -> Result<Option<User>>;
+    async fn update_user(&mut self, user: User) -> Result<User>;
+    async fn delete_user(&mut self, user_name: &str) -> Result<()>;
+    async fn list_users(
+        &self,
+        path_prefix: Option<&str>,
+        pagination: Option<&PaginationParams>,
+    ) -> Result<(Vec<User>, bool, Option<String>)>;
+    async fn tag_user(&mut self, user_name: &str, tags: Vec<Tag>) -> Result<()>;
+    async fn list_user_tags(&self, user_name: &str) -> Result<Vec<Tag>>;
+    async fn untag_user(&mut self, user_name: &str, tag_keys: Vec<String>) -> Result<()>;
 }
 ```
 
-### AssumeRoleRequest
+#### GroupStore
 
 ```rust
-pub struct AssumeRoleRequest {
-    pub role_arn: String,
-    pub role_session_name: String,
-    pub duration_seconds: Option<u32>,
-    pub external_id: Option<String>,
-    pub policy: Option<String>,
+#[async_trait]
+pub trait GroupStore: Send + Sync {
+    async fn create_group(&mut self, group: Group) -> Result<Group>;
+    async fn get_group(&self, group_name: &str) -> Result<Option<Group>>;
+    async fn update_group(&mut self, group: Group) -> Result<Group>;
+    async fn delete_group(&mut self, group_name: &str) -> Result<()>;
+    async fn list_groups(
+        &self,
+        path_prefix: Option<&str>,
+        pagination: Option<&PaginationParams>,
+    ) -> Result<(Vec<Group>, bool, Option<String>)>;
+    async fn add_user_to_group(&mut self, group_name: &str, user_name: &str) -> Result<()>;
+    async fn remove_user_from_group(&mut self, group_name: &str, user_name: &str) -> Result<()>;
+    async fn list_groups_for_user(&self, user_name: &str) -> Result<Vec<Group>>;
 }
 ```
 
-## Error Types
+#### RoleStore
 
 ```rust
-pub enum AmiError {
-    ResourceNotFound { resource: String },
-    ResourceExists { resource: String },
-    InvalidParameter { message: String },
-    LimitExceeded { message: String },
-    Unauthorized { message: String },
-    InternalError { message: String },
-    StoreError { source: Box<dyn Error> },
+#[async_trait]
+pub trait RoleStore: Send + Sync {
+    async fn create_role(&mut self, role: Role) -> Result<Role>;
+    async fn get_role(&self, role_name: &str) -> Result<Option<Role>>;
+    async fn update_role(&mut self, role: Role) -> Result<Role>;
+    async fn delete_role(&mut self, role_name: &str) -> Result<()>;
+    async fn list_roles(
+        &self,
+        path_prefix: Option<&str>,
+        pagination: Option<&PaginationParams>,
+    ) -> Result<(Vec<Role>, bool, Option<String>)>;
+    async fn tag_role(&mut self, role_name: &str, tags: Vec<Tag>) -> Result<()>;
+    async fn list_role_tags(&self, role_name: &str) -> Result<Vec<Tag>>;
+    async fn untag_role(&mut self, role_name: &str, tag_keys: Vec<String>) -> Result<()>;
 }
 ```
 
-## Response Wrapper
+#### AccessKeyStore
 
 ```rust
-pub struct Response<T> {
-    pub data: Option<T>,
-    pub error: Option<ResponseError>,
-}
-
-impl<T> Response<T> {
-    pub fn success(data: T) -> Self;
-    pub fn error(code: String, message: String) -> Self;
+#[async_trait]
+pub trait AccessKeyStore: Send + Sync {
+    async fn create_access_key(&mut self, access_key: AccessKey) -> Result<AccessKey>;
+    async fn get_access_key(&self, access_key_id: &str) -> Result<Option<AccessKey>>;
+    async fn update_access_key(&mut self, access_key: AccessKey) -> Result<AccessKey>;
+    async fn delete_access_key(&mut self, access_key_id: &str) -> Result<()>;
+    async fn list_access_keys(&self, user_name: &str) -> Result<Vec<AccessKey>>;
 }
 ```
 
-## Provider Traits
+#### StsStore Composite Trait
 
-### CloudProvider
+```rust
+pub trait StsStore: SessionStore + IdentityStore + Send + Sync {}
+```
+
+#### SessionStore
+
+```rust
+#[async_trait]
+pub trait SessionStore: Send + Sync {
+    async fn create_session(&mut self, session: StsSession) -> Result<StsSession>;
+    async fn get_session(&self, session_token: &str) -> Result<Option<StsSession>>;
+    async fn delete_session(&mut self, session_token: &str) -> Result<()>;
+    async fn list_sessions(&self, user_id: Option<&str>) -> Result<Vec<StsSession>>;
+}
+```
+
+#### TenantStore
+
+```rust
+#[async_trait]
+pub trait TenantStore: Send + Sync {
+    async fn create_tenant(&mut self, tenant: Tenant) -> Result<Tenant>;
+    async fn get_tenant(&self, tenant_id: &TenantId) -> Result<Option<Tenant>>;
+    async fn update_tenant(&mut self, tenant: Tenant) -> Result<Tenant>;
+    async fn delete_tenant(&mut self, tenant_id: &TenantId) -> Result<()>;
+    async fn list_tenants(&self) -> Result<Vec<Tenant>>;
+    async fn list_child_tenants(&self, parent_id: &TenantId) -> Result<Vec<Tenant>>;
+    async fn get_ancestors(&self, tenant_id: &TenantId) -> Result<Vec<Tenant>>;
+    async fn get_descendants(&self, tenant_id: &TenantId) -> Result<Vec<TenantId>>;
+    async fn get_effective_quotas(&self, tenant_id: &TenantId) -> Result<TenantQuotas>;
+    async fn get_tenant_usage(&self, tenant_id: &TenantId) -> Result<TenantUsage>;
+}
+```
+
+### In-Memory Store Implementations
+
+#### InMemoryWamiStore
+
+```rust
+pub struct InMemoryWamiStore {
+    // Internal HashMap-based storage
+    // Thread-safe with Arc<RwLock<T>>
+}
+
+impl InMemoryWamiStore {
+    pub fn new() -> Self;
+}
+
+// Automatically implements all WamiStore sub-traits
+```
+
+#### InMemoryStsStore
+
+```rust
+pub struct InMemoryStsStore {
+    // Internal HashMap-based storage
+}
+
+impl InMemoryStsStore {
+    pub fn new() -> Self;
+}
+
+// Implements SessionStore and IdentityStore
+```
+
+#### InMemoryTenantStore
+
+```rust
+pub struct InMemoryTenantStore {
+    // Internal HashMap-based storage
+}
+
+impl InMemoryTenantStore {
+    pub fn new() -> Self;
+}
+
+// Implements TenantStore
+```
+
+---
+
+## Provider Layer (provider::*)
+
+### CloudProvider Trait
 
 ```rust
 pub trait CloudProvider: Send + Sync {
     fn name(&self) -> &str;
-    fn generate_resource_identifier(&self, type: &str, name: &str, path: Option<&str>) -> String;
-    fn generate_account_id(&self) -> String;
-    fn max_session_duration(&self) -> u32;
-    fn validate_session_duration(&self, duration: u32) -> Result<()>;
-    fn max_users(&self) -> Option<u32>;
-    fn max_roles(&self) -> Option<u32>;
-    fn max_policies(&self) -> Option<u32>;
+    fn generate_arn(&self, resource_type: &str, resource_name: &str, account_id: &str) -> String;
+    fn generate_id(&self, prefix: &str) -> String;
 }
 ```
 
-### Store
+### Built-in Providers
+
+#### AwsProvider
 
 ```rust
-pub trait Store: Send + Sync {
-    type IamStore: IamStore;
-    type StsStore: StsStore;
-    type SsoAdminStore: SsoAdminStore;
-    type TenantStore: TenantStore;
-    
-    fn cloud_provider(&self) -> &dyn CloudProvider;
-    async fn iam_store(&mut self) -> Result<&mut Self::IamStore>;
-    async fn sts_store(&mut self) -> Result<&mut Self::StsStore>;
-    async fn sso_admin_store(&mut self) -> Result<&mut Self::SsoAdminStore>;
-    async fn tenant_store(&mut self) -> Result<&mut Self::TenantStore>;
+pub struct AwsProvider;
+
+impl AwsProvider {
+    pub fn new() -> Self;
+}
+
+// Generates ARNs like: arn:aws:iam::123456789012:user/alice
+```
+
+#### GcpProvider
+
+```rust
+pub struct GcpProvider;
+
+impl GcpProvider {
+    pub fn new() -> Self;
+}
+
+// Generates resource names in GCP format
+```
+
+#### AzureProvider
+
+```rust
+pub struct AzureProvider;
+
+impl AzureProvider {
+    pub fn new() -> Self;
+}
+
+// Generates resource IDs in Azure format
+```
+
+---
+
+## Error Handling
+
+### AmiError
+
+```rust
+pub enum AmiError {
+    ValidationError(String),
+    ResourceNotFound { resource: String },
+    ResourceExists { resource: String },
+    AccessDenied { message: String },
+    InternalError(String),
+    AwsSdk(aws_sdk_iam::Error),
+    StsSdk(aws_sdk_sts::Error),
+    SsoAdminSdk(aws_sdk_ssoadmin::Error),
+}
+
+impl std::error::Error for AmiError {}
+impl std::fmt::Display for AmiError {}
+```
+
+---
+
+## Common Types
+
+### PaginationParams
+
+```rust
+pub struct PaginationParams {
+    pub max_items: Option<usize>,
+    pub marker: Option<String>,
 }
 ```
 
-## Full API Documentation
+### Tag
 
-For complete API documentation with all types, methods, and examples:
-
-```bash
-cargo doc --open
+```rust
+pub struct Tag {
+    pub key: String,
+    pub value: String,
+}
 ```
 
-Or visit [docs.rs/wami](https://docs.rs/wami)
+### ProviderConfig
 
-## Support
+```rust
+pub struct ProviderConfig {
+    pub provider_name: String,
+    pub account_id: String,
+    pub native_arn: String,
+    pub synced_at: DateTime<Utc>,
+    pub tenant_id: Option<TenantId>,
+}
+```
 
-Questions? Open an issue on [GitHub](https://github.com/lsh0x/wami/issues).
+---
 
+## See Also
+
+- **[Getting Started](GETTING_STARTED.md)** - Quick start guide
+- **[Architecture](ARCHITECTURE.md)** - Design and components
+- **[Examples](EXAMPLES.md)** - Working code examples
+- **[Store Implementation](STORE_IMPLEMENTATION.md)** - Create custom stores
+
+---
+
+For detailed examples and usage patterns, see the [Getting Started Guide](GETTING_STARTED.md).
