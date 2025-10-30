@@ -31,12 +31,12 @@
 - ✅ `mfa_devices.rs` - (No IDs to refactor, already provider-agnostic)
 - ✅ `passwords.rs` - (No IDs to refactor, already provider-agnostic)
 
-**Deferred Modules (2/13):**
-- 🔲 `identity_providers.rs` - (Issue #19)
-- 🔲 `permissions_boundaries.rs` - (Issue #22)
+**Deferred Modules (1/13):**
+- ✅ `identity_providers.rs` - (Issue #19) COMPLETE
+- ✅ `permissions_boundaries.rs` - (Issue #22) COMPLETE
 
 ## 📊 Final Stats
-- **Tests**: 270/270 passing ✅ (175 unit + 95 doc tests)
+- **Tests**: 446/446 passing ✅ (402 unit + 44 doc tests)
 - **Commits**: 10 (for multicloud implementation)
 - **Files Changed**: 22+
 - **Lines Added**: 1500+

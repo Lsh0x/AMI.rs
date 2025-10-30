@@ -366,16 +366,71 @@ iam.put_user_policy(PutUserPolicyRequest {
 }).await?;
 ```
 
-### Set Permissions Boundary
+### Permissions Boundaries
+
+Permissions boundaries set the maximum permissions that identity-based policies can grant. The effective permissions are the intersection of identity-based policies and the boundary.
+
+**Create a Boundary Policy:**
 
 ```rust
-use wami::PutUserPermissionsBoundaryRequest;
+use wami::service::PolicyService;
+use wami::wami::policies::policy::requests::CreatePolicyRequest;
 
-iam.put_user_permissions_boundary(PutUserPermissionsBoundaryRequest {
-    user_name: "alice".to_string(),
-    permissions_boundary: "arn:aws:iam::123456789012:policy/DeveloperBoundary".to_string(),
+let policy_service = PolicyService::new(store.clone(), account_id.to_string());
+
+let boundary_policy = policy_service.create_policy(CreatePolicyRequest {
+    policy_name: "DeveloperBoundary".to_string(),
+    policy_document: r#"{
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Action": [
+                "s3:*",
+                "dynamodb:*",
+                "lambda:*"
+            ],
+            "Resource": "*"
+        }]
+    }"#.to_string(),
+    path: Some("/boundaries/".to_string()),
+    description: Some("Limits developers to S3, DynamoDB, and Lambda".to_string()),
+    tags: None,
 }).await?;
 ```
+
+**Attach Boundary to User:**
+
+```rust
+use wami::service::PermissionsBoundaryService;
+use wami::wami::policies::permissions_boundary::{
+    PutPermissionsBoundaryRequest, PrincipalType
+};
+
+let boundary_service = PermissionsBoundaryService::new(store.clone(), account_id.to_string());
+
+boundary_service.put_permissions_boundary(PutPermissionsBoundaryRequest {
+    principal_type: PrincipalType::User,
+    principal_name: "alice".to_string(),
+    permissions_boundary: boundary_policy.arn.clone(),
+}).await?;
+```
+
+**Remove Boundary:**
+
+```rust
+use wami::wami::policies::permissions_boundary::DeletePermissionsBoundaryRequest;
+
+boundary_service.delete_permissions_boundary(DeletePermissionsBoundaryRequest {
+    principal_type: PrincipalType::User,
+    principal_name: "alice".to_string(),
+}).await?;
+```
+
+**Use Cases:**
+- **Developer Sandboxes**: Prevent devs from accessing production or IAM resources
+- **Contractor Access**: Limit external users to specific services
+- **Delegated Administration**: Allow users to create other users within safe limits
+- **Multi-tenant Isolation**: Restrict each tenant to their own resources
 
 ### Tag Resources
 

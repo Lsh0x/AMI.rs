@@ -5,5 +5,7 @@ pub mod operations;
 pub mod requests;
 
 // Re-export types
-// TODO: Implement permissions boundary types
-// pub use model::PermissionsBoundary;
+pub use model::PermissionsBoundary;
+pub use requests::{
+    DeletePermissionsBoundaryRequest, PrincipalType, PutPermissionsBoundaryRequest,
+};

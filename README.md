@@ -21,7 +21,7 @@
 - 🔑 **Temporary Credentials** - STS sessions and role assumption
 - 📊 **SSO Administration** - Permission sets, assignments, and federation
 - 🦀 **100% Rust** - Type-safe, async-first, zero-cost abstractions
-- ✅ **Well-tested** - 355 unit tests with high coverage (all passing)
+- ✅ **Well-tested** - 402 unit tests with high coverage (all passing)
 
 ---
 
@@ -29,7 +29,7 @@
 
 ### Getting Started
 - **[Getting Started Guide](docs/GETTING_STARTED.md)** - Step-by-step tutorial for your first WAMI app
-- **[Examples](examples/README.md)** - 21 working examples demonstrating all major features
+- **[Examples](examples/README.md)** - 23 working examples demonstrating all major features
 
 ### Core Concepts
 - **[Architecture](docs/ARCHITECTURE.md)** - Design principles, components, and data flow
@@ -110,16 +110,16 @@ See **[Getting Started Guide](docs/GETTING_STARTED.md)** for more examples.
 
 ## 🎯 Example Programs
 
-WAMI includes **21 runnable examples** demonstrating all major features:
+WAMI includes **23 runnable examples** demonstrating all major features:
 
 | Category | Examples | Status |
 |----------|----------|--------|
 | **Getting Started** | 01-03: Hello World, CRUD, Service Layer | ✅ All Working |
 | **Multi-Tenancy** | 04-08: Tenants, Hierarchy, Quotas, Cross-Tenant Access, Migration | ✅ All Working |
 | **Multi-Cloud** | 09-13: User Sync, Provider Switching, Hybrid Cloud, DR | ✅ All Working |
-| **Policies & RBAC** | 14-17: Policy Basics, Evaluation, RBAC, ABAC | ✅ All Working |
+| **Policies & RBAC** | 14-17, 23: Policy Basics, Evaluation, RBAC, ABAC, Boundaries | ✅ All Working |
 | **STS & Federation** | 18-20: Session Tokens, Role Assumption, Federation | ✅ All Working |
-| **SSO** | 21: SSO Setup | ✅ Working |
+| **SSO & Federation** | 21-22: SSO Setup, Identity Providers | ✅ All Working |
 
 Run any example with:
 ```bash

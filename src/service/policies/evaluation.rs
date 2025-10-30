@@ -106,6 +106,11 @@ impl<S: UserStore + RoleStore + PolicyStore> EvaluationService<S> {
             .fetch_principal_policies(&principal_type, &principal_name)
             .await?;
 
+        // Fetch permissions boundary if present
+        let boundary = self
+            .fetch_permissions_boundary(&principal_type, &principal_name)
+            .await?;
+
         // Add additional policy documents from request if provided
         if let Some(extra_policies) = request.policy_input_list {
             for policy_str in extra_policies {
@@ -127,7 +132,13 @@ impl<S: UserStore + RoleStore + PolicyStore> EvaluationService<S> {
 
         for action in &request.action_names {
             for resource in &resources {
-                let decision = self.evaluate_action(&policies, action, resource);
+                // Use boundary-aware evaluation if boundary exists
+                let decision = self.evaluate_action_with_boundary(
+                    &policies,
+                    action,
+                    resource,
+                    boundary.as_ref(),
+                );
                 let matched_statements = self.find_matching_statements(&policies, action, resource);
 
                 results.push(EvaluationResult {
@@ -152,7 +163,9 @@ impl<S: UserStore + RoleStore + PolicyStore> EvaluationService<S> {
     fn parse_principal_arn(&self, arn: &str) -> Result<(String, String)> {
         // Expected formats:
         // arn:aws:iam::123456789012:user/alice
+        // arn:aws:iam::123456789012:user/path/to/alice
         // arn:aws:iam::123456789012:role/MyRole
+        // arn:aws:iam::123456789012:role/path/MyRole
 
         let parts: Vec<&str> = arn.split(':').collect();
         if parts.len() < 6 {
@@ -161,7 +174,7 @@ impl<S: UserStore + RoleStore + PolicyStore> EvaluationService<S> {
             });
         }
 
-        let resource_part = parts[5]; // "user/alice" or "role/MyRole"
+        let resource_part = parts[5]; // "user/alice" or "user/path/alice"
         let resource_parts: Vec<&str> = resource_part.split('/').collect();
 
         if resource_parts.len() < 2 {
@@ -171,7 +184,8 @@ impl<S: UserStore + RoleStore + PolicyStore> EvaluationService<S> {
         }
 
         let principal_type = resource_parts[0].to_string();
-        let principal_name = resource_parts[1..].join("/");
+        // The principal name is always the last part (after the type and any path components)
+        let principal_name = resource_parts[resource_parts.len() - 1].to_string();
 
         Ok((principal_type, principal_name))
     }
@@ -228,6 +242,53 @@ impl<S: UserStore + RoleStore + PolicyStore> EvaluationService<S> {
         Ok(policies)
     }
 
+    /// Fetch permissions boundary for a user or role
+    async fn fetch_permissions_boundary(
+        &self,
+        principal_type: &str,
+        principal_name: &str,
+    ) -> Result<Option<crate::wami::policies::Policy>> {
+        let boundary_arn = match principal_type {
+            "user" => {
+                let user = self
+                    .store
+                    .read()
+                    .unwrap()
+                    .get_user(principal_name)
+                    .await?
+                    .ok_or_else(|| AmiError::ResourceNotFound {
+                        resource: format!("User: {}", principal_name),
+                    })?;
+                user.permissions_boundary
+            }
+            "role" => {
+                let role = self
+                    .store
+                    .read()
+                    .unwrap()
+                    .get_role(principal_name)
+                    .await?
+                    .ok_or_else(|| AmiError::ResourceNotFound {
+                        resource: format!("Role: {}", principal_name),
+                    })?;
+                role.permissions_boundary
+            }
+            _ => {
+                return Err(AmiError::InvalidParameter {
+                    message: format!("Unsupported principal type: {}", principal_type),
+                })
+            }
+        };
+
+        // Fetch the boundary policy if it exists
+        if let Some(arn) = boundary_arn {
+            let policy = self.store.read().unwrap().get_policy(&arn).await?;
+            Ok(policy)
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Evaluate a single action/resource combination against policies
     fn evaluate_action(&self, policies: &[PolicyDocument], action: &str, resource: &str) -> String {
         let mut has_allow = false;
@@ -263,6 +324,82 @@ impl<S: UserStore + RoleStore + PolicyStore> EvaluationService<S> {
         } else {
             "implicitDeny".to_string()
         }
+    }
+
+    /// Evaluate action with permissions boundary
+    ///
+    /// The effective permissions are the intersection of:
+    /// 1. Identity-based policies (must allow)
+    /// 2. Permissions boundary (must allow)
+    ///
+    /// If either denies, the final result is deny.
+    fn evaluate_action_with_boundary(
+        &self,
+        policies: &[PolicyDocument],
+        action: &str,
+        resource: &str,
+        boundary: Option<&crate::wami::policies::Policy>,
+    ) -> String {
+        // Step 1: Check explicit deny in identity policies
+        for policy in policies {
+            for statement in &policy.statement {
+                let action_matches = statement
+                    .action
+                    .iter()
+                    .any(|a| Self::matches_pattern(action, a));
+
+                let resource_matches = statement
+                    .resource
+                    .iter()
+                    .any(|r| Self::matches_pattern(resource, r));
+
+                if action_matches && resource_matches && statement.effect == "Deny" {
+                    return "denied".to_string();
+                }
+            }
+        }
+
+        // Step 2: Check if identity policies allow
+        let identity_allows = policies.iter().any(|policy| {
+            policy.statement.iter().any(|statement| {
+                let action_matches = statement
+                    .action
+                    .iter()
+                    .any(|a| Self::matches_pattern(action, a));
+                let resource_matches = statement
+                    .resource
+                    .iter()
+                    .any(|r| Self::matches_pattern(resource, r));
+
+                action_matches && resource_matches && statement.effect == "Allow"
+            })
+        });
+
+        if !identity_allows {
+            return "implicitDeny".to_string();
+        }
+
+        // Step 3: Check permissions boundary (if present)
+        if let Some(boundary_policy) = boundary {
+            match crate::wami::policies::permissions_boundary::operations::is_allowed_by_boundary(
+                action,
+                resource,
+                boundary_policy,
+            ) {
+                Ok(allowed) => {
+                    if !allowed {
+                        return "denied".to_string(); // Boundary restricts the action
+                    }
+                }
+                Err(_) => {
+                    // If boundary evaluation fails, deny for safety
+                    return "denied".to_string();
+                }
+            }
+        }
+
+        // Both identity policies and boundary allow
+        "allowed".to_string()
     }
 
     /// Find all statements that match the action/resource
@@ -522,6 +659,8 @@ mod tests {
             .unwrap();
 
         assert_eq!(principal_type, "user");
-        assert_eq!(principal_name, "department/team/alice");
+        // Principal name is just the name, not the path
+        // Path is /department/team/ and name is alice
+        assert_eq!(principal_name, "alice");
     }
 }
