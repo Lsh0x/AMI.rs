@@ -106,6 +106,10 @@ pub enum ResourceType {
     MfaDevice,
     /// Signing Certificate
     SigningCertificate,
+    /// SAML Identity Provider
+    SamlProvider,
+    /// OIDC Identity Provider
+    OidcProvider,
     /// STS assumed role session
     StsAssumedRole,
     /// STS federated user session
@@ -355,7 +359,9 @@ pub trait CloudProvider: Send + Sync + std::fmt::Debug {
             | ResourceType::ServiceLinkedRole
             | ResourceType::ServiceCredential
             | ResourceType::SigningCertificate
-            | ResourceType::ServerCertificate => "iam",
+            | ResourceType::ServerCertificate
+            | ResourceType::SamlProvider
+            | ResourceType::OidcProvider => "iam",
             ResourceType::StsAssumedRole
             | ResourceType::StsFederatedUser
             | ResourceType::StsSession => "sts",
@@ -373,6 +379,8 @@ pub trait CloudProvider: Send + Sync + std::fmt::Debug {
             ResourceType::ServiceLinkedRole => "role",
             ResourceType::MfaDevice => "mfa",
             ResourceType::SigningCertificate => "signing-certificate",
+            ResourceType::SamlProvider => "saml-provider",
+            ResourceType::OidcProvider => "oidc-provider",
             ResourceType::StsAssumedRole => "assumed-role",
             ResourceType::StsFederatedUser => "federated-user",
             ResourceType::StsSession => "session",
