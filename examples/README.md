@@ -1,8 +1,8 @@
 # WAMI Examples
 
-This directory contains **22 comprehensive examples** demonstrating WAMI's capabilities for Identity and Access Management.
+This directory contains **23 comprehensive examples** demonstrating WAMI's capabilities for Identity and Access Management.
 
-## ✅ All 22 Examples Working
+## ✅ All 23 Examples Working
 
 All examples compile and run successfully! Choose any example below to get started:
 
@@ -120,6 +120,20 @@ Implement RBAC with roles, policies, and user assignments.
 - Policy inheritance through roles
 - Centralized permission management
 
+#### 23. Permissions Boundaries
+**Status:** ✅ Working  
+**Run:** `cargo run --example 23_permissions_boundaries`
+
+Advanced permission management using boundaries to set maximum permissions for users and roles.
+
+**What you'll learn:**
+- Setting permissions boundaries on users and roles
+- Understanding effective permissions (identity policies ∩ boundary)
+- Preventing privilege escalation
+- Sandbox environments and contractor access
+- Delegated administration patterns
+- Multi-tenant permission isolation
+
 ### 🔐 SSO & Federation (Examples 21-22)
 
 #### 21. SSO Setup (Basic)
@@ -171,7 +185,7 @@ cargo run --example
 | **Getting Started** | 01-03 | Basic operations and service layer | ✅ All Working |
 | **Multi-Tenancy** | 04-08 | Tenant management, hierarchy, migration | ✅ All Working |
 | **Multi-Cloud** | 09-13 | Cross-cloud identity management | ✅ All Working |
-| **Policies** | 14-17 | Access control and permissions | ✅ All Working |
+| **Policies** | 14-17, 23 | Access control, permissions, boundaries | ✅ All Working |
 | **STS & Sessions** | 18-20 | Temporary credentials and federation | ✅ All Working |
 | **SSO & Federation** | 21-22 | SSO and identity provider federation | ✅ All Working |
 
@@ -195,6 +209,6 @@ Found an issue or want to contribute a new example?
 ## Support
 
 - **Documentation:** [docs/](../docs/)
-- **Tests:** All library tests pass (376/376 ✅)
+- **Tests:** All library tests pass (402/402 ✅)
 - **Questions:** Open an issue on GitHub
 
