@@ -112,6 +112,8 @@ pub enum ResourceType {
     StsFederatedUser,
     /// STS session token session
     StsSession,
+    /// Multi-tenant organization unit
+    Tenant,
 }
 
 /// Resource limits configuration per cloud provider
@@ -357,6 +359,7 @@ pub trait CloudProvider: Send + Sync + std::fmt::Debug {
             ResourceType::StsAssumedRole
             | ResourceType::StsFederatedUser
             | ResourceType::StsSession => "sts",
+            ResourceType::Tenant => "organizations",
         };
 
         let resource_prefix = match resource_type {
@@ -373,6 +376,7 @@ pub trait CloudProvider: Send + Sync + std::fmt::Debug {
             ResourceType::StsAssumedRole => "assumed-role",
             ResourceType::StsFederatedUser => "federated-user",
             ResourceType::StsSession => "session",
+            ResourceType::Tenant => "ou",
         };
 
         // Normalize path: ensure it starts with / and ends with / if not empty

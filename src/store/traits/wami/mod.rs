@@ -25,6 +25,12 @@ use super::credentials::{AccessKeyStore, LoginProfileStore, MfaDeviceStore};
 use super::identity::{GroupStore, RoleStore, ServiceLinkedRoleStore, UserStore};
 use super::policies::PolicyStore;
 use super::reports::CredentialReportStore;
+use super::sso_admin::{
+    AccountAssignmentStore, ApplicationStore, PermissionSetStore, SsoInstanceStore,
+    TrustedTokenIssuerStore,
+};
+use super::sts::{IdentityStore, SessionStore};
+use super::tenant::TenantStore;
 use async_trait::async_trait;
 
 /// Composite trait for complete WAMI store functionality
@@ -51,6 +57,17 @@ pub trait WamiStore:
     + PolicyStore
     // Reports
     + CredentialReportStore
+    // STS
+    + SessionStore
+    + IdentityStore
+    // SSO Admin
+    + SsoInstanceStore
+    + PermissionSetStore
+    + AccountAssignmentStore
+    + ApplicationStore
+    + TrustedTokenIssuerStore
+    // Tenant
+    + TenantStore
     // Markers
     + Send
     + Sync
@@ -73,6 +90,14 @@ impl<T> WamiStore for T where
         // + ServiceCredentialStore
         + PolicyStore
         + CredentialReportStore
+        + SessionStore
+        + IdentityStore
+        + SsoInstanceStore
+        + PermissionSetStore
+        + AccountAssignmentStore
+        + ApplicationStore
+        + TrustedTokenIssuerStore
+        + TenantStore
         + Send
         + Sync
 {

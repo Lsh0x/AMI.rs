@@ -120,6 +120,7 @@ impl CloudProvider for AwsProvider {
             ResourceType::StsAssumedRole => ("sts", "assumed-role"),
             ResourceType::StsFederatedUser => ("sts", "federated-user"),
             ResourceType::StsSession => ("sts", "session"),
+            ResourceType::Tenant => ("organizations", "ou"),
         };
 
         // AWS ARN format: arn:aws:<service>::account_id:resource_type/path/name
@@ -146,6 +147,7 @@ impl CloudProvider for AwsProvider {
             ResourceType::StsAssumedRole
             | ResourceType::StsFederatedUser
             | ResourceType::StsSession => "ASTS",
+            ResourceType::Tenant => "AORG",
         };
 
         // AWS IDs are: 4-letter prefix + 17 random alphanumeric characters

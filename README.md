@@ -280,12 +280,18 @@ See **[Contributing Guide](CONTRIBUTING.md)** for more details.
 
 ## Roadmap
 
+### In Planning
+- [ ] **[Policy Condition Keys](docs/issues/ISSUE_001_CONDITION_KEYS.md)** - 140+ condition keys and 91 operators for fine-grained access control ([Summary](docs/CONDITION_KEYS_SUMMARY.md))
+
+### Future Enhancements
 - [ ] SQL store implementations (PostgreSQL, MySQL)
-- [ ] Policy evaluation engine
+- [ ] Advanced policy evaluation engine
 - [ ] SSO SAML integration
 - [ ] Federation and external identity providers
 - [ ] Audit logging and compliance
 - [ ] Service/orchestration layer
+
+See **[Issues Tracker](docs/issues/README.md)** for details.
 
 ---
 

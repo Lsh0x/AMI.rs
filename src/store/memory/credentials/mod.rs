@@ -5,10 +5,9 @@
 pub mod access_key;
 pub mod login_profile;
 pub mod mfa_device;
-// TODO: Temporarily disabled during refactor - field mismatches to fix
-// pub mod server_certificate;
-// pub mod signing_certificate;
-// pub mod service_credential;
+pub mod server_certificate;
+pub mod service_credential;
+pub mod signing_certificate;
 
 #[cfg(test)]
 mod tests;
