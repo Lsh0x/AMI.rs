@@ -9,6 +9,11 @@
 use crate::wami::credentials::{AccessKey, LoginProfile, MfaDevice};
 use crate::wami::identity::{Group, Role, User};
 use crate::wami::policies::Policy;
+use crate::wami::sso_admin::{
+    AccountAssignment, Application, PermissionSet, SsoInstance, TrustedTokenIssuer,
+};
+use crate::wami::sts::{CallerIdentity, StsSession};
+use crate::wami::tenant::{Tenant, TenantId};
 use std::collections::HashMap;
 
 /// In-memory implementation of WAMI store
@@ -49,6 +54,17 @@ pub struct InMemoryWamiStore {
     #[allow(dead_code)]
     pub(super) signing_certificates:
         HashMap<String, crate::wami::credentials::signing_certificate::SigningCertificate>,
+    // STS resources
+    pub(super) sessions: HashMap<String, StsSession>,
+    pub(super) identities: HashMap<String, CallerIdentity>,
+    // Tenant resources
+    pub(super) tenants: HashMap<TenantId, Tenant>,
+    // SSO Admin resources
+    pub(super) sso_instances: HashMap<String, SsoInstance>,
+    pub(super) permission_sets: HashMap<String, PermissionSet>,
+    pub(super) account_assignments: HashMap<String, AccountAssignment>,
+    pub(super) applications: HashMap<String, Application>,
+    pub(super) trusted_token_issuers: HashMap<String, TrustedTokenIssuer>,
 }
 
 impl InMemoryWamiStore {

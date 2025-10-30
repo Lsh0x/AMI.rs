@@ -13,7 +13,12 @@ pub mod tenant_operations {
         organization: Option<String>,
         parent_id: Option<TenantId>,
     ) -> Tenant {
-        let tenant_id = TenantId::new(&name);
+        // Create hierarchical ID if parent exists, otherwise root ID
+        let tenant_id = if let Some(ref parent) = parent_id {
+            parent.child(&name)
+        } else {
+            TenantId::new(&name)
+        };
 
         Tenant {
             id: tenant_id.clone(),

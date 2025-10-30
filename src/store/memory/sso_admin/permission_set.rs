@@ -43,3 +43,47 @@ impl PermissionSetStore for InMemorySsoAdminStore {
         Ok(self.permission_sets.values().cloned().collect())
     }
 }
+
+/// Implement PermissionSetStore for InMemoryWamiStore (the main unified store)
+#[async_trait]
+impl PermissionSetStore for super::super::wami::InMemoryWamiStore {
+    async fn create_permission_set(
+        &mut self,
+        permission_set: PermissionSet,
+    ) -> Result<PermissionSet> {
+        self.permission_sets.insert(
+            permission_set.permission_set_arn.clone(),
+            permission_set.clone(),
+        );
+        Ok(permission_set)
+    }
+
+    async fn get_permission_set(&self, permission_set_arn: &str) -> Result<Option<PermissionSet>> {
+        Ok(self.permission_sets.get(permission_set_arn).cloned())
+    }
+
+    async fn update_permission_set(
+        &mut self,
+        permission_set: PermissionSet,
+    ) -> Result<PermissionSet> {
+        self.permission_sets.insert(
+            permission_set.permission_set_arn.clone(),
+            permission_set.clone(),
+        );
+        Ok(permission_set)
+    }
+
+    async fn delete_permission_set(&mut self, permission_set_arn: &str) -> Result<()> {
+        self.permission_sets.remove(permission_set_arn);
+        Ok(())
+    }
+
+    async fn list_permission_sets(&self, instance_arn: &str) -> Result<Vec<PermissionSet>> {
+        Ok(self
+            .permission_sets
+            .values()
+            .filter(|ps| ps.instance_arn == instance_arn)
+            .cloned()
+            .collect())
+    }
+}

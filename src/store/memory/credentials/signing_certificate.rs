@@ -1,9 +1,9 @@
 //! Signing Certificate Store Implementation for InMemoryWamiStore
 
 use crate::error::Result;
-use crate::wami::credentials::signing_certificate::SigningCertificate;
 use crate::store::memory::InMemoryWamiStore;
 use crate::store::traits::SigningCertificateStore;
+use crate::wami::credentials::signing_certificate::SigningCertificate;
 use async_trait::async_trait;
 
 #[async_trait]
@@ -45,13 +45,9 @@ impl SigningCertificateStore for InMemoryWamiStore {
         let certs: Vec<SigningCertificate> = self
             .signing_certificates
             .values()
-            .filter(|cert| {
-                user_name.map_or(true, |name| cert.user_name == name)
-            })
+            .filter(|cert| user_name.is_none_or(|name| cert.user_name == name))
             .cloned()
             .collect();
         Ok(certs)
     }
 }
-
-

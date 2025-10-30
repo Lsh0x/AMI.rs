@@ -59,7 +59,7 @@
 
 pub mod error;
 pub mod provider;
-// pub mod service;  // Removed - will rebuild later with proper architecture
+pub mod service;
 pub mod store;
 pub mod types;
 pub mod wami;
@@ -74,6 +74,16 @@ pub use store::{SsoAdminStore, Store, StsStore, WamiStore};
 
 // Re-export provider types
 pub use provider::ProviderConfig;
+
+// Re-export service layer
+pub use service::{
+    AccessKeyService, AccountAssignmentService, ApplicationService, AssumeRoleService,
+    CredentialReportService, EvaluationService, FederationService, GroupService, IdentityService,
+    InstanceService as SsoInstanceService, LoginProfileService, MfaDeviceService,
+    PermissionSetService, PolicyService, RoleService, ServerCertificateService,
+    ServiceCredentialService, ServiceLinkedRoleService, SessionService, SessionTokenService,
+    SigningCertificateService, TenantService, TrustedTokenIssuerService, UserService,
+};
 
 // Re-export WAMI modules for convenience (Legacy compatibility)
 pub use wami::{sso_admin, sts, tenant};

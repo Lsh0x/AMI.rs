@@ -59,6 +59,12 @@ Welcome to the WAMI documentation! Choose your path:
 | [Examples](EXAMPLES.md) | Code samples | Everyone |
 | [API Reference](API_REFERENCE.md) | Quick lookup | Developers |
 
+## 🚀 Roadmap & Issues
+
+- **[Issues Tracker](issues/README.md)** - Active feature requests and enhancements
+- **[Issue #001: Condition Keys](issues/ISSUE_001_CONDITION_KEYS.md)** - Policy condition support (In Planning)
+- **[Condition Keys Summary](CONDITION_KEYS_SUMMARY.md)** - Executive summary of condition implementation
+
 ## 🔗 External Resources
 
 - **[API Documentation](https://docs.rs/wami)** - Full rustdoc

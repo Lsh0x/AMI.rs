@@ -13,8 +13,12 @@ pub struct Application {
     pub name: String,
     /// A description of the application
     pub description: Option<String>,
-    /// The application provider ARN
-    pub application_provider_arn: String,
+    /// The application provider ARN (optional)
+    pub application_provider_arn: Option<String>,
+    /// The status of the application (e.g., "ACTIVE", "INACTIVE")
+    pub status: String,
+    /// When this application was created
+    pub created_date: chrono::DateTime<chrono::Utc>,
     /// The portal URL for the application
     pub portal_url: Option<String>,
     /// The WAMI ARN for cross-provider identification

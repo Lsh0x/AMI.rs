@@ -1,9 +1,9 @@
 //! Service-Specific Credential Store Implementation for InMemoryWamiStore
 
 use crate::error::Result;
-use crate::wami::credentials::service_credential::ServiceSpecificCredential;
 use crate::store::memory::InMemoryWamiStore;
 use crate::store::traits::ServiceCredentialStore;
+use crate::wami::credentials::service_credential::ServiceSpecificCredential;
 use async_trait::async_trait;
 
 #[async_trait]
@@ -12,11 +12,10 @@ impl ServiceCredentialStore for InMemoryWamiStore {
         &mut self,
         credential: ServiceSpecificCredential,
     ) -> Result<ServiceSpecificCredential> {
-        self.service_specific_credentials
-            .insert(
-                credential.service_specific_credential_id.clone(),
-                credential.clone(),
-            );
+        self.service_specific_credentials.insert(
+            credential.service_specific_credential_id.clone(),
+            credential.clone(),
+        );
         Ok(credential)
     }
 
@@ -24,18 +23,20 @@ impl ServiceCredentialStore for InMemoryWamiStore {
         &self,
         credential_id: &str,
     ) -> Result<Option<ServiceSpecificCredential>> {
-        Ok(self.service_specific_credentials.get(credential_id).cloned())
+        Ok(self
+            .service_specific_credentials
+            .get(credential_id)
+            .cloned())
     }
 
     async fn update_service_specific_credential(
         &mut self,
         credential: ServiceSpecificCredential,
     ) -> Result<ServiceSpecificCredential> {
-        self.service_specific_credentials
-            .insert(
-                credential.service_specific_credential_id.clone(),
-                credential.clone(),
-            );
+        self.service_specific_credentials.insert(
+            credential.service_specific_credential_id.clone(),
+            credential.clone(),
+        );
         Ok(credential)
     }
 
@@ -61,5 +62,3 @@ impl ServiceCredentialStore for InMemoryWamiStore {
         Ok(creds)
     }
 }
-
-
