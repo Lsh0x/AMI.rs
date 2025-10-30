@@ -126,7 +126,7 @@ jobs:
 
       - name: Update Cargo.lock
         if: steps.check.outputs.should_release == 'true'
-        run: cargo update -p rustyiam --precise ${{ steps.version.outputs.new_version }}
+        run: cargo update -p wami --precise ${{ steps.version.outputs.new_version }}
 
       - name: Install git-cliff
         if: steps.check.outputs.should_release == 'true'
@@ -178,7 +178,7 @@ jobs:
       - name: Build docs
         run: |
           cargo doc --no-deps --all-features
-          echo '<meta http-equiv="refresh" content="0; url=rustyiam">' > target/doc/index.html
+          echo '<meta http-equiv="refresh" content="0; url=wami">' > target/doc/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
