@@ -39,7 +39,9 @@ jobs:
         continue-on-error: true
         
       - name: Note if token missing
-        if: secrets.CODECOV_TOKEN == ''
+        if: env.CODECOV_TOKEN == ''
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
           echo "::notice::CODECOV_TOKEN not configured - coverage upload skipped"
           echo "To enable coverage upload, add CODECOV_TOKEN to repository secrets"
