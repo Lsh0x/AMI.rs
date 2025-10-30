@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.1] - 2025-10-30
+
+### 🐛 Bug Fixes
+
+- **ci:** Correct codecov workflow conditional syntax
+
 ## [0.10.0] - 2025-10-30
 
 ### 🚀 Features
 
 - Implement permissions boundaries (Issue #22)
+
+### ⚙️ Miscellaneous Tasks
+
+- **release:** V0.10.0 [skip ci]
 
 ## [0.9.0] - 2025-10-30
 
