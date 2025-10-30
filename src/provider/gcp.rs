@@ -74,6 +74,20 @@ impl CloudProvider for GcpProvider {
                 // Custom roles
                 format!("projects/{}/roles/{}", self.project_id, name)
             }
+            ResourceType::SamlProvider => {
+                // SAML identity providers in GCP (Workforce Identity Federation)
+                format!(
+                    "projects/{}/locations/global/workforcePools/default/providers/{}",
+                    self.project_id, name
+                )
+            }
+            ResourceType::OidcProvider => {
+                // OIDC identity providers in GCP (Workload Identity Federation)
+                format!(
+                    "projects/{}/locations/global/workloadIdentityPools/default/providers/{}",
+                    self.project_id, name
+                )
+            }
             _ => {
                 // Generic resource format
                 format!("projects/{}/resources/{}", self.project_id, name)

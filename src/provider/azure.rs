@@ -63,13 +63,26 @@ impl CloudProvider for AzureProvider {
             ResourceType::User => "users",
             ResourceType::Group => "groups",
             ResourceType::Role => "roleAssignments",
+            ResourceType::SamlProvider => "samlIdentityProviders",
+            ResourceType::OidcProvider => "oidcIdentityProviders",
             _ => "resources",
         };
 
-        format!(
-            "/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Authorization/{}/{}",
-            self.subscription_id, self.resource_group, resource_type_name, name
-        )
+        // Identity providers use Azure AD endpoint, not resource manager
+        if matches!(
+            resource_type,
+            ResourceType::SamlProvider | ResourceType::OidcProvider
+        ) {
+            format!(
+                "/tenants/{}/identityProviders/{}",
+                self.subscription_id, name
+            )
+        } else {
+            format!(
+                "/subscriptions/{}/resourceGroups/{}/providers/Microsoft.Authorization/{}/{}",
+                self.subscription_id, self.resource_group, resource_type_name, name
+            )
+        }
     }
 
     fn generate_resource_id(&self, _resource_type: ResourceType) -> String {

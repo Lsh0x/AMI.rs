@@ -3,6 +3,7 @@
 //! Implements all identity-related stores for InMemoryWamiStore.
 
 pub mod group;
+pub mod identity_provider;
 pub mod role;
 pub mod service_linked_role;
 pub mod user;

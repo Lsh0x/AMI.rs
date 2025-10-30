@@ -1,8 +1,8 @@
 # WAMI Examples
 
-This directory contains **21 comprehensive examples** demonstrating WAMI's capabilities for Identity and Access Management.
+This directory contains **22 comprehensive examples** demonstrating WAMI's capabilities for Identity and Access Management.
 
-## ✅ All 21 Examples Working
+## ✅ All 22 Examples Working
 
 All examples compile and run successfully! Choose any example below to get started:
 
@@ -120,14 +120,34 @@ Implement RBAC with roles, policies, and user assignments.
 - Policy inheritance through roles
 - Centralized permission management
 
-## 🚧 Examples In Progress
+### 🔐 SSO & Federation (Examples 21-22)
 
-The following examples are currently being updated to match the latest API:
+#### 21. SSO Setup (Basic)
+**Status:** ✅ Working  
+**Run:** `cargo run --example 21_sso_setup_basic`
 
-- ❌ 08-14: Tenant migration, multi-cloud, hybrid cloud, disaster recovery, policy basics
-- ❌ 17-21: ABAC, sessions, STS workflows, SSO
+Basic SSO instance and permission set configuration.
 
-**Status:** These examples are structurally complete but need API signature updates. Contributions welcome!
+**What you'll learn:**
+- Creating SSO instances
+- Managing permission sets
+- SSO resource organization
+- Enterprise SSO patterns
+
+#### 22. Identity Providers for Federation
+**Status:** ✅ Working  
+**Run:** `cargo run --example 22_identity_providers_federation`
+
+Comprehensive federated authentication setup with SAML and OIDC providers.
+
+**What you'll learn:**
+- Creating SAML providers (Okta, Azure AD)
+- Creating OIDC providers (Google, Auth0)
+- Managing client IDs and thumbprints
+- Certificate rotation
+- Tagging and organizing providers
+- Usage tracking
+- Federation patterns
 
 ## Running Examples
 
@@ -153,7 +173,7 @@ cargo run --example
 | **Multi-Cloud** | 09-13 | Cross-cloud identity management | ✅ All Working |
 | **Policies** | 14-17 | Access control and permissions | ✅ All Working |
 | **STS & Sessions** | 18-20 | Temporary credentials and federation | ✅ All Working |
-| **SSO** | 21 | Single sign-on integration | ✅ Working |
+| **SSO & Federation** | 21-22 | SSO and identity provider federation | ✅ All Working |
 
 ## Next Steps
 
@@ -175,6 +195,6 @@ Found an issue or want to contribute a new example?
 ## Support
 
 - **Documentation:** [docs/](../docs/)
-- **Tests:** All library tests pass (355/355 ✅)
+- **Tests:** All library tests pass (376/376 ✅)
 - **Questions:** Open an issue on GitHub
 

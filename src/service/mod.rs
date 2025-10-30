@@ -42,7 +42,9 @@ pub use credentials::{
     AccessKeyService, LoginProfileService, MfaDeviceService, ServerCertificateService,
     ServiceCredentialService, SigningCertificateService,
 };
-pub use identity::{GroupService, RoleService, ServiceLinkedRoleService, UserService};
+pub use identity::{
+    GroupService, IdentityProviderService, RoleService, ServiceLinkedRoleService, UserService,
+};
 pub use policies::{EvaluationService, PolicyService};
 pub use reports::CredentialReportService;
 pub use sso_admin::{

@@ -117,6 +117,8 @@ impl CloudProvider for AwsProvider {
             ResourceType::ServiceCredential => ("iam", "service-credential"),
             ResourceType::ServiceLinkedRole => ("iam", "role"),
             ResourceType::SigningCertificate => ("iam", "signing-certificate"),
+            ResourceType::SamlProvider => ("iam", "saml-provider"),
+            ResourceType::OidcProvider => ("iam", "oidc-provider"),
             ResourceType::StsAssumedRole => ("sts", "assumed-role"),
             ResourceType::StsFederatedUser => ("sts", "federated-user"),
             ResourceType::StsSession => ("sts", "session"),
@@ -143,6 +145,9 @@ impl CloudProvider for AwsProvider {
             ResourceType::ServiceLinkedRole => "AROA",
             ResourceType::MfaDevice => "AMFA",
             ResourceType::SigningCertificate => "ASCA",
+            // Identity providers use their name/URL as identifier, not generated IDs
+            ResourceType::SamlProvider => "SAML",
+            ResourceType::OidcProvider => "OIDC",
             // STS resources don't have AWS-issued IDs; use generic prefix
             ResourceType::StsAssumedRole
             | ResourceType::StsFederatedUser

@@ -36,7 +36,9 @@ mod wami; // WAMI store (identity + credentials + policies) // SSO Admin store (
 mod tenant;
 
 // Export sub-traits from identity
-pub use identity::{GroupStore, RoleStore, ServiceLinkedRoleStore, UserStore};
+pub use identity::{
+    GroupStore, IdentityProviderStore, RoleStore, ServiceLinkedRoleStore, UserStore,
+};
 
 // Export sub-traits from credentials
 pub use credentials::{

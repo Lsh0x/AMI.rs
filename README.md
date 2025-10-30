@@ -275,7 +275,7 @@ Run the full test suite:
 cargo test
 ```
 
-WAMI has **355 tests** (all passing ✅) covering:
+WAMI has **376 tests** (all passing ✅) covering:
 - ✅ Domain logic (pure functions)
 - ✅ Store implementations (CRUD, queries, concurrency)
 - ✅ Multi-tenant isolation
@@ -306,8 +306,7 @@ See **[Contributing Guide](CONTRIBUTING.md)** for more details.
 ### Future Enhancements
 - [ ] SQL store implementations (PostgreSQL, MySQL)
 - [ ] Advanced policy evaluation engine
-- [ ] SSO SAML integration
-- [ ] Federation and external identity providers
+- [x] **Identity Provider Support** - SAML and OIDC federation (✅ Completed in v0.8.0)
 - [ ] Audit logging and compliance
 - [ ] Service/orchestration layer
 

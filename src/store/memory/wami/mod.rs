@@ -7,6 +7,7 @@
 //! - `policies/` - PolicyStore
 
 use crate::wami::credentials::{AccessKey, LoginProfile, MfaDevice};
+use crate::wami::identity::identity_provider::{OidcProvider, SamlProvider};
 use crate::wami::identity::{Group, Role, User};
 use crate::wami::policies::Policy;
 use crate::wami::sso_admin::{
@@ -65,6 +66,9 @@ pub struct InMemoryWamiStore {
     pub(super) account_assignments: HashMap<String, AccountAssignment>,
     pub(super) applications: HashMap<String, Application>,
     pub(super) trusted_token_issuers: HashMap<String, TrustedTokenIssuer>,
+    // Identity Provider resources
+    pub(super) saml_providers: HashMap<String, SamlProvider>,
+    pub(super) oidc_providers: HashMap<String, OidcProvider>,
 }
 
 impl InMemoryWamiStore {
