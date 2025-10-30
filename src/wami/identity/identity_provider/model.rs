@@ -81,7 +81,7 @@ pub struct SamlProvider {
 pub struct OidcProvider {
     /// The ARN (Amazon Resource Name) that identifies the OIDC provider
     pub arn: String,
-    /// The URL of the OIDC provider (e.g., "https://accounts.google.com")
+    /// The URL of the OIDC provider (e.g., `<https://accounts.google.com>`)
     pub url: String,
     /// List of client IDs (audience) that are allowed to use this provider
     pub client_id_list: Vec<String>,
