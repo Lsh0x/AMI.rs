@@ -69,6 +69,15 @@ pub struct InMemoryWamiStore {
     // Identity Provider resources
     pub(super) saml_providers: HashMap<String, SamlProvider>,
     pub(super) oidc_providers: HashMap<String, OidcProvider>,
+    // Policy attachment resources
+    // Managed policy attachments (policy ARN strings)
+    pub(super) user_attached_policies: HashMap<String, Vec<String>>, // user_name -> [policy_arns]
+    pub(super) group_attached_policies: HashMap<String, Vec<String>>, // group_name -> [policy_arns]
+    pub(super) role_attached_policies: HashMap<String, Vec<String>>, // role_name -> [policy_arns]
+    // Inline policies (policy_name -> policy_document JSON)
+    pub(super) user_inline_policies: HashMap<String, HashMap<String, String>>, // user_name -> {policy_name -> document}
+    pub(super) group_inline_policies: HashMap<String, HashMap<String, String>>, // group_name -> {policy_name -> document}
+    pub(super) role_inline_policies: HashMap<String, HashMap<String, String>>, // role_name -> {policy_name -> document}
 }
 
 impl InMemoryWamiStore {

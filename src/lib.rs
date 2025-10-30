@@ -78,11 +78,12 @@ pub use provider::ProviderConfig;
 // Re-export service layer
 pub use service::{
     AccessKeyService, AccountAssignmentService, ApplicationService, AssumeRoleService,
-    CredentialReportService, EvaluationService, FederationService, GroupService, IdentityService,
-    InstanceService as SsoInstanceService, LoginProfileService, MfaDeviceService,
-    PermissionSetService, PolicyService, RoleService, ServerCertificateService,
-    ServiceCredentialService, ServiceLinkedRoleService, SessionService, SessionTokenService,
-    SigningCertificateService, TenantService, TrustedTokenIssuerService, UserService,
+    AttachmentService, CredentialReportService, EvaluationService, FederationService, GroupService,
+    IdentityService, InlinePolicyService, InstanceService as SsoInstanceService,
+    LoginProfileService, MfaDeviceService, PermissionSetService, PolicyService, RoleService,
+    ServerCertificateService, ServiceCredentialService, ServiceLinkedRoleService, SessionService,
+    SessionTokenService, SigningCertificateService, TenantService, TrustedTokenIssuerService,
+    UserService,
 };
 
 // Re-export WAMI modules for convenience (Legacy compatibility)
@@ -159,9 +160,28 @@ pub use wami::identity::service_linked_role::{
 pub use wami::identity::user::{
     CreateUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest,
 };
+pub use wami::policies::attachment::{
+    AttachGroupPolicyRequest, AttachGroupPolicyResponse, AttachRolePolicyRequest,
+    AttachRolePolicyResponse, AttachUserPolicyRequest, AttachUserPolicyResponse, AttachedPolicy,
+    DetachGroupPolicyRequest, DetachGroupPolicyResponse, DetachRolePolicyRequest,
+    DetachRolePolicyResponse, DetachUserPolicyRequest, DetachUserPolicyResponse,
+    ListAttachedGroupPoliciesRequest, ListAttachedGroupPoliciesResponse,
+    ListAttachedRolePoliciesRequest, ListAttachedRolePoliciesResponse,
+    ListAttachedUserPoliciesRequest, ListAttachedUserPoliciesResponse,
+};
 pub use wami::policies::evaluation::{
     ContextEntry, EvaluationResult, SimulateCustomPolicyRequest, SimulatePolicyResponse,
     SimulatePrincipalPolicyRequest, StatementMatch,
+};
+pub use wami::policies::inline::{
+    DeleteGroupPolicyRequest, DeleteGroupPolicyResponse, DeleteRolePolicyRequest,
+    DeleteRolePolicyResponse, DeleteUserPolicyRequest, DeleteUserPolicyResponse,
+    GetGroupPolicyRequest, GetGroupPolicyResponse, GetRolePolicyRequest, GetRolePolicyResponse,
+    GetUserPolicyRequest, GetUserPolicyResponse, InlinePolicy, ListGroupPoliciesRequest,
+    ListGroupPoliciesResponse, ListRolePoliciesRequest, ListRolePoliciesResponse,
+    ListUserPoliciesRequest, ListUserPoliciesResponse, PutGroupPolicyRequest,
+    PutGroupPolicyResponse, PutRolePolicyRequest, PutRolePolicyResponse, PutUserPolicyRequest,
+    PutUserPolicyResponse,
 };
 pub use wami::policies::policy::{
     CreatePolicyRequest, ListPoliciesRequest, ListPoliciesResponse, UpdatePolicyRequest,

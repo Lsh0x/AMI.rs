@@ -85,4 +85,70 @@ impl UserStore for InMemoryWamiStore {
         }
         Ok(())
     }
+
+    // Managed policy attachment methods
+    async fn attach_user_policy(&mut self, user_name: &str, policy_arn: &str) -> Result<()> {
+        let policies = self
+            .user_attached_policies
+            .entry(user_name.to_string())
+            .or_default();
+
+        if !policies.contains(&policy_arn.to_string()) {
+            policies.push(policy_arn.to_string());
+        }
+        Ok(())
+    }
+
+    async fn detach_user_policy(&mut self, user_name: &str, policy_arn: &str) -> Result<()> {
+        if let Some(policies) = self.user_attached_policies.get_mut(user_name) {
+            policies.retain(|p| p != policy_arn);
+        }
+        Ok(())
+    }
+
+    async fn list_attached_user_policies(&self, user_name: &str) -> Result<Vec<String>> {
+        Ok(self
+            .user_attached_policies
+            .get(user_name)
+            .cloned()
+            .unwrap_or_default())
+    }
+
+    // Inline policy methods
+    async fn put_user_policy(
+        &mut self,
+        user_name: &str,
+        policy_name: &str,
+        policy_document: String,
+    ) -> Result<()> {
+        let policies = self
+            .user_inline_policies
+            .entry(user_name.to_string())
+            .or_default();
+
+        policies.insert(policy_name.to_string(), policy_document);
+        Ok(())
+    }
+
+    async fn get_user_policy(&self, user_name: &str, policy_name: &str) -> Result<Option<String>> {
+        Ok(self
+            .user_inline_policies
+            .get(user_name)
+            .and_then(|policies| policies.get(policy_name).cloned()))
+    }
+
+    async fn delete_user_policy(&mut self, user_name: &str, policy_name: &str) -> Result<()> {
+        if let Some(policies) = self.user_inline_policies.get_mut(user_name) {
+            policies.remove(policy_name);
+        }
+        Ok(())
+    }
+
+    async fn list_user_policies(&self, user_name: &str) -> Result<Vec<String>> {
+        Ok(self
+            .user_inline_policies
+            .get(user_name)
+            .map(|policies| policies.keys().cloned().collect())
+            .unwrap_or_default())
+    }
 }

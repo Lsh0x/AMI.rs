@@ -56,4 +56,70 @@ impl RoleStore for InMemoryWamiStore {
 
         Ok((roles, is_truncated, marker))
     }
+
+    // Managed policy attachment methods
+    async fn attach_role_policy(&mut self, role_name: &str, policy_arn: &str) -> Result<()> {
+        let policies = self
+            .role_attached_policies
+            .entry(role_name.to_string())
+            .or_default();
+
+        if !policies.contains(&policy_arn.to_string()) {
+            policies.push(policy_arn.to_string());
+        }
+        Ok(())
+    }
+
+    async fn detach_role_policy(&mut self, role_name: &str, policy_arn: &str) -> Result<()> {
+        if let Some(policies) = self.role_attached_policies.get_mut(role_name) {
+            policies.retain(|p| p != policy_arn);
+        }
+        Ok(())
+    }
+
+    async fn list_attached_role_policies(&self, role_name: &str) -> Result<Vec<String>> {
+        Ok(self
+            .role_attached_policies
+            .get(role_name)
+            .cloned()
+            .unwrap_or_default())
+    }
+
+    // Inline policy methods
+    async fn put_role_policy(
+        &mut self,
+        role_name: &str,
+        policy_name: &str,
+        policy_document: String,
+    ) -> Result<()> {
+        let policies = self
+            .role_inline_policies
+            .entry(role_name.to_string())
+            .or_default();
+
+        policies.insert(policy_name.to_string(), policy_document);
+        Ok(())
+    }
+
+    async fn get_role_policy(&self, role_name: &str, policy_name: &str) -> Result<Option<String>> {
+        Ok(self
+            .role_inline_policies
+            .get(role_name)
+            .and_then(|policies| policies.get(policy_name).cloned()))
+    }
+
+    async fn delete_role_policy(&mut self, role_name: &str, policy_name: &str) -> Result<()> {
+        if let Some(policies) = self.role_inline_policies.get_mut(role_name) {
+            policies.remove(policy_name);
+        }
+        Ok(())
+    }
+
+    async fn list_role_policies(&self, role_name: &str) -> Result<Vec<String>> {
+        Ok(self
+            .role_inline_policies
+            .get(role_name)
+            .map(|policies| policies.keys().cloned().collect())
+            .unwrap_or_default())
+    }
 }

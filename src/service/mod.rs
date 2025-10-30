@@ -45,7 +45,10 @@ pub use credentials::{
 pub use identity::{
     GroupService, IdentityProviderService, RoleService, ServiceLinkedRoleService, UserService,
 };
-pub use policies::{EvaluationService, PermissionsBoundaryService, PolicyService};
+pub use policies::{
+    AttachmentService, EvaluationService, InlinePolicyService, PermissionsBoundaryService,
+    PolicyService,
+};
 pub use reports::CredentialReportService;
 pub use sso_admin::{
     AccountAssignmentService, ApplicationService, InstanceService, PermissionSetService,

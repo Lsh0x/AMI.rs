@@ -37,4 +37,32 @@ pub trait UserStore: Send + Sync {
 
     /// Untag a user
     async fn untag_user(&mut self, user_name: &str, tag_keys: Vec<String>) -> Result<()>;
+
+    // Managed policy attachment methods
+    /// Attach a managed policy to a user
+    async fn attach_user_policy(&mut self, user_name: &str, policy_arn: &str) -> Result<()>;
+
+    /// Detach a managed policy from a user
+    async fn detach_user_policy(&mut self, user_name: &str, policy_arn: &str) -> Result<()>;
+
+    /// List all managed policies attached to a user
+    async fn list_attached_user_policies(&self, user_name: &str) -> Result<Vec<String>>;
+
+    // Inline policy methods
+    /// Put an inline policy on a user
+    async fn put_user_policy(
+        &mut self,
+        user_name: &str,
+        policy_name: &str,
+        policy_document: String,
+    ) -> Result<()>;
+
+    /// Get an inline policy from a user
+    async fn get_user_policy(&self, user_name: &str, policy_name: &str) -> Result<Option<String>>;
+
+    /// Delete an inline policy from a user
+    async fn delete_user_policy(&mut self, user_name: &str, policy_name: &str) -> Result<()>;
+
+    /// List all inline policy names for a user
+    async fn list_user_policies(&self, user_name: &str) -> Result<Vec<String>>;
 }

@@ -37,4 +37,33 @@ pub trait GroupStore: Send + Sync {
 
     /// Remove a user from a group
     async fn remove_user_from_group(&mut self, group_name: &str, user_name: &str) -> Result<()>;
+
+    // Managed policy attachment methods
+    /// Attach a managed policy to a group
+    async fn attach_group_policy(&mut self, group_name: &str, policy_arn: &str) -> Result<()>;
+
+    /// Detach a managed policy from a group
+    async fn detach_group_policy(&mut self, group_name: &str, policy_arn: &str) -> Result<()>;
+
+    /// List all managed policies attached to a group
+    async fn list_attached_group_policies(&self, group_name: &str) -> Result<Vec<String>>;
+
+    // Inline policy methods
+    /// Put an inline policy on a group
+    async fn put_group_policy(
+        &mut self,
+        group_name: &str,
+        policy_name: &str,
+        policy_document: String,
+    ) -> Result<()>;
+
+    /// Get an inline policy from a group
+    async fn get_group_policy(&self, group_name: &str, policy_name: &str)
+        -> Result<Option<String>>;
+
+    /// Delete an inline policy from a group
+    async fn delete_group_policy(&mut self, group_name: &str, policy_name: &str) -> Result<()>;
+
+    /// List all inline policy names for a group
+    async fn list_group_policies(&self, group_name: &str) -> Result<Vec<String>>;
 }

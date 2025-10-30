@@ -53,11 +53,17 @@ pub mod credentials {
 
 /// Policy management, evaluation, and permissions boundaries
 pub mod policies {
+    pub mod attachment;
     pub mod evaluation;
+    pub mod inline;
     pub mod permissions_boundary;
     pub mod policy;
 
     // Re-export types for convenience
+    #[allow(ambiguous_glob_reexports)]
+    pub use attachment::*;
+    #[allow(ambiguous_glob_reexports)]
+    pub use inline::*;
     pub use policy::Policy;
 }
 

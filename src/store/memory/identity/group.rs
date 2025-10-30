@@ -84,4 +84,74 @@ impl GroupStore for InMemoryWamiStore {
         }
         Ok(())
     }
+
+    // Managed policy attachment methods
+    async fn attach_group_policy(&mut self, group_name: &str, policy_arn: &str) -> Result<()> {
+        let policies = self
+            .group_attached_policies
+            .entry(group_name.to_string())
+            .or_default();
+
+        if !policies.contains(&policy_arn.to_string()) {
+            policies.push(policy_arn.to_string());
+        }
+        Ok(())
+    }
+
+    async fn detach_group_policy(&mut self, group_name: &str, policy_arn: &str) -> Result<()> {
+        if let Some(policies) = self.group_attached_policies.get_mut(group_name) {
+            policies.retain(|p| p != policy_arn);
+        }
+        Ok(())
+    }
+
+    async fn list_attached_group_policies(&self, group_name: &str) -> Result<Vec<String>> {
+        Ok(self
+            .group_attached_policies
+            .get(group_name)
+            .cloned()
+            .unwrap_or_default())
+    }
+
+    // Inline policy methods
+    async fn put_group_policy(
+        &mut self,
+        group_name: &str,
+        policy_name: &str,
+        policy_document: String,
+    ) -> Result<()> {
+        let policies = self
+            .group_inline_policies
+            .entry(group_name.to_string())
+            .or_default();
+
+        policies.insert(policy_name.to_string(), policy_document);
+        Ok(())
+    }
+
+    async fn get_group_policy(
+        &self,
+        group_name: &str,
+        policy_name: &str,
+    ) -> Result<Option<String>> {
+        Ok(self
+            .group_inline_policies
+            .get(group_name)
+            .and_then(|policies| policies.get(policy_name).cloned()))
+    }
+
+    async fn delete_group_policy(&mut self, group_name: &str, policy_name: &str) -> Result<()> {
+        if let Some(policies) = self.group_inline_policies.get_mut(group_name) {
+            policies.remove(policy_name);
+        }
+        Ok(())
+    }
+
+    async fn list_group_policies(&self, group_name: &str) -> Result<Vec<String>> {
+        Ok(self
+            .group_inline_policies
+            .get(group_name)
+            .map(|policies| policies.keys().cloned().collect())
+            .unwrap_or_default())
+    }
 }
