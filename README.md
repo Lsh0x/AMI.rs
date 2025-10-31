@@ -121,7 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 **Output:**
 ```
 ✅ Created user: alice
-✅ WAMI ARN: arn:wami:iam:root:wami:123456789012:user/...
+✅ WAMI ARN: arn:wami:iam:0:wami:123456789012:user/...
 ✅ Retrieved: "alice"
 ```
 
@@ -200,11 +200,11 @@ use wami::wami::identity::{user, group, role};
 // Create WAMI context
 let context = WamiContext::builder()
     .instance_id("123456789012")
-    .tenant_path(TenantPath::single("root"))
+    .tenant_path(TenantPath::single(0)) // Root tenant uses ID 0
     .caller_arn(
         WamiArn::builder()
             .service(wami::arn::Service::Iam)
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(0))
             .wami_instance("123456789012")
             .resource("user", "admin")
             .build()?,
@@ -312,15 +312,27 @@ println!("Resource type: {}", parsed.resource_type());
 ```rust
 use wami::wami::tenant::{Tenant, TenantId};
 
-// Create parent tenant
-let parent_id = TenantId::root("acme-corp");
-let parent = Tenant { id: parent_id.clone(), /* ... */ };
-store.create_tenant(parent).await?;
+// Create parent tenant (service generates unique numeric ID)
+let parent = tenant_service
+    .create_tenant(
+        &context,
+        "acme-corp".to_string(),
+        Some("ACME Corp".to_string()),
+        None, // No parent, this is a root tenant
+    )
+    .await?;
+let parent_id = parent.id.clone();
 
 // Create child tenant
-let child_id = parent_id.child("engineering");
-let child = Tenant { id: child_id.clone(), parent_id: Some(parent_id), /* ... */ };
-store.create_tenant(child).await?;
+let child = tenant_service
+    .create_tenant(
+        &context,
+        "engineering".to_string(),
+        Some("Engineering Dept".to_string()),
+        Some(parent_id.clone()),
+    )
+    .await?;
+let child_id = child.id.clone();
 
 // Query hierarchy
 let descendants = store.get_descendants(&parent_id).await?;
