@@ -149,10 +149,9 @@ mod tests {
 
         let descendants = root_node.all_descendants();
         assert_eq!(descendants.len(), 3);
-        // Tenant IDs are now numeric, so we check by depth instead of string matching
-        assert!(descendants.iter().any(|id| id.depth() == 1)); // child1 or child2
-        assert!(descendants.iter().any(|id| id.depth() == 2)); // grandchild
-        assert_eq!(descendants.iter().filter(|id| id.depth() == 1).count(), 2); // Two children
+        assert!(descendants.iter().any(|id| id.as_str() == "child1"));
+        assert!(descendants.iter().any(|id| id.as_str() == "child2"));
+        assert!(descendants.iter().any(|id| id.as_str() == "grandchild"));
     }
 
     #[test]
@@ -181,14 +180,13 @@ mod tests {
 
     #[test]
     fn test_build_tree() {
-        let root_id = TenantId::root();
-        let root = create_test_tenant(root_id.clone(), None);
-        let child1_id = root_id.child();
-        let child1 = create_test_tenant(child1_id.clone(), Some(root_id.clone()));
-        let child2_id = root_id.child();
-        let child2 = create_test_tenant(child2_id.clone(), Some(root_id.clone()));
-        let grandchild_id = child1_id.child();
-        let grandchild = create_test_tenant(grandchild_id, Some(child1_id));
+        let root = create_test_tenant(TenantId::root(), None);
+        let child1 = create_test_tenant(TenantId::root().child(), Some(TenantId::root()));
+        let child2 = create_test_tenant(TenantId::root().child(), Some(TenantId::root()));
+        let grandchild = create_test_tenant(
+            TenantId::root().child().child(),
+            Some(TenantId::root().child()),
+        );
 
         let tenants = vec![
             root.clone(),
@@ -196,7 +194,7 @@ mod tests {
             child2.clone(),
             grandchild.clone(),
         ];
-        let tree = TenantNode::build_tree(tenants, &root_id); // Use the actual root_id
+        let tree = TenantNode::build_tree(tenants, &TenantId::root());
 
         assert!(tree.is_some());
         let root_node = tree.unwrap();
