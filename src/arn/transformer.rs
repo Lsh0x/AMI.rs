@@ -615,4 +615,113 @@ mod tests {
         let info = transformer.from_provider_arn(&aws_arn).unwrap();
         assert_eq!(info.resource_id, "path/to/policy");
     }
+
+    #[test]
+    fn test_aws_transformer_with_region() {
+        let arn = WamiArn::builder()
+            .service(Service::Iam)
+            .tenant("t1")
+            .wami_instance("999888777")
+            .cloud_provider_with_region("aws", "223344556677", "us-east-1")
+            .resource("user", "alice")
+            .build()
+            .unwrap();
+
+        let transformer = AwsArnTransformer;
+        let aws_arn = transformer.to_provider_arn(&arn).unwrap();
+        // The implementation includes region in the ARN format
+        assert_eq!(aws_arn, "arn:aws:iam:us-east-1:223344556677:user/alice");
+    }
+
+    #[test]
+    fn test_aws_transformer_invalid_arn_format() {
+        let transformer = AwsArnTransformer;
+        let result = transformer.from_provider_arn("not-an-arn");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_gcp_transformer_error_cases() {
+        let transformer = GcpArnTransformer;
+
+        // Not cloud synced
+        let arn = WamiArn::builder()
+            .service(Service::Iam)
+            .tenant("t1")
+            .wami_instance("999888777")
+            .resource("user", "alice")
+            .build()
+            .unwrap();
+
+        let result = transformer.to_provider_arn(&arn);
+        assert!(result.is_err());
+
+        // Wrong provider
+        let arn = WamiArn::builder()
+            .service(Service::Iam)
+            .tenant("t1")
+            .wami_instance("999888777")
+            .cloud_provider("aws", "123456")
+            .resource("user", "alice")
+            .build()
+            .unwrap();
+
+        let result = transformer.to_provider_arn(&arn);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_azure_transformer_error_cases() {
+        let transformer = AzureArnTransformer;
+
+        // Invalid Azure resource ID format
+        let result = transformer.from_provider_arn("/invalid");
+        assert!(result.is_err());
+
+        // Missing required parts
+        let result = transformer.from_provider_arn("/subscriptions/123");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_scaleway_transformer_error_cases() {
+        let transformer = ScalewayArnTransformer;
+
+        // Invalid format
+        let result = transformer.from_provider_arn("invalid");
+        assert!(result.is_err());
+
+        // Not cloud synced
+        let arn = WamiArn::builder()
+            .service(Service::Iam)
+            .tenant("t1")
+            .wami_instance("999888777")
+            .resource("user", "alice")
+            .build()
+            .unwrap();
+
+        let result = transformer.to_provider_arn(&arn);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aws_transformer_from_arn_edge_cases() {
+        let transformer = AwsArnTransformer;
+
+        // ARN with assumed role
+        let aws_arn = "arn:aws:sts::123456789012:assumed-role/MyRole/session";
+        let info = transformer.from_provider_arn(aws_arn).unwrap();
+        assert_eq!(info.provider, "aws");
+        assert_eq!(info.account_id, "123456789012");
+        assert_eq!(info.service, "sts");
+        assert_eq!(info.resource_type, "assumed-role");
+        assert_eq!(info.resource_id, "MyRole/session");
+        assert_eq!(info.region, None);
+
+        // ARN with region (for services that support it)
+        let aws_arn = "arn:aws:s3:us-east-1::bucket/my-bucket";
+        let info = transformer.from_provider_arn(aws_arn).unwrap();
+        assert_eq!(info.service, "s3");
+        assert_eq!(info.region, Some("us-east-1".to_string()));
+    }
 }

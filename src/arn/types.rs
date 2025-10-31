@@ -399,6 +399,88 @@ mod tests {
     }
 
     #[test]
+    fn test_tenant_path_starts_with() {
+        let path1 = TenantPath::new(vec!["t1".to_string(), "t2".to_string(), "t3".to_string()]);
+        let path2 = TenantPath::new(vec!["t1".to_string(), "t2".to_string()]);
+        let path3 = TenantPath::new(vec!["t1".to_string()]);
+        let path4 = TenantPath::new(vec![
+            "t1".to_string(),
+            "t2".to_string(),
+            "t3".to_string(),
+            "t4".to_string(),
+        ]);
+        let path5 = TenantPath::new(vec!["t1".to_string(), "t5".to_string()]);
+
+        assert!(path1.starts_with(&path2));
+        assert!(path1.starts_with(&path3));
+        assert!(path4.starts_with(&path1));
+        assert!(path1.starts_with(&path1)); // Same path
+        assert!(!path1.starts_with(&path5)); // Different path
+        assert!(!path2.starts_with(&path1)); // path2 is shorter
+    }
+
+    #[test]
+    fn test_tenant_path_empty_root_leaf() {
+        let empty_path = TenantPath::new(vec![]);
+        assert_eq!(empty_path.root(), None);
+        assert_eq!(empty_path.leaf(), None);
+        assert_eq!(empty_path.depth(), 0);
+        assert_eq!(empty_path.as_string(), "");
+    }
+
+    #[test]
+    fn test_cloud_mapping_global_vs_regional() {
+        let global = CloudMapping::new("aws", "123456789012");
+        assert!(!global.is_regional());
+        assert_eq!(global.region_or_global(), "global");
+
+        let regional = CloudMapping::with_region("aws", "123456789012", "us-east-1");
+        assert!(regional.is_regional());
+        assert_eq!(regional.region_or_global(), "us-east-1");
+    }
+
+    #[test]
+    fn test_wami_arn_matches_prefix() {
+        let arn: WamiArn = "arn:wami:iam:t1/t2/t3:wami:999888777:user/alice"
+            .parse()
+            .unwrap();
+
+        assert!(arn.matches_prefix("arn:wami:iam:t1/t2/t3:wami:999888777"));
+        assert!(arn.matches_prefix("arn:wami:iam:t1/t2"));
+        assert!(arn.matches_prefix("arn:wami:iam:t1"));
+        assert!(arn.matches_prefix("arn:wami:iam"));
+        assert!(arn.matches_prefix("arn:wami"));
+        assert!(arn.matches_prefix("arn"));
+        assert!(!arn.matches_prefix("arn:wami:sts"));
+        assert!(!arn.matches_prefix("arn:wami:iam:t1/t2/t4"));
+    }
+
+    #[test]
+    fn test_wami_arn_belongs_to_tenant() {
+        let arn: WamiArn = "arn:wami:iam:t1/t2/t3:wami:999888777:user/alice"
+            .parse()
+            .unwrap();
+
+        // Exact match
+        let tenant = TenantPath::new(vec!["t1".to_string(), "t2".to_string(), "t3".to_string()]);
+        assert!(arn.belongs_to_tenant(&tenant));
+
+        // Parent tenant (descendant)
+        let parent = TenantPath::new(vec!["t1".to_string(), "t2".to_string()]);
+        assert!(arn.belongs_to_tenant(&parent));
+
+        let root = TenantPath::single("t1");
+        assert!(arn.belongs_to_tenant(&root));
+
+        // Not related
+        let other = TenantPath::single("t4");
+        assert!(!arn.belongs_to_tenant(&other));
+
+        let sibling = TenantPath::new(vec!["t1".to_string(), "t4".to_string()]);
+        assert!(!arn.belongs_to_tenant(&sibling));
+    }
+
+    #[test]
     fn test_resource() {
         let resource = Resource::new("user", "77557755");
         assert_eq!(resource.as_path(), "user/77557755");

@@ -359,6 +359,51 @@ mod tests {
     }
 
     #[test]
+    fn test_context_builder_all_fields() {
+        let arn: WamiArn = "arn:wami:iam:t1:wami:999888777:user/12345".parse().unwrap();
+        let future_time = chrono::Utc::now().timestamp() + 3600;
+        let session = SessionInfo {
+            session_token: "token123".to_string(),
+            expiration: future_time,
+            assumed_role_arn: None,
+        };
+
+        let context = WamiContext::builder()
+            .instance_id("999888777")
+            .tenant_path(TenantPath::single("t1"))
+            .caller_arn(arn.clone())
+            .is_root(false)
+            .region("us-west-2")
+            .session_info(session.clone())
+            .build()
+            .unwrap();
+
+        assert_eq!(context.instance_id(), "999888777");
+        assert_eq!(context.caller_arn(), &arn);
+        assert_eq!(context.region(), Some("us-west-2"));
+        assert_eq!(
+            context.session_info().map(|s| s.session_token.as_str()),
+            Some("token123")
+        );
+    }
+
+    #[test]
+    fn test_context_without_optional_fields() {
+        let arn: WamiArn = "arn:wami:iam:t1:wami:999888777:user/12345".parse().unwrap();
+
+        let context = WamiContext::builder()
+            .instance_id("999888777")
+            .tenant_path(TenantPath::single("t1"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap();
+
+        assert_eq!(context.region(), None);
+        assert!(context.session_info().is_none());
+    }
+
+    #[test]
     fn test_missing_required_fields() {
         // Missing instance_id
         let result = WamiContext::builder()

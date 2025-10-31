@@ -343,6 +343,7 @@ enum PolicyEffect {
 mod tests {
     use super::*;
     use crate::store::memory::InMemoryWamiStore;
+    use crate::types::{PolicyDocument, PolicyStatement};
 
     #[test]
     fn test_matches_action() {
@@ -406,5 +407,135 @@ mod tests {
         assert!(service.wildcard_match("test-*-prod", "test-api-prod"));
 
         assert!(!service.wildcard_match("arn:*:role/*", "arn:wami:iam:t1:wami:999:user/alice"));
+    }
+
+    #[test]
+    fn test_matches_action_edge_cases() {
+        let store = InMemoryWamiStore::new();
+        let service = AuthorizationService {
+            store: Arc::new(RwLock::new(store)),
+        };
+
+        // Empty actions
+        assert!(!service.matches_action(&[], "iam:GetUser"));
+
+        // Multiple wildcards
+        assert!(service.matches_action(&["iam:*".to_string(), "s3:*".to_string()], "iam:GetUser"));
+
+        // Exact match in list
+        assert!(service.matches_action(
+            &["s3:GetObject".to_string(), "iam:GetUser".to_string()],
+            "iam:GetUser"
+        ));
+
+        // No match
+        assert!(!service.matches_action(&["s3:GetObject".to_string()], "iam:GetUser"));
+
+        // Wildcard at end
+        assert!(service.matches_action(&["iam:Get*".to_string()], "iam:GetUser"));
+    }
+
+    #[test]
+    fn test_matches_resource_edge_cases() {
+        let store = InMemoryWamiStore::new();
+        let service = AuthorizationService {
+            store: Arc::new(RwLock::new(store)),
+        };
+
+        // Empty resources
+        assert!(!service.matches_resource(&[], "arn:wami:iam:t1:wami:999:user/alice"));
+
+        // Multiple patterns
+        assert!(service.matches_resource(
+            &[
+                "arn:wami:iam:*:role/*".to_string(),
+                "arn:wami:iam:*:user/*".to_string()
+            ],
+            "arn:wami:iam:t1:wami:999:user/alice"
+        ));
+
+        // Complex wildcard pattern
+        assert!(service.matches_resource(
+            &["arn:wami:iam:t*:wami:*:user/al*".to_string()],
+            "arn:wami:iam:t1:wami:999:user/alice"
+        ));
+    }
+
+    #[test]
+    fn test_evaluate_policy_deny_overrides_allow() {
+        let store = InMemoryWamiStore::new();
+        let service = AuthorizationService {
+            store: Arc::new(RwLock::new(store)),
+        };
+
+        let policy = PolicyDocument {
+            version: "2012-10-17".to_string(),
+            statement: vec![
+                PolicyStatement {
+                    effect: "Allow".to_string(),
+                    action: vec!["iam:*".to_string()],
+                    resource: vec!["*".to_string()],
+                    condition: None,
+                },
+                PolicyStatement {
+                    effect: "Deny".to_string(),
+                    action: vec!["iam:DeleteUser".to_string()],
+                    resource: vec!["*".to_string()],
+                    condition: None,
+                },
+            ],
+        };
+
+        let resource: WamiArn = "arn:wami:iam:t1:wami:999:user/alice".parse().unwrap();
+        let effect = service.evaluate_policy_document(&policy, "iam:DeleteUser", &resource);
+
+        // Deny should override Allow
+        assert_eq!(effect, PolicyEffect::Deny);
+    }
+
+    #[test]
+    fn test_evaluate_policy_no_match() {
+        let store = InMemoryWamiStore::new();
+        let service = AuthorizationService {
+            store: Arc::new(RwLock::new(store)),
+        };
+
+        let policy = PolicyDocument {
+            version: "2012-10-17".to_string(),
+            statement: vec![PolicyStatement {
+                effect: "Allow".to_string(),
+                action: vec!["s3:GetObject".to_string()],
+                resource: vec!["*".to_string()],
+                condition: None,
+            }],
+        };
+
+        let resource: WamiArn = "arn:wami:iam:t1:wami:999:user/alice".parse().unwrap();
+        let effect = service.evaluate_policy_document(&policy, "iam:GetUser", &resource);
+
+        assert_eq!(effect, PolicyEffect::NoMatch);
+    }
+
+    #[test]
+    fn test_evaluate_policy_case_insensitive_effect() {
+        let store = InMemoryWamiStore::new();
+        let service = AuthorizationService {
+            store: Arc::new(RwLock::new(store)),
+        };
+
+        let policy = PolicyDocument {
+            version: "2012-10-17".to_string(),
+            statement: vec![PolicyStatement {
+                effect: "DENY".to_string(), // Uppercase
+                action: vec!["iam:GetUser".to_string()],
+                resource: vec!["*".to_string()],
+                condition: None,
+            }],
+        };
+
+        let resource: WamiArn = "arn:wami:iam:t1:wami:999:user/alice".parse().unwrap();
+        let effect = service.evaluate_policy_document(&policy, "iam:GetUser", &resource);
+
+        assert_eq!(effect, PolicyEffect::Deny);
     }
 }
