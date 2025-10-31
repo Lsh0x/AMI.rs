@@ -44,7 +44,7 @@ use serde::{Deserialize, Serialize};
 ///     password_last_used: None,
 ///     permissions_boundary: None,
 ///     tags: vec![],
-///     wami_arn: "arn:wami:iam:tenant-x:wami:123456789012:user/alice".parse().unwrap(),
+///     wami_arn: "arn:wami:iam:12345678:wami:123456789012:user/alice".parse().unwrap(),
 ///     providers: vec![],
 ///     tenant_id: None,
 /// };
