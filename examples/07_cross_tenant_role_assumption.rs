@@ -10,7 +10,8 @@
 //! Run with: `cargo run --example 07_cross_tenant_role_assumption`
 
 use std::sync::{Arc, RwLock};
-use wami::provider::AwsProvider;
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::{AssumeRoleService, RoleService, TenantService, UserService};
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::identity::role::requests::CreateRoleRequest;
@@ -23,31 +24,85 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Cross-Tenant Role Assumption ===\n");
 
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let _provider = Arc::new(AwsProvider::new());
+
+    // Create root context
+    let root_context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(true)
+        .build()?;
+
+    // Create tenant A context
+    let tenant_a_context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("company-a"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("company-a"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    // Create tenant B context
+    let tenant_b_context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("company-b"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("company-b"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
 
     // === SETUP TENANTS ===
     println!("Step 1: Creating two tenants...\n");
 
-    let tenant_service = TenantService::new(store.clone(), "root".to_string());
+    let tenant_service = TenantService::new(store.clone());
 
     // Tenant A (source)
     let _tenant_a_id = TenantId::new("company-a");
     tenant_service
-        .create_tenant("company-a".to_string(), Some("Company A".to_string()), None)
+        .create_tenant(
+            &root_context,
+            "company-a".to_string(),
+            Some("Company A".to_string()),
+            None,
+        )
         .await?;
     println!("✓ Created tenant: company-a");
 
     // Tenant B (target)
     let _tenant_b_id = TenantId::new("company-b");
     tenant_service
-        .create_tenant("company-b".to_string(), Some("Company B".to_string()), None)
+        .create_tenant(
+            &root_context,
+            "company-b".to_string(),
+            Some("Company B".to_string()),
+            None,
+        )
         .await?;
     println!("✓ Created tenant: company-b");
 
     // === CREATE USER IN TENANT A ===
     println!("\nStep 2: Creating user in tenant A...\n");
 
-    let user_service_a = UserService::new(store.clone(), "company-a".to_string());
+    let user_service = UserService::new(store.clone());
 
     let alice_req = CreateUserRequest {
         user_name: "alice".to_string(),
@@ -55,14 +110,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: None,
     };
-    let alice = user_service_a.create_user(alice_req).await?;
+    let alice = user_service
+        .create_user(&tenant_a_context, alice_req)
+        .await?;
     println!("✓ Created alice in company-a");
     println!("  ARN: {}", alice.arn);
 
     // === CREATE ROLE IN TENANT B WITH TRUST POLICY ===
     println!("\nStep 3: Creating cross-tenant role in tenant B...\n");
 
-    let role_service_b = RoleService::new(store.clone(), "company-b".to_string());
+    let role_service = RoleService::new(store.clone());
 
     // Trust policy allowing Company A users to assume this role
     let trust_policy = r#"{
@@ -85,17 +142,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tags: None,
     };
 
-    let role = role_service_b.create_role(role_req).await?;
+    let role = role_service
+        .create_role(&tenant_b_context, role_req)
+        .await?;
     println!("✓ Created cross-tenant-reader role in company-b");
     println!("  Role ARN: {}", role.arn);
 
     // === ASSUME ROLE ACROSS TENANTS ===
     println!("\nStep 4: Alice assuming role in company-b...\n");
 
-    let sts_service = AssumeRoleService::new(
-        store.clone(),
-        "company-a".to_string(), // Operating from tenant A
-    );
+    let sts_service = AssumeRoleService::new(store.clone());
 
     let assume_req = AssumeRoleRequest {
         role_arn: role.arn.clone(),
@@ -105,7 +161,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         policy: None,
     };
 
-    let assume_response = sts_service.assume_role(assume_req, &alice.arn).await?;
+    let assume_response = sts_service
+        .assume_role(&tenant_a_context, assume_req, &alice.arn)
+        .await?;
     println!("✓ Alice successfully assumed cross-tenant role!");
     println!("  Credentials:");
     println!(

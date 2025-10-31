@@ -10,7 +10,8 @@
 //! Run with: `cargo run --example 03_service_layer_intro`
 
 use std::sync::{Arc, RwLock};
-use wami::provider::AwsProvider;
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::{GroupService, RoleService, UserService};
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::identity::group::requests::CreateGroupRequest;
@@ -24,13 +25,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Step 1: Initialize store with Arc<RwLock> for thread-safe access
     println!("Step 1: Initializing services...\n");
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let _provider = Arc::new(AwsProvider::new());
-    let account_id = "123456789012";
+
+    // Create a WamiContext for operations
+    let context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
 
     // Create services
-    let user_service = UserService::new(store.clone(), account_id.to_string());
-    let group_service = GroupService::new(store.clone(), account_id.to_string());
-    let role_service = RoleService::new(store.clone(), account_id.to_string());
+    let user_service = UserService::new(store.clone());
+    let group_service = GroupService::new(store.clone());
+    let role_service = RoleService::new(store.clone());
 
     println!("✓ Services initialized");
 
@@ -45,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: None,
     };
-    let alice = user_service.create_user(alice_req).await?;
+    let alice = user_service.create_user(&context, alice_req).await?;
     println!("✓ Created user: {}", alice.user_name);
 
     let bob_req = CreateUserRequest {
@@ -54,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: None,
     };
-    user_service.create_user(bob_req).await?;
+    user_service.create_user(&context, bob_req).await?;
     println!("✓ Created user: bob");
 
     // Create groups
@@ -64,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         path: Some("/groups/".to_string()),
         tags: None,
     };
-    let dev_group = group_service.create_group(dev_group_req).await?;
+    let dev_group = group_service.create_group(&context, dev_group_req).await?;
     println!("✓ Created group: {}", dev_group.group_name);
 
     // Create role
@@ -78,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: None,
     };
-    let role = role_service.create_role(role_req).await?;
+    let role = role_service.create_role(&context, role_req).await?;
     println!("✓ Created role: {}", role.role_name);
 
     // === READ Operations via Services ===

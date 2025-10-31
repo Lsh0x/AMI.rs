@@ -454,12 +454,27 @@ impl<S: UserStore + RoleStore + PolicyStore> EvaluationService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
     use crate::store::memory::InMemoryWamiStore;
     use crate::wami::identity::user::builder::build_user;
 
     fn setup_service() -> EvaluationService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
         EvaluationService::new(store, "123456789012".to_string())
+    }
+
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
@@ -580,15 +595,10 @@ mod tests {
     #[tokio::test]
     async fn test_simulate_principal_policy_user() {
         let service = setup_service();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         // Create a user
-        let user = build_user(
-            "alice".to_string(),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let user = build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
 
         service
             .store

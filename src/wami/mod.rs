@@ -18,17 +18,22 @@
 // Functional Modules (matching store structure)
 // ============================================================================
 
+/// Instance management: bootstrap and initialization
+pub mod instance;
+
 /// Identity management: users, groups, roles, identity providers
 pub mod identity {
     pub mod group;
     pub mod identity_provider;
     pub mod role;
+    pub mod root_user;
     pub mod service_linked_role;
     pub mod user;
 
     // Re-export types for convenience
     pub use group::Group;
     pub use role::Role;
+    pub use root_user::RootUser;
     pub use service_linked_role::DeletionTaskInfo;
     pub use user::User;
 }

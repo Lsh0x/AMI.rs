@@ -1,5 +1,6 @@
 //! SSO Application Model
 
+use crate::arn::WamiArn;
 use serde::{Deserialize, Serialize};
 
 /// Represents an SSO-enabled application
@@ -22,7 +23,7 @@ pub struct Application {
     /// The portal URL for the application
     pub portal_url: Option<String>,
     /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
 }

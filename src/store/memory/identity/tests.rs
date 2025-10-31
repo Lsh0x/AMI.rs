@@ -2,7 +2,8 @@
 //!
 //! Tests for UserStore, GroupStore, RoleStore, and ServiceLinkedRoleStore
 
-use crate::provider::aws::AwsProvider;
+use crate::arn::{TenantPath, WamiArn};
+use crate::context::WamiContext;
 use crate::store::memory::InMemoryWamiStore;
 use crate::store::traits::{GroupStore, RoleStore, ServiceLinkedRoleStore, UserStore};
 use crate::types::{PaginationParams, Tag};
@@ -11,6 +12,19 @@ use crate::wami::identity::role::builder as role_builder;
 use crate::wami::identity::service_linked_role::builder as slr_builder;
 use crate::wami::identity::user::builder as user_builder;
 
+fn test_context() -> WamiContext {
+    let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+        .parse()
+        .unwrap();
+    WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("test"))
+        .caller_arn(arn)
+        .is_root(false)
+        .build()
+        .unwrap()
+}
+
 // ============================================================================
 // USER STORE TESTS
 // ============================================================================
@@ -18,14 +32,10 @@ use crate::wami::identity::user::builder as user_builder;
 #[tokio::test]
 async fn test_user_create_and_get() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let user = user_builder::build_user(
-        "alice".to_string(),
-        Some("/".to_string()),
-        &provider,
-        "123456789012",
-    );
+    let user =
+        user_builder::build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
 
     // Create user
     let created = store.create_user(user.clone()).await.unwrap();
@@ -48,14 +58,10 @@ async fn test_user_get_nonexistent() {
 #[tokio::test]
 async fn test_user_update() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let user = user_builder::build_user(
-        "bob".to_string(),
-        Some("/".to_string()),
-        &provider,
-        "123456789012",
-    );
+    let user =
+        user_builder::build_user("bob".to_string(), Some("/".to_string()), &context).unwrap();
 
     store.create_user(user.clone()).await.unwrap();
 
@@ -73,14 +79,10 @@ async fn test_user_update() {
 #[tokio::test]
 async fn test_user_delete() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let user = user_builder::build_user(
-        "charlie".to_string(),
-        Some("/".to_string()),
-        &provider,
-        "123456789012",
-    );
+    let user =
+        user_builder::build_user("charlie".to_string(), Some("/".to_string()), &context).unwrap();
 
     store.create_user(user).await.unwrap();
 
@@ -106,16 +108,12 @@ async fn test_user_list_empty() {
 #[tokio::test]
 async fn test_user_list_multiple() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     // Create multiple users
     for name in &["alice", "bob", "charlie", "david"] {
-        let user = user_builder::build_user(
-            name.to_string(),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let user =
+            user_builder::build_user(name.to_string(), Some("/".to_string()), &context).unwrap();
         store.create_user(user).await.unwrap();
     }
 
@@ -131,26 +129,17 @@ async fn test_user_list_multiple() {
 #[tokio::test]
 async fn test_user_list_with_path_prefix() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let user1 = user_builder::build_user(
-        "admin1".to_string(),
-        Some("/admin/".to_string()),
-        &provider,
-        "123456789012",
-    );
-    let user2 = user_builder::build_user(
-        "user1".to_string(),
-        Some("/users/".to_string()),
-        &provider,
-        "123456789012",
-    );
-    let user3 = user_builder::build_user(
-        "admin2".to_string(),
-        Some("/admin/".to_string()),
-        &provider,
-        "123456789012",
-    );
+    let user1 =
+        user_builder::build_user("admin1".to_string(), Some("/admin/".to_string()), &context)
+            .unwrap();
+    let user2 =
+        user_builder::build_user("user1".to_string(), Some("/users/".to_string()), &context)
+            .unwrap();
+    let user3 =
+        user_builder::build_user("admin2".to_string(), Some("/admin/".to_string()), &context)
+            .unwrap();
 
     store.create_user(user1).await.unwrap();
     store.create_user(user2).await.unwrap();
@@ -165,16 +154,13 @@ async fn test_user_list_with_path_prefix() {
 #[tokio::test]
 async fn test_user_list_with_pagination() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     // Create 10 users
     for i in 0..10 {
-        let user = user_builder::build_user(
-            format!("user{:02}", i),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let user =
+            user_builder::build_user(format!("user{:02}", i), Some("/".to_string()), &context)
+                .unwrap();
         store.create_user(user).await.unwrap();
     }
 
@@ -193,14 +179,10 @@ async fn test_user_list_with_pagination() {
 #[tokio::test]
 async fn test_user_tag_operations() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let user = user_builder::build_user(
-        "alice".to_string(),
-        Some("/".to_string()),
-        &provider,
-        "123456789012",
-    );
+    let user =
+        user_builder::build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
 
     store.create_user(user).await.unwrap();
 
@@ -240,14 +222,10 @@ async fn test_user_tag_operations() {
 #[tokio::test]
 async fn test_group_create_and_get() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let group = group_builder::build_group(
-        "admins".to_string(),
-        Some("/".to_string()),
-        &provider,
-        "123456789012",
-    );
+    let group =
+        group_builder::build_group("admins".to_string(), Some("/".to_string()), &context).unwrap();
 
     let created = store.create_group(group.clone()).await.unwrap();
     assert_eq!(created.group_name, "admins");
@@ -260,14 +238,10 @@ async fn test_group_create_and_get() {
 #[tokio::test]
 async fn test_group_delete() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let group = group_builder::build_group(
-        "devs".to_string(),
-        Some("/".to_string()),
-        &provider,
-        "123456789012",
-    );
+    let group =
+        group_builder::build_group("devs".to_string(), Some("/".to_string()), &context).unwrap();
 
     store.create_group(group).await.unwrap();
     store.delete_group("devs").await.unwrap();
@@ -279,15 +253,11 @@ async fn test_group_delete() {
 #[tokio::test]
 async fn test_group_list() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     for name in &["admins", "devs", "ops"] {
-        let group = group_builder::build_group(
-            name.to_string(),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let group =
+            group_builder::build_group(name.to_string(), Some("/".to_string()), &context).unwrap();
         store.create_group(group).await.unwrap();
     }
 
@@ -300,20 +270,12 @@ async fn test_group_list() {
 #[tokio::test]
 async fn test_group_user_membership() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let user = user_builder::build_user(
-        "alice".to_string(),
-        Some("/".to_string()),
-        &provider,
-        "123456789012",
-    );
-    let group = group_builder::build_group(
-        "admins".to_string(),
-        Some("/".to_string()),
-        &provider,
-        "123456789012",
-    );
+    let user =
+        user_builder::build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
+    let group =
+        group_builder::build_group("admins".to_string(), Some("/".to_string()), &context).unwrap();
 
     store.create_user(user).await.unwrap();
     store.create_group(group).await.unwrap();
@@ -343,7 +305,7 @@ async fn test_group_user_membership() {
 #[tokio::test]
 async fn test_role_create_and_get() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     let trust_policy = r#"{"Version":"2012-10-17"}"#.to_string();
     let role = role_builder::build_role(
@@ -352,9 +314,9 @@ async fn test_role_create_and_get() {
         Some("/".to_string()),
         Some("Administrator role".to_string()),
         Some(3600),
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
 
     let created = store.create_role(role.clone()).await.unwrap();
     assert_eq!(created.role_name, "admin-role");
@@ -370,7 +332,7 @@ async fn test_role_create_and_get() {
 #[tokio::test]
 async fn test_role_update() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     let trust_policy = r#"{"Version":"2012-10-17"}"#.to_string();
     let role = role_builder::build_role(
@@ -379,9 +341,9 @@ async fn test_role_update() {
         Some("/".to_string()),
         None,
         None,
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
 
     store.create_role(role.clone()).await.unwrap();
 
@@ -398,7 +360,7 @@ async fn test_role_update() {
 #[tokio::test]
 async fn test_role_delete() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     let trust_policy = r#"{"Version":"2012-10-17"}"#.to_string();
     let role = role_builder::build_role(
@@ -407,9 +369,9 @@ async fn test_role_delete() {
         Some("/".to_string()),
         None,
         None,
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
 
     store.create_role(role).await.unwrap();
     store.delete_role("temp-role").await.unwrap();
@@ -421,7 +383,7 @@ async fn test_role_delete() {
 #[tokio::test]
 async fn test_role_list_multiple() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
     let trust_policy = r#"{"Version":"2012-10-17"}"#.to_string();
 
     for name in &["role-a", "role-b", "role-c"] {
@@ -431,9 +393,9 @@ async fn test_role_list_multiple() {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
         store.create_role(role).await.unwrap();
     }
 
@@ -446,7 +408,7 @@ async fn test_role_list_multiple() {
 #[tokio::test]
 async fn test_role_with_path_prefix() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
     let trust_policy = r#"{"Version":"2012-10-17"}"#.to_string();
 
     let role1 = role_builder::build_role(
@@ -455,18 +417,18 @@ async fn test_role_with_path_prefix() {
         Some("/service/".to_string()),
         None,
         None,
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
     let role2 = role_builder::build_role(
         "admin-role".to_string(),
         trust_policy,
         Some("/admin/".to_string()),
         None,
         None,
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
 
     store.create_role(role1).await.unwrap();
     store.create_role(role2).await.unwrap();
@@ -484,13 +446,9 @@ async fn test_role_with_path_prefix() {
 #[tokio::test]
 async fn test_service_linked_role_deletion_task() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let _context = test_context();
 
-    let task = slr_builder::build_deletion_task(
-        "test-service-role".to_string(),
-        &provider,
-        "123456789012",
-    );
+    let task = slr_builder::build_deletion_task("test-service-role".to_string());
 
     let task_id = task.deletion_task_id.clone();
 

@@ -237,6 +237,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
     use crate::store::memory::InMemoryWamiStore;
     use crate::wami::identity::user::builder::build_user;
 
@@ -245,19 +247,27 @@ mod tests {
         CredentialReportService::new(store, "123456789012".to_string())
     }
 
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn test_generate_credential_report() {
         let service = setup_service();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         // Create some test users
         for i in 0..3 {
-            let user = build_user(
-                format!("user{}", i),
-                Some("/".to_string()),
-                &provider,
-                "123456789012",
-            );
+            let user = build_user(format!("user{}", i), Some("/".to_string()), &context).unwrap();
             service
                 .store
                 .write()
@@ -277,15 +287,10 @@ mod tests {
     #[tokio::test]
     async fn test_get_credential_report() {
         let service = setup_service();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         // Create a user
-        let user = build_user(
-            "alice".to_string(),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let user = build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
         service
             .store
             .write()
@@ -337,16 +342,11 @@ mod tests {
     #[tokio::test]
     async fn test_get_account_summary_with_resources() {
         let service = setup_service();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         // Create users
         for i in 0..5 {
-            let user = build_user(
-                format!("user{}", i),
-                Some("/".to_string()),
-                &provider,
-                "123456789012",
-            );
+            let user = build_user(format!("user{}", i), Some("/".to_string()), &context).unwrap();
             service
                 .store
                 .write()

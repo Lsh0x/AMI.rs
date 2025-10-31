@@ -1,34 +1,43 @@
 //! Policy Builder
 
 use super::model::Policy;
-use crate::provider::arn_builder::WamiArnBuilder;
-use crate::provider::{CloudProvider, ProviderConfig, ResourceType};
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
+use crate::error::Result;
+use crate::provider::ProviderConfig;
 use crate::types::Tag;
+use uuid::Uuid;
 
-/// Build a new Policy resource
+/// Build a new Policy resource with context-based identifiers
+#[allow(clippy::result_large_err)]
 pub fn build_policy(
     policy_name: String,
     policy_document: String,
     path: Option<String>,
     description: Option<String>,
     tags: Option<Vec<Tag>>,
-    provider: &dyn CloudProvider,
-    account_id: &str,
-) -> Policy {
+    context: &WamiContext,
+) -> Result<Policy> {
     let path = path.unwrap_or_else(|| "/".to_string());
-    let policy_id = provider.generate_resource_id(ResourceType::Policy);
-    let arn = provider.generate_resource_identifier(
-        ResourceType::Policy,
-        account_id,
-        &path,
-        &policy_name,
+    let policy_id = Uuid::new_v4().to_string();
+
+    // Build WAMI ARN using context
+    let wami_arn = WamiArn::builder()
+        .service(Service::Iam)
+        .tenant_path(context.tenant_path().clone())
+        .wami_instance(context.instance_id())
+        .resource("policy", &policy_id)
+        .build()?;
+
+    // Generate AWS-compatible ARN (for backward compatibility)
+    let arn = format!(
+        "arn:aws:iam::{}:policy{}/{}",
+        context.instance_id(),
+        if path == "/" { "" } else { &path },
+        policy_name
     );
 
-    // Generate WAMI ARN with opaque tenant hash
-    let arn_builder = WamiArnBuilder::new();
-    let wami_arn = arn_builder.build_arn("iam", account_id, "policy", &path, &policy_name);
-
-    Policy {
+    Ok(Policy {
         policy_name,
         policy_id,
         arn,
@@ -45,7 +54,7 @@ pub fn build_policy(
         wami_arn,
         providers: Vec::new(),
         tenant_id: None,
-    }
+    })
 }
 
 /// Update a Policy resource with new values

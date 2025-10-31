@@ -22,6 +22,7 @@
 //! # Structure
 //!
 //! Services mirror the wami/ and store/ directory structure:
+//! - `auth/` - Authentication and Authorization services
 //! - `identity/` - User, Group, Role, ServiceLinkedRole services
 //! - `credentials/` - AccessKey, MfaDevice, LoginProfile services
 //! - `policies/` - Policy service
@@ -29,6 +30,7 @@
 //! - `sts/` - Session, Identity services
 //! - `tenant/` - Tenant service
 
+pub mod auth;
 pub mod credentials;
 pub mod identity;
 pub mod policies;
@@ -38,6 +40,7 @@ pub mod sts;
 pub mod tenant;
 
 // Re-export main services for convenience
+pub use auth::{hash_secret, verify_secret, AuthenticationService, AuthorizationService};
 pub use credentials::{
     AccessKeyService, LoginProfileService, MfaDeviceService, ServerCertificateService,
     ServiceCredentialService, SigningCertificateService,

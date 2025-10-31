@@ -2,8 +2,9 @@
 //!
 //! Orchestrates session token generation operations.
 
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider, ResourceType};
 use crate::store::traits::SessionStore;
 use crate::wami::sts::session::SessionStatus;
 use crate::wami::sts::session_token::GetSessionTokenRequest;
@@ -22,27 +23,12 @@ pub struct GetSessionTokenResponse {
 /// Provides high-level operations for session token creation.
 pub struct SessionTokenService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: SessionStore> SessionTokenService<S> {
-    /// Create a new SessionTokenService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new SessionTokenService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Get a session token
@@ -50,6 +36,7 @@ impl<S: SessionStore> SessionTokenService<S> {
     /// Generates temporary credentials for the current user.
     pub async fn get_session_token(
         &self,
+        context: &WamiContext,
         request: GetSessionTokenRequest,
         principal_arn: &str,
     ) -> Result<GetSessionTokenResponse> {
@@ -61,24 +48,34 @@ impl<S: SessionStore> SessionTokenService<S> {
         let expiration = Utc::now() + Duration::seconds(duration_seconds as i64);
 
         // Generate credentials
-        let access_key_id = self.provider.generate_resource_id(ResourceType::AccessKey);
+        let session_token = format!("TOKEN{}", uuid::Uuid::new_v4().to_string().replace('-', ""));
+        let access_key_id = format!(
+            "AKIA{}",
+            uuid::Uuid::new_v4()
+                .to_string()
+                .replace('-', "")
+                .chars()
+                .take(16)
+                .collect::<String>()
+        );
         let secret_access_key = format!(
             "SECRET{}",
             uuid::Uuid::new_v4().to_string().replace('-', "")
         );
-        let session_token = format!("TOKEN{}", uuid::Uuid::new_v4().to_string().replace('-', ""));
 
         let session_arn = format!(
             "arn:aws:sts::{}:session/{}",
-            self.account_id,
+            context.instance_id(),
             &session_token[..16]
         );
-        let wami_arn = self.provider.generate_wami_arn(
-            ResourceType::StsSession,
-            &self.account_id,
-            "/",
-            &session_token[..16],
-        );
+
+        // Build WAMI ARN for credentials using context
+        let wami_arn = WamiArn::builder()
+            .service(Service::Sts)
+            .tenant_path(context.tenant_path().clone())
+            .wami_instance(context.instance_id())
+            .resource("session", &session_token[..16])
+            .build()?;
 
         let credentials = Credentials {
             access_key_id: access_key_id.clone(),
@@ -122,12 +119,27 @@ mod tests {
 
     fn setup_service() -> SessionTokenService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        SessionTokenService::new(store, "123456789012".to_string())
+        SessionTokenService::new(store)
+    }
+
+    fn test_context() -> crate::context::WamiContext {
+        use crate::arn::{TenantPath, WamiArn};
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        crate::context::WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
     async fn test_get_session_token() {
         let service = setup_service();
+        let context = test_context();
 
         let request = GetSessionTokenRequest {
             duration_seconds: Some(3600),
@@ -136,7 +148,7 @@ mod tests {
         };
 
         let response = service
-            .get_session_token(request, "arn:aws:iam::123456789012:user/alice")
+            .get_session_token(&context, request, "arn:aws:iam::123456789012:user/alice")
             .await
             .unwrap();
 
@@ -148,6 +160,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_session_token_with_mfa() {
         let service = setup_service();
+        let context = test_context();
 
         let request = GetSessionTokenRequest {
             duration_seconds: Some(7200),
@@ -156,7 +169,7 @@ mod tests {
         };
 
         let response = service
-            .get_session_token(request, "arn:aws:iam::123456789012:user/alice")
+            .get_session_token(&context, request, "arn:aws:iam::123456789012:user/alice")
             .await
             .unwrap();
 
@@ -166,6 +179,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_session_token_invalid_duration() {
         let service = setup_service();
+        let context = test_context();
 
         let request = GetSessionTokenRequest {
             duration_seconds: Some(100), // Too short
@@ -174,7 +188,7 @@ mod tests {
         };
 
         let result = service
-            .get_session_token(request, "arn:aws:iam::123456789012:user/alice")
+            .get_session_token(&context, request, "arn:aws:iam::123456789012:user/alice")
             .await;
 
         assert!(result.is_err());
@@ -183,6 +197,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_session_token_creates_session() {
         let service = setup_service();
+        let context = test_context();
 
         let request = GetSessionTokenRequest {
             duration_seconds: Some(3600),
@@ -191,7 +206,7 @@ mod tests {
         };
 
         let response = service
-            .get_session_token(request, "arn:aws:iam::123456789012:user/bob")
+            .get_session_token(&context, request, "arn:aws:iam::123456789012:user/bob")
             .await
             .unwrap();
 

@@ -1,5 +1,6 @@
 //! Credentials Domain Model
 
+use crate::arn::WamiArn;
 use serde::{Deserialize, Serialize};
 
 /// Temporary AWS credentials
@@ -16,7 +17,7 @@ use serde::{Deserialize, Serialize};
 ///     session_token: "FwoGZXIvYXdzEBYaDH...".to_string(),
 ///     expiration: Utc::now() + chrono::Duration::hours(1),
 ///     arn: "arn:aws:sts::123456789012:assumed-role/MyRole/session".to_string(),
-///     wami_arn: "arn:wami:sts:tenant-hash:credentials/session-id".to_string(),
+///     wami_arn: "arn:wami:sts:root:wami:123456789012:credentials/session-id".parse().unwrap(),
 ///     providers: vec![],
 ///     tenant_id: None,
 /// };
@@ -34,7 +35,7 @@ pub struct Credentials {
     /// The native cloud provider ARN (e.g., AWS ARN for assumed role)
     pub arn: String,
     /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
     /// Optional tenant ID for multi-tenant isolation

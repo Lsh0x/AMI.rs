@@ -10,7 +10,8 @@
 //! Run with: `cargo run --example 19_role_assumption_workflow`
 
 use std::sync::{Arc, RwLock};
-use wami::provider::AwsProvider;
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::{AssumeRoleService, RoleService, UserService};
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::identity::role::requests::CreateRoleRequest;
@@ -22,22 +23,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Role Assumption Workflow ===\n");
 
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let _provider = Arc::new(AwsProvider::new());
-    let account_id = "123456789012";
 
-    let user_service = UserService::new(store.clone(), account_id.to_string());
-    let role_service = RoleService::new(store.clone(), account_id.to_string());
-    let sts_service = AssumeRoleService::new(store.clone(), account_id.to_string());
+    // Create context
+    let context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    let user_service = UserService::new(store.clone());
+    let role_service = RoleService::new(store.clone());
+    let sts_service = AssumeRoleService::new(store.clone());
 
     // Create user
     println!("Step 1: Creating user...\n");
     let alice = user_service
-        .create_user(CreateUserRequest {
-            user_name: "alice".to_string(),
-            path: Some("/".to_string()),
-            permissions_boundary: None,
-            tags: None,
-        })
+        .create_user(
+            &context,
+            CreateUserRequest {
+                user_name: "alice".to_string(),
+                path: Some("/".to_string()),
+                permissions_boundary: None,
+                tags: None,
+            },
+        )
         .await?;
     println!("✓ Created alice: {}", alice.arn);
 
@@ -45,15 +62,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nStep 2: Creating admin role...\n");
     let trust_policy = r#"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":"sts:AssumeRole"}]}"#;
     let role = role_service
-        .create_role(CreateRoleRequest {
-            role_name: "AdminRole".to_string(),
-            path: Some("/".to_string()),
-            assume_role_policy_document: trust_policy.to_string(),
-            description: Some("Admin role for elevated access".to_string()),
-            max_session_duration: Some(3600),
-            permissions_boundary: None,
-            tags: None,
-        })
+        .create_role(
+            &context,
+            CreateRoleRequest {
+                role_name: "AdminRole".to_string(),
+                path: Some("/".to_string()),
+                assume_role_policy_document: trust_policy.to_string(),
+                description: Some("Admin role for elevated access".to_string()),
+                max_session_duration: Some(3600),
+                permissions_boundary: None,
+                tags: None,
+            },
+        )
         .await?;
     println!("✓ Created AdminRole: {}", role.arn);
 
@@ -67,7 +87,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         policy: None,
     };
 
-    let response = sts_service.assume_role(assume_req, &alice.arn).await?;
+    let response = sts_service
+        .assume_role(&context, assume_req, &alice.arn)
+        .await?;
     println!("✓ Successfully assumed role!");
     println!("  Assumed Role ARN: {}", response.assumed_role_user.arn);
     println!("  Access Key: {}", response.credentials.access_key_id);

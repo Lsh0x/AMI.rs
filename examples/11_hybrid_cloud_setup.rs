@@ -121,20 +121,51 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
 
-    // === INITIALIZE PROVIDERS ===
-    println!("Step 1: Initializing hybrid cloud providers...\n");
+    // === INITIALIZE PROVIDERS (for ARN transformation) ===
+    println!("Step 1: Note about providers...\n");
 
     let _onprem_provider = Arc::new(OnPremiseProvider::new("dc1-prod".to_string()));
     let _aws_provider = Arc::new(AwsProvider::new());
 
-    println!("✓ Initialized providers:");
+    println!("✓ Providers can be used for ARN transformation:");
     println!("  - On-Premise (datacenter: dc1-prod)");
     println!("  - AWS (public cloud)");
+    println!("  - Services now use WamiContext instead of providers");
+
+    // Create on-premise context
+    let onprem_context = wami::context::WamiContext::builder()
+        .instance_id("dc1-prod")
+        .tenant_path(wami::arn::TenantPath::single("onprem"))
+        .caller_arn(
+            wami::arn::WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(wami::arn::TenantPath::single("onprem"))
+                .wami_instance("dc1-prod")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    // Create AWS context
+    let aws_context = wami::context::WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(wami::arn::TenantPath::single("aws"))
+        .caller_arn(
+            wami::arn::WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(wami::arn::TenantPath::single("aws"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
 
     // === CREATE USER IN ON-PREMISE ===
     println!("\n\nStep 2: Creating user in on-premise environment...\n");
 
-    let onprem_service = UserService::new(store.clone(), "dc1-prod".to_string());
+    let user_service = UserService::new(store.clone());
 
     let onprem_req = CreateUserRequest {
         user_name: "alice-onprem".to_string(),
@@ -152,15 +183,16 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         ]),
     };
 
-    let alice_onprem = onprem_service.create_user(onprem_req).await?;
+    let alice_onprem = user_service
+        .create_user(&onprem_context, onprem_req)
+        .await?;
     println!("✓ Created alice-onprem in on-premise:");
     println!("  - ARN: {}", alice_onprem.arn);
+    println!("  - WAMI ARN: {}", alice_onprem.wami_arn);
     println!("  - Resource ID: {}", alice_onprem.user_id);
 
     // === CREATE USER IN AWS ===
     println!("\n\nStep 3: Creating user in AWS cloud...\n");
-
-    let aws_service = UserService::new(store.clone(), "123456789012".to_string());
 
     let aws_req = CreateUserRequest {
         user_name: "alice-cloud".to_string(),
@@ -178,9 +210,10 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         ]),
     };
 
-    let alice_aws = aws_service.create_user(aws_req).await?;
+    let alice_aws = user_service.create_user(&aws_context, aws_req).await?;
     println!("✓ Created alice-cloud in AWS:");
     println!("  - ARN: {}", alice_aws.arn);
+    println!("  - WAMI ARN: {}", alice_aws.wami_arn);
     println!("  - Resource ID: {}", alice_aws.user_id);
 
     // === DEMONSTRATE FEDERATED IDENTITY ===
@@ -197,9 +230,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("  - For: Cloud-native applications, external APIs");
 
     // === LIST ALL USERS ===
-    println!("\n\nStep 5: Unified view across hybrid environment...\n");
+    println!("\n\nStep 4: Unified view across hybrid environment...\n");
 
-    let (all_users, _, _) = onprem_service
+    let (all_users, _, _) = user_service
         .list_users(ListUsersRequest {
             path_prefix: None,
             pagination: None,
@@ -210,30 +243,31 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         all_users.len()
     );
     for user in &all_users {
-        let env = if user.arn.contains("onprem") {
+        let env = if user.wami_arn.to_string().contains("onprem") {
             "On-Premise"
         } else {
             "Cloud"
         };
-        println!("  - {} ({}) → {}", user.user_name, env, user.arn);
+        println!("  - {} ({}) → {}", user.user_name, env, user.wami_arn);
     }
 
     // === USE CASES ===
-    println!("\n\nStep 6: Hybrid cloud use cases...\n");
+    println!("\n\nStep 5: Hybrid cloud use cases...\n");
 
-    println!("Custom providers enable:");
+    println!("WAMI context-based architecture enables:");
     println!("- On-premise to cloud migration paths");
-    println!("- Unified identity management");
+    println!("- Unified identity management with WamiContext");
     println!("- Hybrid application architectures");
     println!("- Edge computing with centralized IAM");
-    println!("- Custom platform integration (Kubernetes, OpenStack, etc.)");
+    println!("- Consistent resource identification with WAMI ARNs");
 
     println!("\n✅ Example completed successfully!");
     println!("Key takeaways:");
-    println!("- CloudProvider trait enables custom platform support");
-    println!("- Mix custom and public cloud providers freely");
+    println!("- WamiContext replaces provider-specific service configuration");
+    println!("- Use different contexts for different environments");
     println!("- WAMI ARNs provide unified identity layer");
-    println!("- Same store works across all provider types");
+    println!("- Same store works across all contexts");
+    println!("- Providers can still be used for ARN transformation when needed");
 
     Ok(())
 }

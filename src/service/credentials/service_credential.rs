@@ -2,8 +2,8 @@
 //!
 //! Orchestrates service-specific credential management operations.
 
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::traits::ServiceCredentialStore;
 use crate::wami::credentials::service_credential::{
     builder as cred_builder, CreateServiceSpecificCredentialRequest,
@@ -17,41 +17,26 @@ use std::sync::{Arc, RwLock};
 /// Provides high-level operations for AWS service credentials (e.g., CodeCommit).
 pub struct ServiceCredentialService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: ServiceCredentialStore> ServiceCredentialService<S> {
-    /// Create a new ServiceCredentialService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new ServiceCredentialService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Create a new service-specific credential
     pub async fn create_service_specific_credential(
         &self,
+        context: &WamiContext,
         request: CreateServiceSpecificCredentialRequest,
     ) -> Result<ServiceSpecificCredential> {
         // Use wami builder to create credential
         let credential = cred_builder::build_service_credential(
             request.user_name,
             request.service_name,
-            &*self.provider,
-            &self.account_id,
-        );
+            context,
+        )?;
 
         // Store it
         self.store
@@ -132,11 +117,25 @@ impl<S: ServiceCredentialStore> ServiceCredentialService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
     use crate::store::memory::InMemoryWamiStore;
 
     fn setup_service() -> ServiceCredentialService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        ServiceCredentialService::new(store, "123456789012".to_string())
+        ServiceCredentialService::new(store)
+    }
+
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
@@ -148,8 +147,9 @@ mod tests {
             service_name: "codecommit.amazonaws.com".to_string(),
         };
 
+        let context = test_context();
         let credential = service
-            .create_service_specific_credential(request)
+            .create_service_specific_credential(&context, request)
             .await
             .unwrap();
         assert_eq!(credential.user_name, "alice");
@@ -171,8 +171,9 @@ mod tests {
             user_name: "bob".to_string(),
             service_name: "codecommit.amazonaws.com".to_string(),
         };
+        let context = test_context();
         let credential = service
-            .create_service_specific_credential(create_req)
+            .create_service_specific_credential(&context, create_req)
             .await
             .unwrap();
 
@@ -196,8 +197,9 @@ mod tests {
             user_name: "charlie".to_string(),
             service_name: "codecommit.amazonaws.com".to_string(),
         };
+        let context = test_context();
         let credential = service
-            .create_service_specific_credential(create_req)
+            .create_service_specific_credential(&context, create_req)
             .await
             .unwrap();
 
@@ -222,13 +224,14 @@ mod tests {
         let service = setup_service();
 
         // Create multiple credentials for same user
+        let context = test_context();
         for _ in 0..3 {
             let request = CreateServiceSpecificCredentialRequest {
                 user_name: "david".to_string(),
                 service_name: "codecommit.amazonaws.com".to_string(),
             };
             service
-                .create_service_specific_credential(request)
+                .create_service_specific_credential(&context, request)
                 .await
                 .unwrap();
         }

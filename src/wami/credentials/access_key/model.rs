@@ -1,5 +1,6 @@
 //! AccessKey Domain Model
 
+use crate::arn::WamiArn;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +18,7 @@ pub struct AccessKey {
     /// The secret key used to sign requests (only provided when creating the key)
     pub secret_access_key: Option<String>,
     /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
 }

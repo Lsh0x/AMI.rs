@@ -86,7 +86,7 @@ impl<S: IdentityStore + UserStore> IdentityService<S> {
                 user_id: user.user_id.clone(),
                 account: self.account_id.clone(),
                 arn: user.arn.clone(),
-                wami_arn: user.wami_arn.clone(),
+                wami_arn: user.wami_arn,
                 providers: user.providers.clone(),
             };
 
@@ -138,6 +138,8 @@ impl<S: IdentityStore + UserStore> IdentityService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
     use crate::store::memory::InMemoryWamiStore;
     use crate::wami::identity::user::builder::build_user;
 
@@ -146,18 +148,26 @@ mod tests {
         IdentityService::new(store, "123456789012".to_string())
     }
 
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn test_get_caller_identity_from_user() {
         let service = setup_service();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         // Create a user
-        let user = build_user(
-            "alice".to_string(),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let user = build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
 
         let user_arn = user.arn.clone();
 
@@ -183,16 +193,11 @@ mod tests {
     #[tokio::test]
     async fn test_list_identities() {
         let service = setup_service();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         // Create users and get their identities
         for i in 0..3 {
-            let user = build_user(
-                format!("user{}", i),
-                Some("/".to_string()),
-                &provider,
-                "123456789012",
-            );
+            let user = build_user(format!("user{}", i), Some("/".to_string()), &context).unwrap();
             let arn = user.arn.clone();
 
             service

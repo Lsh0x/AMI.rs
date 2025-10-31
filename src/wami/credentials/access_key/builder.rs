@@ -1,23 +1,32 @@
 //! AccessKey Builder
 
 use super::model::AccessKey;
-use crate::provider::{CloudProvider, ProviderConfig, ResourceType};
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
+use crate::error::Result;
+use crate::provider::ProviderConfig;
+use uuid::Uuid;
 
-/// Build a new AccessKey resource
-pub fn build_access_key(
-    user_name: String,
-    provider: &dyn CloudProvider,
-    account_id: &str,
-) -> AccessKey {
-    let access_key_id = provider.generate_resource_id(ResourceType::AccessKey);
-    let wami_arn =
-        provider.generate_wami_arn(ResourceType::AccessKey, account_id, "/", &access_key_id);
+/// Build a new AccessKey resource with context-based identifiers
+#[allow(clippy::result_large_err)]
+pub fn build_access_key(user_name: String, context: &WamiContext) -> Result<AccessKey> {
+    // Generate AWS-compatible access key ID (AKIA prefix + 16 alphanumeric chars)
+    let random_part = Uuid::new_v4().to_string().replace('-', "").to_uppercase();
+    let access_key_id = format!("AKIA{}", &random_part[..16]);
+
+    // Build WAMI ARN using context
+    let wami_arn = WamiArn::builder()
+        .service(Service::Iam)
+        .tenant_path(context.tenant_path().clone())
+        .wami_instance(context.instance_id())
+        .resource("access-key", &access_key_id)
+        .build()?;
 
     // Generate secret access key (40 random chars)
     let secret_access_key = uuid::Uuid::new_v4().to_string().replace('-', "")
         + &uuid::Uuid::new_v4().to_string().replace('-', "")[..8];
 
-    AccessKey {
+    Ok(AccessKey {
         user_name,
         access_key_id,
         status: "Active".to_string(),
@@ -25,7 +34,7 @@ pub fn build_access_key(
         secret_access_key: Some(secret_access_key),
         wami_arn,
         providers: Vec::new(),
-    }
+    })
 }
 
 /// Update an AccessKey's status

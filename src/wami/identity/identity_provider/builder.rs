@@ -3,74 +3,91 @@
 //! Pure functions for building and manipulating identity provider resources.
 
 use super::model::{OidcProvider, SamlProvider};
-use crate::provider::{CloudProvider, ResourceType};
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
+use crate::error::Result;
 use crate::types::Tag;
 use chrono::Utc;
 
 /// Build a new SAML provider (pure function)
 ///
 /// Creates a SAML provider with the given name and metadata document.
+#[allow(clippy::result_large_err)]
 pub fn build_saml_provider(
     name: String,
     saml_metadata_document: String,
-    provider: &dyn CloudProvider,
-    account_id: &str,
-) -> SamlProvider {
-    let arn =
-        provider.generate_resource_identifier(ResourceType::SamlProvider, account_id, "/", &name);
+    context: &WamiContext,
+) -> Result<SamlProvider> {
+    // Generate AWS-compatible ARN
+    let arn = format!(
+        "arn:aws:iam::{}:saml-provider/{}",
+        context.instance_id(),
+        name
+    );
 
-    let wami_arn = provider.generate_wami_arn(ResourceType::SamlProvider, account_id, "/", &name);
+    // Build WAMI ARN using context
+    let wami_arn = WamiArn::builder()
+        .service(Service::Iam)
+        .tenant_path(context.tenant_path().clone())
+        .wami_instance(context.instance_id())
+        .resource("saml-provider", &name)
+        .build()?;
 
-    SamlProvider {
+    Ok(SamlProvider {
         arn,
         saml_provider_name: name,
         saml_metadata_document,
         create_date: Utc::now(),
         valid_until: None,
         tags: Vec::new(),
-        wami_arn,
+        wami_arn: wami_arn.to_string(),
         providers: Vec::new(),
         tenant_id: None,
         usage_count: 0,
-    }
+    })
 }
 
 /// Build a new OIDC provider (pure function)
 ///
 /// Creates an OIDC provider with the given URL, client IDs, and thumbprints.
+#[allow(clippy::result_large_err)]
 pub fn build_oidc_provider(
     url: String,
     client_id_list: Vec<String>,
     thumbprint_list: Vec<String>,
-    provider: &dyn CloudProvider,
-    account_id: &str,
-) -> OidcProvider {
+    context: &WamiContext,
+) -> Result<OidcProvider> {
     // For OIDC, the URL serves as the "name" in the ARN
     // Strip https:// prefix for the ARN name
     let arn_name = url.trim_start_matches("https://");
 
-    let arn = provider.generate_resource_identifier(
-        ResourceType::OidcProvider,
-        account_id,
-        "/",
-        arn_name,
+    // Generate AWS-compatible ARN
+    let arn = format!(
+        "arn:aws:iam::{}:oidc-provider/{}",
+        context.instance_id(),
+        arn_name
     );
 
-    let wami_arn =
-        provider.generate_wami_arn(ResourceType::OidcProvider, account_id, "/", arn_name);
+    // Build WAMI ARN using context
+    let wami_arn = WamiArn::builder()
+        .service(Service::Iam)
+        .tenant_path(context.tenant_path().clone())
+        .wami_instance(context.instance_id())
+        .resource("oidc-provider", arn_name)
+        .build()?;
 
-    OidcProvider {
+    Ok(OidcProvider {
         arn,
         url,
         client_id_list,
         thumbprint_list,
         create_date: Utc::now(),
         tags: Vec::new(),
-        wami_arn,
+        wami_arn: wami_arn.to_string(),
         providers: Vec::new(),
         tenant_id: None,
         usage_count: 0,
-    }
+    })
 }
 
 /// Update SAML metadata document (pure function)
@@ -179,21 +196,35 @@ pub fn set_oidc_tenant(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::provider::AwsProvider;
+    use crate::arn::{TenantPath, WamiArn};
 
-    fn test_provider() -> AwsProvider {
-        AwsProvider::new()
+    fn test_context() -> WamiContext {
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("root"))
+            .caller_arn(
+                WamiArn::builder()
+                    .service(Service::Iam)
+                    .tenant_path(TenantPath::single("root"))
+                    .wami_instance("123456789012")
+                    .resource("user", "test-user")
+                    .build()
+                    .unwrap(),
+            )
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[test]
     fn test_build_saml_provider() {
-        let provider = test_provider();
+        let context = test_context();
         let saml = build_saml_provider(
             "TestProvider".to_string(),
             "<EntityDescriptor />".to_string(),
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         assert_eq!(saml.saml_provider_name, "TestProvider");
         assert!(saml.arn.contains("saml-provider"));
@@ -204,14 +235,14 @@ mod tests {
 
     #[test]
     fn test_build_oidc_provider() {
-        let provider = test_provider();
+        let context = test_context();
         let oidc = build_oidc_provider(
             "https://accounts.google.com".to_string(),
             vec!["client-id-123".to_string()],
             vec!["0123456789abcdef0123456789abcdef01234567".to_string()],
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         assert_eq!(oidc.url, "https://accounts.google.com");
         assert!(oidc.arn.contains("oidc-provider"));
@@ -223,13 +254,8 @@ mod tests {
 
     #[test]
     fn test_update_saml_metadata() {
-        let provider = test_provider();
-        let saml = build_saml_provider(
-            "Test".to_string(),
-            "old".to_string(),
-            &provider,
-            "123456789012",
-        );
+        let context = test_context();
+        let saml = build_saml_provider("Test".to_string(), "old".to_string(), &context).unwrap();
 
         let updated = update_saml_metadata(saml, "new metadata".to_string());
         assert_eq!(updated.saml_metadata_document, "new metadata");
@@ -237,14 +263,14 @@ mod tests {
 
     #[test]
     fn test_add_remove_client_id() {
-        let provider = test_provider();
+        let context = test_context();
         let oidc = build_oidc_provider(
             "https://example.com".to_string(),
             vec!["client1".to_string()],
             vec!["0123456789abcdef0123456789abcdef01234567".to_string()],
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let with_client = add_client_id(oidc.clone(), "client2".to_string());
         assert_eq!(with_client.client_id_list.len(), 2);
@@ -256,13 +282,8 @@ mod tests {
 
     #[test]
     fn test_usage_tracking() {
-        let provider = test_provider();
-        let saml = build_saml_provider(
-            "Test".to_string(),
-            "meta".to_string(),
-            &provider,
-            "123456789012",
-        );
+        let context = test_context();
+        let saml = build_saml_provider("Test".to_string(), "meta".to_string(), &context).unwrap();
 
         let incremented = increment_saml_usage(saml);
         assert_eq!(incremented.usage_count, 1);
@@ -276,14 +297,14 @@ mod tests {
 
     #[test]
     fn test_update_thumbprints() {
-        let provider = test_provider();
+        let context = test_context();
         let oidc = build_oidc_provider(
             "https://example.com".to_string(),
             vec![],
             vec!["0123456789abcdef0123456789abcdef01234567".to_string()],
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let new_thumbprints = vec![
             "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string(),

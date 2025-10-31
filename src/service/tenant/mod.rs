@@ -2,8 +2,9 @@
 //!
 //! Orchestrates tenant operations.
 
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider, ResourceType};
 use crate::store::traits::TenantStore;
 use crate::wami::tenant::operations::tenant_operations;
 use crate::wami::tenant::{Tenant, TenantId, TenantQuotas, TenantUsage};
@@ -14,32 +15,18 @@ use std::sync::{Arc, RwLock};
 /// Provides high-level operations for multi-tenant management.
 pub struct TenantService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: TenantStore> TenantService<S> {
-    /// Create a new TenantService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new TenantService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Create a new tenant
     pub async fn create_tenant(
         &self,
+        context: &WamiContext,
         name: String,
         organization: Option<String>,
         parent_id: Option<TenantId>,
@@ -50,13 +37,14 @@ impl<S: TenantStore> TenantService<S> {
         // Build tenant using pure function
         let mut tenant = tenant_operations::build_tenant(name, organization, parent_id);
 
-        // Generate ARN
-        tenant.arn = self.provider.generate_wami_arn(
-            ResourceType::Tenant,
-            &self.account_id,
-            "/",
-            &tenant.id.to_string(),
-        );
+        // Generate ARN using context
+        tenant.arn = WamiArn::builder()
+            .service(Service::Iam)
+            .tenant_path(context.tenant_path().clone())
+            .wami_instance(context.instance_id())
+            .resource("tenant", tenant.id.to_string())
+            .build()?
+            .to_string();
 
         // Persist
         self.store.write().unwrap().create_tenant(tenant).await
@@ -123,15 +111,35 @@ mod tests {
 
     fn setup_service() -> TenantService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        TenantService::new(store, "123456789012".to_string())
+        TenantService::new(store)
+    }
+
+    fn test_context() -> crate::context::WamiContext {
+        use crate::arn::{TenantPath, WamiArn};
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        crate::context::WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
     async fn test_create_and_get_tenant() {
         let service = setup_service();
 
+        let context = test_context();
         let tenant = service
-            .create_tenant("acme-corp".to_string(), Some("ACME Inc".to_string()), None)
+            .create_tenant(
+                &context,
+                "acme-corp".to_string(),
+                Some("ACME Inc".to_string()),
+                None,
+            )
             .await
             .unwrap();
 
@@ -148,12 +156,13 @@ mod tests {
     async fn test_list_tenants() {
         let service = setup_service();
 
+        let context = test_context();
         service
-            .create_tenant("tenant1".to_string(), None, None)
+            .create_tenant(&context, "tenant1".to_string(), None, None)
             .await
             .unwrap();
         service
-            .create_tenant("tenant2".to_string(), None, None)
+            .create_tenant(&context, "tenant2".to_string(), None, None)
             .await
             .unwrap();
 
@@ -165,8 +174,9 @@ mod tests {
     async fn test_update_tenant() {
         let service = setup_service();
 
+        let context = test_context();
         let mut tenant = service
-            .create_tenant("test-tenant".to_string(), None, None)
+            .create_tenant(&context, "test-tenant".to_string(), None, None)
             .await
             .unwrap();
 
@@ -180,8 +190,9 @@ mod tests {
     async fn test_delete_tenant() {
         let service = setup_service();
 
+        let context = test_context();
         let tenant = service
-            .create_tenant("delete-me".to_string(), None, None)
+            .create_tenant(&context, "delete-me".to_string(), None, None)
             .await
             .unwrap();
 
@@ -195,15 +206,16 @@ mod tests {
     async fn test_hierarchical_tenants() {
         let service = setup_service();
 
+        let context = test_context();
         // Create parent
         let parent = service
-            .create_tenant("parent".to_string(), None, None)
+            .create_tenant(&context, "parent".to_string(), None, None)
             .await
             .unwrap();
 
         // Create child
         let child = service
-            .create_tenant("child".to_string(), None, Some(parent.id.clone()))
+            .create_tenant(&context, "child".to_string(), None, Some(parent.id.clone()))
             .await
             .unwrap();
 
@@ -222,23 +234,29 @@ mod tests {
     async fn test_get_descendants() {
         let service = setup_service();
 
+        let context = test_context();
         let root = service
-            .create_tenant("root".to_string(), None, None)
+            .create_tenant(&context, "root".to_string(), None, None)
             .await
             .unwrap();
 
         let child1 = service
-            .create_tenant("child1".to_string(), None, Some(root.id.clone()))
+            .create_tenant(&context, "child1".to_string(), None, Some(root.id.clone()))
             .await
             .unwrap();
 
         service
-            .create_tenant("child2".to_string(), None, Some(root.id.clone()))
+            .create_tenant(&context, "child2".to_string(), None, Some(root.id.clone()))
             .await
             .unwrap();
 
         service
-            .create_tenant("grandchild".to_string(), None, Some(child1.id.clone()))
+            .create_tenant(
+                &context,
+                "grandchild".to_string(),
+                None,
+                Some(child1.id.clone()),
+            )
             .await
             .unwrap();
 
@@ -250,23 +268,24 @@ mod tests {
     async fn test_validate_invalid_name() {
         let service = setup_service();
 
-        let result = service.create_tenant("".to_string(), None, None).await;
+        let context = test_context();
+        let result = service
+            .create_tenant(&context, "".to_string(), None, None)
+            .await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_with_provider() {
         let service = setup_service();
-        let gcp_provider = Arc::new(crate::provider::GcpProvider::new("test-project"));
+        let context = test_context();
 
-        let gcp_service = service.with_provider(gcp_provider);
-
-        let tenant = gcp_service
-            .create_tenant("gcp-tenant".to_string(), None, None)
+        let tenant = service
+            .create_tenant(&context, "gcp-tenant".to_string(), None, None)
             .await
             .unwrap();
 
-        // ARN should reflect GCP provider
+        // ARN should reflect WAMI format
         assert!(tenant.arn.contains("wami"));
     }
 }

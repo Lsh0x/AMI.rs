@@ -1,5 +1,6 @@
 //! Session Domain Model
 
+use crate::arn::WamiArn;
 use serde::{Deserialize, Serialize};
 
 /// Represents an STS session with temporary credentials
@@ -20,7 +21,7 @@ use serde::{Deserialize, Serialize};
 ///     federated_user_name: None,
 ///     principal_arn: None,
 ///     arn: "arn:aws:sts::123456789012:assumed-role/MyRole/session-name".to_string(),
-///     wami_arn: "arn:wami:sts:tenant-hash:session/session-id".to_string(),
+///     wami_arn: "arn:wami:sts:root:wami:123456789012:session/session-id".parse().unwrap(),
 ///     providers: vec![],
 ///     tenant_id: None,
 ///     created_at: Utc::now(),
@@ -48,7 +49,7 @@ pub struct StsSession {
     /// The native cloud provider ARN (e.g., AWS assumed-role ARN)
     pub arn: String,
     /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
     /// Optional tenant ID for multi-tenant isolation

@@ -1,30 +1,35 @@
 //! Service-Specific Credential Builder
 
 use super::model::*;
-use crate::provider::{CloudProvider, ResourceType};
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
+use crate::error::Result;
 use chrono::Utc;
+use uuid::Uuid;
 
-/// Build a new ServiceSpecificCredential resource
+/// Build a new ServiceSpecificCredential resource with context-based identifiers
+#[allow(clippy::result_large_err)]
 pub fn build_service_credential(
     user_name: String,
     service_name: String,
-    provider: &dyn CloudProvider,
-    account_id: &str,
-) -> ServiceSpecificCredential {
-    let credential_id = provider.generate_resource_id(ResourceType::ServiceCredential);
-    let wami_arn = provider.generate_wami_arn(
-        ResourceType::ServiceCredential,
-        account_id,
-        "/",
-        &credential_id,
-    );
+    context: &WamiContext,
+) -> Result<ServiceSpecificCredential> {
+    let credential_id = Uuid::new_v4().to_string();
+
+    // Build WAMI ARN using context
+    let wami_arn = WamiArn::builder()
+        .service(Service::Iam)
+        .tenant_path(context.tenant_path().clone())
+        .wami_instance(context.instance_id())
+        .resource("service-credential", &credential_id)
+        .build()?;
 
     // Generate service-specific password (for CodeCommit, IoT, etc.)
     let password = uuid::Uuid::new_v4().to_string().replace('-', "");
 
     let service_user_name = format!("{}-{}", user_name, &credential_id[..8]);
 
-    ServiceSpecificCredential {
+    Ok(ServiceSpecificCredential {
         user_name,
         service_name,
         service_user_name,
@@ -34,5 +39,5 @@ pub fn build_service_credential(
         create_date: Utc::now(),
         wami_arn,
         providers: Vec::new(),
-    }
+    })
 }

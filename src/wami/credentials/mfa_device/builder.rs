@@ -1,25 +1,33 @@
 //! MfaDevice Builder
 
 use super::model::MfaDevice;
-use crate::provider::{CloudProvider, ProviderConfig, ResourceType};
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
+use crate::error::Result;
+use crate::provider::ProviderConfig;
 
-/// Build a new MfaDevice resource
+/// Build a new MfaDevice resource with context-based identifiers
+#[allow(clippy::result_large_err)]
 pub fn build_mfa_device(
     user_name: String,
     serial_number: String,
-    provider: &dyn CloudProvider,
-    account_id: &str,
-) -> MfaDevice {
-    let wami_arn =
-        provider.generate_wami_arn(ResourceType::MfaDevice, account_id, "/", &serial_number);
+    context: &WamiContext,
+) -> Result<MfaDevice> {
+    // Build WAMI ARN using context
+    let wami_arn = WamiArn::builder()
+        .service(Service::Iam)
+        .tenant_path(context.tenant_path().clone())
+        .wami_instance(context.instance_id())
+        .resource("mfa", &serial_number)
+        .build()?;
 
-    MfaDevice {
+    Ok(MfaDevice {
         user_name,
         serial_number,
         enable_date: chrono::Utc::now(),
         wami_arn,
         providers: Vec::new(),
-    }
+    })
 }
 
 /// Add a provider configuration to an MfaDevice

@@ -2,8 +2,8 @@
 //!
 //! Orchestrates group management operations including membership management.
 
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::traits::GroupStore;
 use crate::wami::identity::group::{
     builder as group_builder, CreateGroupRequest, Group, ListGroupsRequest, UpdateGroupRequest,
@@ -15,38 +15,22 @@ use std::sync::{Arc, RwLock};
 /// Provides high-level operations for group management and membership.
 pub struct GroupService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: GroupStore> GroupService<S> {
-    /// Create a new GroupService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new GroupService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Create a new group
-    pub async fn create_group(&self, request: CreateGroupRequest) -> Result<Group> {
+    pub async fn create_group(
+        &self,
+        context: &WamiContext,
+        request: CreateGroupRequest,
+    ) -> Result<Group> {
         // Use wami builder to create group
-        let group = group_builder::build_group(
-            request.group_name,
-            request.path,
-            &*self.provider,
-            &self.account_id,
-        );
+        let group = group_builder::build_group(request.group_name, request.path, context)?;
 
         // Store it
         self.store.write().unwrap().create_group(group).await
@@ -131,18 +115,34 @@ impl<S: GroupStore> GroupService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
     use crate::store::memory::InMemoryWamiStore;
     use crate::store::traits::UserStore;
     use crate::wami::identity::user::builder as user_builder;
 
     fn setup_service() -> GroupService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        GroupService::new(store, "123456789012".to_string())
+        GroupService::new(store)
+    }
+
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
     async fn test_create_and_get_group() {
         let service = setup_service();
+        let context = test_context();
 
         let request = CreateGroupRequest {
             group_name: "admins".to_string(),
@@ -150,7 +150,7 @@ mod tests {
             tags: None,
         };
 
-        let group = service.create_group(request).await.unwrap();
+        let group = service.create_group(&context, request).await.unwrap();
         assert_eq!(group.group_name, "admins");
         assert_eq!(group.path, "/it/");
 
@@ -162,6 +162,7 @@ mod tests {
     #[tokio::test]
     async fn test_update_group() {
         let service = setup_service();
+        let context = test_context();
 
         // Create group
         let create_request = CreateGroupRequest {
@@ -169,7 +170,10 @@ mod tests {
             path: Some("/".to_string()),
             tags: None,
         };
-        service.create_group(create_request).await.unwrap();
+        service
+            .create_group(&context, create_request)
+            .await
+            .unwrap();
 
         // Update group
         let update_request = UpdateGroupRequest {
@@ -191,7 +195,8 @@ mod tests {
             path: None,
             tags: None,
         };
-        service.create_group(request).await.unwrap();
+        let context = test_context();
+        service.create_group(&context, request).await.unwrap();
 
         service.delete_group("temp_group").await.unwrap();
 
@@ -210,7 +215,8 @@ mod tests {
                 path: Some("/test/".to_string()),
                 tags: None,
             };
-            service.create_group(request).await.unwrap();
+            let context = test_context();
+            service.create_group(&context, request).await.unwrap();
         }
 
         let list_request = ListGroupsRequest {
@@ -224,15 +230,12 @@ mod tests {
     #[tokio::test]
     async fn test_group_membership() {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        let service = GroupService::new(store.clone(), "123456789012".to_string());
+        let service = GroupService::new(store.clone());
+        let context = test_context();
 
         // Create a user first
-        let user = user_builder::build_user(
-            "alice".to_string(),
-            Some("/".to_string()),
-            &*service.provider,
-            &service.account_id,
-        );
+        let user =
+            user_builder::build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
         store.write().unwrap().create_user(user).await.unwrap();
 
         // Create a group
@@ -241,7 +244,7 @@ mod tests {
             path: None,
             tags: None,
         };
-        service.create_group(request).await.unwrap();
+        service.create_group(&context, request).await.unwrap();
 
         // Add user to group
         service.add_user_to_group("admins", "alice").await.unwrap();

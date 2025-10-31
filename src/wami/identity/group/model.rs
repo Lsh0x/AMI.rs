@@ -1,5 +1,6 @@
 //! Group Domain Model
 
+use crate::arn::WamiArn;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +12,16 @@ use serde::{Deserialize, Serialize};
 ///
 /// ```rust
 /// use wami::wami::identity::group::Group;
+/// use wami::arn::{WamiArn, Service};
 /// use chrono::Utc;
+///
+/// let wami_arn = WamiArn::builder()
+///     .service(Service::Iam)
+///     .tenant("default")
+///     .wami_instance("main")
+///     .resource("group", "AGPACKCEVSQ6C2EXAMPLE")
+///     .build()
+///     .unwrap();
 ///
 /// let group = Group {
 ///     group_name: "Developers".to_string(),
@@ -20,7 +30,7 @@ use serde::{Deserialize, Serialize};
 ///     path: "/engineering/".to_string(),
 ///     create_date: Utc::now(),
 ///     tags: vec![],
-///     wami_arn: "arn:wami:iam::123456789012:group/Developers".to_string(),
+///     wami_arn,
 ///     providers: vec![],
 ///     tenant_id: None,
 /// };
@@ -39,8 +49,8 @@ pub struct Group {
     pub create_date: DateTime<Utc>,
     /// A list of tags associated with the group
     pub tags: Vec<crate::types::Tag>,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    /// The WAMI ARN for cross-provider identification (structured type)
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
     /// Optional tenant ID for multi-tenant isolation

@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         name: Some("MyOrganization SSO".to_string()),
         status: "ACTIVE".to_string(),
         created_date: chrono::Utc::now(),
-        wami_arn: "arn:wami:sso-admin:123456789012:instance/myorg-sso".to_string(),
+        wami_arn: "arn:wami:sso-admin:root:wami:123456789012:instance/myorg-sso".parse()?,
         providers: vec![],
     };
 
@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         relay_state: None,
         created_date: chrono::Utc::now(),
         instance_arn: instance.instance_arn.clone(),
-        wami_arn: "arn:wami:sso-admin:123456789012:permission-set/admin".to_string(),
+        wami_arn: "arn:wami:sso-admin:root:wami:123456789012:permission-set/admin".parse()?,
         providers: vec![],
     };
 

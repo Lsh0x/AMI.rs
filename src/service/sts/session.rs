@@ -85,7 +85,12 @@ mod tests {
             federated_user_name: None,
             principal_arn: Some(format!("arn:aws:iam::123456789012:user/{}", session_name)),
             arn: format!("arn:aws:sts::123456789012:session/{}", session_name),
-            wami_arn: format!("arn:wami:sts::123456789012:session/{}", session_name),
+            wami_arn: format!(
+                "arn:wami:sts:root:wami:123456789012:session/{}",
+                session_name
+            )
+            .parse()
+            .unwrap(),
             providers: vec![],
             tenant_id: None,
             created_at: Utc::now(),

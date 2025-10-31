@@ -10,7 +10,8 @@
 //! Run with: `cargo run --example 06_tenant_quotas_and_limits`
 
 use std::sync::{Arc, RwLock};
-use wami::provider::AwsProvider;
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::TenantService;
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::tenant::model::{QuotaMode, TenantId, TenantQuotas};
@@ -20,8 +21,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Tenant Quotas and Limits ===\n");
 
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let _provider = Arc::new(AwsProvider::new());
-    let tenant_service = TenantService::new(store.clone(), "root".to_string());
+
+    // Create root context
+    let root_context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(true)
+        .build()?;
+
+    let tenant_service = TenantService::new(store.clone());
 
     // === CREATE TENANTS WITH QUOTAS ===
     println!("Step 1: Creating tenants with quota configurations...\n");
@@ -30,6 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root_id = TenantId::new("company");
     let root_tenant = tenant_service
         .create_tenant(
+            &root_context,
             "company".to_string(),
             Some("Company Root".to_string()),
             None,
@@ -59,6 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dept_id = root_id.child("engineering");
     let dept_tenant = tenant_service
         .create_tenant(
+            &root_context,
             "engineering".to_string(),
             Some("Engineering Dept".to_string()),
             Some(root_id.clone()),
@@ -85,6 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let team_id = dept_id.child("backend-team");
     let team_tenant = tenant_service
         .create_tenant(
+            &root_context,
             "backend-team".to_string(),
             Some("Backend Team".to_string()),
             Some(dept_id.clone()),

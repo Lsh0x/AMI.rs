@@ -2,8 +2,8 @@
 //!
 //! Orchestrates MFA device management operations.
 
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::traits::MfaDeviceStore;
 use crate::wami::credentials::mfa_device::{
     builder as mfa_builder, EnableMfaDeviceRequest, ListMfaDevicesRequest, MfaDevice,
@@ -15,38 +15,23 @@ use std::sync::{Arc, RwLock};
 /// Provides high-level operations for MFA device management.
 pub struct MfaDeviceService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: MfaDeviceStore> MfaDeviceService<S> {
-    /// Create a new MfaDeviceService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new MfaDeviceService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Create and enable a new MFA device
-    pub async fn create_mfa_device(&self, request: EnableMfaDeviceRequest) -> Result<MfaDevice> {
+    pub async fn create_mfa_device(
+        &self,
+        context: &WamiContext,
+        request: EnableMfaDeviceRequest,
+    ) -> Result<MfaDevice> {
         // Use wami builder to create MFA device
-        let mfa_device = mfa_builder::build_mfa_device(
-            request.user_name,
-            request.serial_number,
-            &*self.provider,
-            &self.account_id,
-        );
+        let mfa_device =
+            mfa_builder::build_mfa_device(request.user_name, request.serial_number, context)?;
 
         // Store it
         self.store
@@ -87,11 +72,25 @@ impl<S: MfaDeviceStore> MfaDeviceService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
     use crate::store::memory::InMemoryWamiStore;
 
     fn setup_service() -> MfaDeviceService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        MfaDeviceService::new(store, "123456789012".to_string())
+        MfaDeviceService::new(store)
+    }
+
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
@@ -105,7 +104,8 @@ mod tests {
             authentication_code_2: "789012".to_string(),
         };
 
-        let mfa_device = service.create_mfa_device(request).await.unwrap();
+        let context = test_context();
+        let mfa_device = service.create_mfa_device(&context, request).await.unwrap();
         assert_eq!(mfa_device.user_name, "alice");
 
         let retrieved = service
@@ -126,7 +126,8 @@ mod tests {
             authentication_code_1: "123456".to_string(),
             authentication_code_2: "789012".to_string(),
         };
-        let mfa_device = service.create_mfa_device(request).await.unwrap();
+        let context = test_context();
+        let mfa_device = service.create_mfa_device(&context, request).await.unwrap();
 
         service
             .delete_mfa_device(&mfa_device.serial_number)
@@ -152,7 +153,8 @@ mod tests {
                 authentication_code_1: "123456".to_string(),
                 authentication_code_2: "789012".to_string(),
             };
-            service.create_mfa_device(request).await.unwrap();
+            let context = test_context();
+            service.create_mfa_device(&context, request).await.unwrap();
         }
 
         let list_request = ListMfaDevicesRequest {

@@ -10,7 +10,8 @@
 //!
 //! Run with: `cargo run --example 02_basic_crud_operations`
 
-use wami::provider::AwsProvider;
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::store::memory::InMemoryWamiStore;
 use wami::store::traits::{GroupStore, RoleStore, UserStore};
 use wami::wami::identity::group::builder::build_group;
@@ -22,32 +23,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Basic CRUD Operations ===\n");
 
     let mut store = InMemoryWamiStore::default();
-    let provider = AwsProvider::new();
-    let account_id = "123456789012";
+
+    // Create a WamiContext for operations
+    let context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
 
     // === CREATE Operations ===
     println!("Step 1: Creating resources...\n");
 
     // Create users
     println!("Creating users...");
-    let alice = build_user(
-        "alice".to_string(),
-        Some("/users/".to_string()),
-        &provider,
-        account_id,
-    );
-    let bob = build_user(
-        "bob".to_string(),
-        Some("/users/".to_string()),
-        &provider,
-        account_id,
-    );
-    let charlie = build_user(
-        "charlie".to_string(),
-        Some("/users/".to_string()),
-        &provider,
-        account_id,
-    );
+    let alice = build_user("alice".to_string(), Some("/users/".to_string()), &context)?;
+    let bob = build_user("bob".to_string(), Some("/users/".to_string()), &context)?;
+    let charlie = build_user("charlie".to_string(), Some("/users/".to_string()), &context)?;
 
     store.create_user(alice).await?;
     store.create_user(bob).await?;
@@ -59,15 +58,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let developers = build_group(
         "developers".to_string(),
         Some("/groups/".to_string()),
-        &provider,
-        account_id,
-    );
-    let admins = build_group(
-        "admins".to_string(),
-        Some("/groups/".to_string()),
-        &provider,
-        account_id,
-    );
+        &context,
+    )?;
+    let admins = build_group("admins".to_string(), Some("/groups/".to_string()), &context)?;
 
     store.create_group(developers).await?;
     store.create_group(admins).await?;
@@ -81,9 +74,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some("/roles/".to_string()),
         None,
         None,
-        &provider,
-        account_id,
-    );
+        &context,
+    )?;
 
     store.create_role(deploy_role).await?;
     println!("✓ Created 1 role: deploy-role");

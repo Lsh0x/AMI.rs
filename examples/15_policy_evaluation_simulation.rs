@@ -10,7 +10,8 @@
 //! Run with: `cargo run --example 15_policy_evaluation_simulation`
 
 use std::sync::{Arc, RwLock};
-use wami::provider::AwsProvider;
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::{EvaluationService, UserService};
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::identity::user::requests::CreateUserRequest;
@@ -21,11 +22,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Policy Evaluation Simulation ===\n");
 
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let _provider = Arc::new(AwsProvider::new());
-    let account_id = "123456789012";
 
-    let eval_service = EvaluationService::new(store.clone(), account_id.to_string());
-    let user_service = UserService::new(store.clone(), account_id.to_string());
+    // Create context
+    let context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    let eval_service = EvaluationService::new(store.clone(), "123456789012".to_string());
+    let user_service = UserService::new(store.clone());
 
     // Create user
     println!("Step 1: Creating user...\n");
@@ -35,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: None,
     };
-    let alice = user_service.create_user(req).await?;
+    let alice = user_service.create_user(&context, req).await?;
     println!("✓ Created alice: {}", alice.arn);
 
     // === SIMULATE POLICY ===

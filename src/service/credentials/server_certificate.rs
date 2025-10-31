@@ -2,8 +2,8 @@
 //!
 //! Orchestrates server certificate management operations.
 
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::traits::ServerCertificateStore;
 use crate::types::PaginationParams;
 use crate::wami::credentials::server_certificate::{
@@ -17,32 +17,18 @@ use std::sync::{Arc, RwLock};
 /// Provides high-level operations for server certificate management.
 pub struct ServerCertificateService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: ServerCertificateStore> ServerCertificateService<S> {
-    /// Create a new ServerCertificateService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new ServerCertificateService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Upload a new server certificate
     pub async fn upload_server_certificate(
         &self,
+        context: &WamiContext,
         request: UploadServerCertificateRequest,
     ) -> Result<ServerCertificateMetadata> {
         // Use wami builder to create certificate
@@ -52,9 +38,8 @@ impl<S: ServerCertificateStore> ServerCertificateService<S> {
             request.certificate_chain,
             request.path.unwrap_or_else(|| "/".to_string()),
             request.tags.unwrap_or_default(),
-            &*self.provider,
-            &self.account_id,
-        );
+            context,
+        )?;
 
         // Store it (note: private_key is part of ServerCertificate, not passed separately)
         self.store
@@ -147,12 +132,32 @@ mod tests {
 
     fn setup_service() -> ServerCertificateService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        ServerCertificateService::new(store, "123456789012".to_string())
+        ServerCertificateService::new(store)
+    }
+
+    fn test_context() -> WamiContext {
+        use crate::arn::{TenantPath, WamiArn};
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("root"))
+            .caller_arn(
+                WamiArn::builder()
+                    .service(crate::arn::Service::Iam)
+                    .tenant_path(TenantPath::single("root"))
+                    .wami_instance("123456789012")
+                    .resource("user", "test-user")
+                    .build()
+                    .unwrap(),
+            )
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
     async fn test_upload_and_get_server_certificate() {
         let service = setup_service();
+        let context = test_context();
 
         let request = UploadServerCertificateRequest {
             server_certificate_name: "test-cert".to_string(),
@@ -165,7 +170,10 @@ mod tests {
             tags: None,
         };
 
-        let metadata = service.upload_server_certificate(request).await.unwrap();
+        let metadata = service
+            .upload_server_certificate(&context, request)
+            .await
+            .unwrap();
         assert_eq!(metadata.server_certificate_name, "test-cert");
         assert_eq!(metadata.path, "/certs/");
 
@@ -177,6 +185,7 @@ mod tests {
     #[tokio::test]
     async fn test_delete_server_certificate() {
         let service = setup_service();
+        let context = test_context();
 
         let request = UploadServerCertificateRequest {
             server_certificate_name: "delete-me".to_string(),
@@ -188,7 +197,10 @@ mod tests {
             path: None,
             tags: None,
         };
-        service.upload_server_certificate(request).await.unwrap();
+        service
+            .upload_server_certificate(&context, request)
+            .await
+            .unwrap();
 
         service
             .delete_server_certificate("delete-me")
@@ -202,6 +214,7 @@ mod tests {
     #[tokio::test]
     async fn test_list_server_certificates() {
         let service = setup_service();
+        let context = test_context();
 
         // Upload multiple certificates
         for i in 0..3 {
@@ -215,7 +228,10 @@ mod tests {
                 path: Some("/test/".to_string()),
                 tags: None,
             };
-            service.upload_server_certificate(request).await.unwrap();
+            service
+                .upload_server_certificate(&context, request)
+                .await
+                .unwrap();
         }
 
         let list_request = ListServerCertificatesRequest {

@@ -1,5 +1,6 @@
 //! Trusted Token Issuer Model
 
+use crate::arn::WamiArn;
 use serde::{Deserialize, Serialize};
 
 /// Represents a trusted token issuer for federation
@@ -18,7 +19,7 @@ pub struct TrustedTokenIssuer {
     /// When this issuer was created
     pub created_date: chrono::DateTime<chrono::Utc>,
     /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
 }

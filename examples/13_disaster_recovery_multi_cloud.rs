@@ -10,7 +10,8 @@
 //! Run with: `cargo run --example 13_disaster_recovery_multi_cloud`
 
 use std::sync::{Arc, RwLock};
-use wami::provider::{AwsProvider, GcpProvider};
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::{GroupService, UserService};
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::identity::group::requests::CreateGroupRequest;
@@ -21,18 +22,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Disaster Recovery Multi-Cloud ===\n");
 
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let _aws_provider = Arc::new(AwsProvider::new());
-    let _gcp_provider = Arc::new(GcpProvider::new("backup-project".to_string()));
+
+    // Create AWS (primary) context
+    let aws_context = WamiContext::builder()
+        .instance_id("111111111111")
+        .tenant_path(TenantPath::single("aws-primary"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("aws-primary"))
+                .wami_instance("111111111111")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    // Create GCP (secondary) context
+    let gcp_context = WamiContext::builder()
+        .instance_id("backup-project")
+        .tenant_path(TenantPath::single("gcp-backup"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("gcp-backup"))
+                .wami_instance("backup-project")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    let user_service = UserService::new(store.clone());
+    let group_service = GroupService::new(store.clone());
 
     // === SETUP PRIMARY (AWS) ===
     println!("Step 1: Creating resources in PRIMARY (AWS)...\n");
-
-    let aws_user_service = UserService::new(
-        store.clone(),
-        "111111111111".to_string(), // Primary AWS account
-    );
-
-    let aws_group_service = GroupService::new(store.clone(), "111111111111".to_string());
 
     // Create users in primary
     println!("Creating critical users in AWS...");
@@ -51,8 +76,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
         ]),
     };
-    let aws_admin = aws_user_service.create_user(admin_req).await?;
-    println!("✓ Created admin in AWS: {}", aws_admin.arn);
+    let aws_admin = user_service.create_user(&aws_context, admin_req).await?;
+    println!("✓ Created admin in AWS: {}", aws_admin.wami_arn);
 
     let operator_req = CreateUserRequest {
         user_name: "operator".to_string(),
@@ -63,8 +88,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             value: "High".to_string(),
         }]),
     };
-    let aws_operator = aws_user_service.create_user(operator_req).await?;
-    println!("✓ Created operator in AWS: {}", aws_operator.arn);
+    let aws_operator = user_service.create_user(&aws_context, operator_req).await?;
+    println!("✓ Created operator in AWS: {}", aws_operator.wami_arn);
 
     // Create group in primary
     let group_req = CreateGroupRequest {
@@ -72,27 +97,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         path: Some("/critical/".to_string()),
         tags: None,
     };
-    let aws_group = aws_group_service.create_group(group_req).await?;
-    println!("\n✓ Created group in AWS: {}", aws_group.arn);
+    let aws_group = group_service.create_group(&aws_context, group_req).await?;
+    println!("\n✓ Created group in AWS: {}", aws_group.wami_arn);
 
     // Add users to group
-    aws_group_service
+    group_service
         .add_user_to_group("emergency-responders", "admin")
         .await?;
-    aws_group_service
+    group_service
         .add_user_to_group("emergency-responders", "operator")
         .await?;
     println!("✓ Added users to group");
 
     // === REPLICATE TO SECONDARY (GCP) ===
     println!("\n\nStep 2: Replicating to SECONDARY (GCP)...\n");
-
-    let gcp_user_service = UserService::new(
-        store.clone(),
-        "backup-project".to_string(), // Secondary GCP project
-    );
-
-    let gcp_group_service = GroupService::new(store.clone(), "backup-project".to_string());
 
     // Replicate users
     println!("Replicating users to GCP...");
@@ -102,8 +120,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: Some(aws_admin.tags.clone()),
     };
-    let gcp_admin = gcp_user_service.create_user(admin_replica_req).await?;
-    println!("✓ Replicated admin to GCP: {}", gcp_admin.arn);
+    let gcp_admin = user_service
+        .create_user(&gcp_context, admin_replica_req)
+        .await?;
+    println!("✓ Replicated admin to GCP: {}", gcp_admin.wami_arn);
 
     let operator_replica_req = CreateUserRequest {
         user_name: aws_operator.user_name.clone(),
@@ -111,8 +131,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: Some(aws_operator.tags.clone()),
     };
-    let gcp_operator = gcp_user_service.create_user(operator_replica_req).await?;
-    println!("✓ Replicated operator to GCP: {}", gcp_operator.arn);
+    let gcp_operator = user_service
+        .create_user(&gcp_context, operator_replica_req)
+        .await?;
+    println!("✓ Replicated operator to GCP: {}", gcp_operator.wami_arn);
 
     // Replicate group
     let group_replica_req = CreateGroupRequest {
@@ -120,14 +142,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         path: Some(aws_group.path.clone()),
         tags: None,
     };
-    let gcp_group = gcp_group_service.create_group(group_replica_req).await?;
-    println!("\n✓ Replicated group to GCP: {}", gcp_group.arn);
+    let gcp_group = group_service
+        .create_group(&gcp_context, group_replica_req)
+        .await?;
+    println!("\n✓ Replicated group to GCP: {}", gcp_group.wami_arn);
 
     // Replicate group membership
-    gcp_group_service
+    group_service
         .add_user_to_group("emergency-responders", "admin")
         .await?;
-    gcp_group_service
+    group_service
         .add_user_to_group("emergency-responders", "operator")
         .await?;
     println!("✓ Replicated group membership");
@@ -146,29 +170,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // === DEMONSTRATE STATUS ===
     println!("\n\nStep 4: Disaster recovery status...\n");
 
-    let (aws_users, _, _) = aws_user_service
+    let (all_users, _, _) = user_service
         .list_users(ListUsersRequest {
-            path_prefix: None,
-            pagination: None,
-        })
-        .await?;
-    let (gcp_users, _, _) = gcp_user_service
-        .list_users(ListUsersRequest {
-            path_prefix: None,
+            path_prefix: Some("/critical/".to_string()),
             pagination: None,
         })
         .await?;
 
+    let aws_users: Vec<_> = all_users
+        .iter()
+        .filter(|u| u.wami_arn.to_string().contains("aws-primary"))
+        .collect();
+    let gcp_users: Vec<_> = all_users
+        .iter()
+        .filter(|u| u.wami_arn.to_string().contains("gcp-backup"))
+        .collect();
+
     println!("PRIMARY (AWS) status:");
     println!("  - Users: {}", aws_users.len());
-    for user in &aws_users {
-        println!("    • {} → {}", user.user_name, user.arn);
+    for user in aws_users {
+        println!("    • {} → {}", user.user_name, user.wami_arn);
     }
 
     println!("\nSECONDARY (GCP) status:");
     println!("  - Users: {}", gcp_users.len());
-    for user in &gcp_users {
-        println!("    • {} → {}", user.user_name, user.arn);
+    for user in gcp_users {
+        println!("    • {} → {}", user.user_name, user.wami_arn);
     }
 
     // === BEST PRACTICES ===

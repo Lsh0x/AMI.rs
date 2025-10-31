@@ -2,8 +2,8 @@
 //!
 //! Orchestrates user management operations by combining wami builders with store persistence.
 
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::traits::UserStore;
 use crate::types::Tag;
 use crate::wami::identity::user::{
@@ -14,88 +14,29 @@ use std::sync::{Arc, RwLock};
 /// Service for managing IAM users
 ///
 /// Provides high-level operations that combine wami pure functions with store persistence.
-/// Supports fluent provider chaining for multi-cloud scenarios.
-///
-/// # Example
-///
-/// ```rust
-/// use wami::service::UserService;
-/// use wami::store::memory::InMemoryWamiStore;
-/// use wami::wami::identity::user::CreateUserRequest;
-/// use std::sync::{Arc, RwLock};
-///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-/// let service = UserService::new(store, "123456789012".to_string());
-///
-/// // Create user with default AWS provider
-/// let request = CreateUserRequest {
-///     user_name: "alice".to_string(),
-///     path: Some("/engineering/".to_string()),
-///     permissions_boundary: None,
-///     tags: None,
-/// };
-/// let user = service.create_user(request).await?;
-/// # Ok(())
-/// # }
-/// ```
 pub struct UserService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: UserStore> UserService<S> {
-    /// Create a new UserService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider (cheap clone - all Arc)
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use wami::service::UserService;
-    /// use wami::provider::GcpProvider;
-    /// use std::sync::{Arc, RwLock};
-    /// # use wami::store::memory::InMemoryWamiStore;
-    ///
-    /// # let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    /// let service = UserService::new(store, "123456789012".to_string());
-    ///
-    /// // Override to GCP for one operation
-    /// let gcp_provider = Arc::new(GcpProvider::new("my-project-id"));
-    /// let gcp_service = service.with_provider(gcp_provider);
-    /// ```
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new UserService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Create a new user
-    pub async fn create_user(&self, request: CreateUserRequest) -> Result<User> {
-        // Use wami builder to create user with current provider
-        let user = user_builder::build_user(
-            request.user_name,
-            request.path,
-            &*self.provider,
-            &self.account_id,
-        );
+    pub async fn create_user(
+        &self,
+        context: &WamiContext,
+        request: CreateUserRequest,
+    ) -> Result<User> {
+        // Use wami builder to create user with context
+        let mut user = user_builder::build_user(request.user_name, request.path, context)?;
 
         // Apply permissions boundary if specified
-        let user = if let Some(boundary_arn) = request.permissions_boundary {
-            user_builder::set_permissions_boundary(user, boundary_arn)
-        } else {
-            user
-        };
+        if let Some(boundary_arn) = request.permissions_boundary {
+            user = user_builder::set_permissions_boundary(user, boundary_arn);
+        }
 
         // Apply tags if specified
         let user = if let Some(tags) = request.tags {
@@ -179,16 +120,32 @@ impl<S: UserStore> UserService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
     use crate::store::memory::InMemoryWamiStore;
 
     fn setup_service() -> UserService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        UserService::new(store, "123456789012".to_string())
+        UserService::new(store)
+    }
+
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
     async fn test_create_and_get_user() {
         let service = setup_service();
+        let context = test_context();
 
         let request = CreateUserRequest {
             user_name: "alice".to_string(),
@@ -197,7 +154,7 @@ mod tests {
             tags: None,
         };
 
-        let user = service.create_user(request).await.unwrap();
+        let user = service.create_user(&context, request).await.unwrap();
         assert_eq!(user.user_name, "alice");
         assert_eq!(user.path, "/engineering/");
 
@@ -209,6 +166,7 @@ mod tests {
     #[tokio::test]
     async fn test_update_user() {
         let service = setup_service();
+        let context = test_context();
 
         // Create user
         let create_request = CreateUserRequest {
@@ -217,7 +175,7 @@ mod tests {
             permissions_boundary: None,
             tags: None,
         };
-        service.create_user(create_request).await.unwrap();
+        service.create_user(&context, create_request).await.unwrap();
 
         // Update user
         let update_request = UpdateUserRequest {
@@ -240,7 +198,8 @@ mod tests {
             permissions_boundary: None,
             tags: None,
         };
-        service.create_user(request).await.unwrap();
+        let context = test_context();
+        service.create_user(&context, request).await.unwrap();
 
         service.delete_user("charlie").await.unwrap();
 
@@ -260,7 +219,8 @@ mod tests {
                 permissions_boundary: None,
                 tags: None,
             };
-            service.create_user(request).await.unwrap();
+            let context = test_context();
+            service.create_user(&context, request).await.unwrap();
         }
 
         let list_request = ListUsersRequest {
@@ -281,7 +241,8 @@ mod tests {
             permissions_boundary: None,
             tags: None,
         };
-        service.create_user(request).await.unwrap();
+        let context = test_context();
+        service.create_user(&context, request).await.unwrap();
 
         // Tag user
         let tags = vec![Tag {
@@ -305,34 +266,6 @@ mod tests {
         assert_eq!(tags_after.len(), 0);
     }
 
-    #[tokio::test]
-    async fn test_with_provider() {
-        let service = setup_service();
-        let gcp_provider = Arc::new(crate::provider::GcpProvider::new("test-project"));
-
-        let gcp_service = service.with_provider(gcp_provider);
-
-        // Both services should work independently
-        let request1 = CreateUserRequest {
-            user_name: "aws_user".to_string(),
-            path: None,
-            permissions_boundary: None,
-            tags: None,
-        };
-        let aws_user = service.create_user(request1).await.unwrap();
-
-        let request2 = CreateUserRequest {
-            user_name: "gcp_user".to_string(),
-            path: None,
-            permissions_boundary: None,
-            tags: None,
-        };
-        let gcp_user = gcp_service.create_user(request2).await.unwrap();
-
-        // AWS user should have AWS-style ARN
-        assert!(aws_user.arn.contains("arn:aws:iam"));
-
-        // GCP user should have GCP-style service account identifier
-        assert!(gcp_user.arn.contains("projects/") && gcp_user.arn.contains("serviceAccounts/"));
-    }
+    // Note: test_with_provider removed as with_provider() method no longer exists
+    // Provider selection is now handled through WamiContext and CloudMapping
 }

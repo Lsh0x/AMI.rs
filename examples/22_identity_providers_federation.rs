@@ -13,6 +13,8 @@
 //! Run with: cargo run --example 22_identity_providers_federation
 
 use std::sync::{Arc, RwLock};
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::IdentityProviderService;
 use wami::store::memory::InMemoryWamiStore;
 use wami::types::Tag;
@@ -31,10 +33,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create in-memory store
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let account_id = "123456789012";
+
+    // Create context
+    let context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
 
     // Create identity provider service
-    let service = IdentityProviderService::new(store.clone(), account_id.to_string());
+    let service = IdentityProviderService::new(store.clone());
 
     println!("📋 Setting up federated authentication with SAML and OIDC providers\n");
 
@@ -78,7 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ]),
     };
 
-    let okta_provider = service.create_saml_provider(okta_request).await?;
+    let okta_provider = service.create_saml_provider(&context, okta_request).await?;
     println!("✅ Created Okta SAML provider: {}", okta_provider.arn);
     println!("   Name: {}", okta_provider.saml_provider_name);
     if let Some(valid_until) = okta_provider.valid_until {
@@ -106,7 +122,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }]),
     };
 
-    let azure_provider = service.create_saml_provider(azure_request).await?;
+    let azure_provider = service
+        .create_saml_provider(&context, azure_request)
+        .await?;
     println!("✅ Created Azure AD SAML provider: {}", azure_provider.arn);
     println!("   Name: {}\n", azure_provider.saml_provider_name);
 
@@ -167,7 +185,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ]),
     };
 
-    let google_provider = service.create_oidc_provider(google_request).await?;
+    let google_provider = service
+        .create_oidc_provider(&context, google_request)
+        .await?;
     println!("✅ Created Google OIDC provider: {}", google_provider.arn);
     println!("   URL: {}", google_provider.url);
     println!("   Client IDs: {:?}", google_provider.client_id_list);
@@ -185,7 +205,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }]),
     };
 
-    let auth0_provider = service.create_oidc_provider(auth0_request).await?;
+    let auth0_provider = service
+        .create_oidc_provider(&context, auth0_request)
+        .await?;
     println!("✅ Created Auth0 OIDC provider: {}", auth0_provider.arn);
     println!("   URL: {}\n", auth0_provider.url);
 
