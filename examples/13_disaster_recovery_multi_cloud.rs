@@ -26,11 +26,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create AWS (primary) context
     let aws_context = WamiContext::builder()
         .instance_id("111111111111")
-        .tenant_path(TenantPath::single("aws-primary"))
+        .tenant_path(TenantPath::single(40000001)) // Numeric tenant ID for AWS primary
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("aws-primary"))
+                .tenant_path(TenantPath::single(40000001))
                 .wami_instance("111111111111")
                 .resource("user", "admin")
                 .build()?,
@@ -41,11 +41,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create GCP (secondary) context
     let gcp_context = WamiContext::builder()
         .instance_id("backup-project")
-        .tenant_path(TenantPath::single("gcp-backup"))
+        .tenant_path(TenantPath::single(50000001)) // Numeric tenant ID for GCP backup
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("gcp-backup"))
+                .tenant_path(TenantPath::single(50000001))
                 .wami_instance("backup-project")
                 .resource("user", "admin")
                 .build()?,
@@ -179,11 +179,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let aws_users: Vec<_> = all_users
         .iter()
-        .filter(|u| u.wami_arn.to_string().contains("aws-primary"))
+        .filter(|u| u.wami_arn.to_string().contains("40000001"))
         .collect();
     let gcp_users: Vec<_> = all_users
         .iter()
-        .filter(|u| u.wami_arn.to_string().contains("gcp-backup"))
+        .filter(|u| u.wami_arn.to_string().contains("50000001"))
         .collect();
 
     println!("PRIMARY (AWS) status:");

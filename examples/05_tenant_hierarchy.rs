@@ -14,7 +14,6 @@ use wami::arn::{TenantPath, WamiArn};
 use wami::context::WamiContext;
 use wami::service::TenantService;
 use wami::store::memory::InMemoryWamiStore;
-use wami::wami::tenant::model::TenantId;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,11 +24,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create root context
     let root_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("root"))
+        .tenant_path(TenantPath::single(0)) // Root tenant ID is 0
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("root"))
+                .tenant_path(TenantPath::single(0))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -44,8 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Root: acme-corp
     println!("Creating root tenant: acme-corp");
-    let root_id = TenantId::new("acme-corp");
-    tenant_service
+    let root_tenant = tenant_service
         .create_tenant(
             &root_context,
             "acme-corp".to_string(),
@@ -53,12 +51,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             None,
         )
         .await?;
-    println!("✓ Created: acme-corp");
+    let root_id = root_tenant.id.clone();
+    println!("✓ Created: acme-corp (ID: {})", root_id);
 
     // Department level: engineering, sales
     println!("\nCreating department tenants...");
-    let eng_id = root_id.child("engineering");
-    tenant_service
+    let eng_tenant = tenant_service
         .create_tenant(
             &root_context,
             "engineering".to_string(),
@@ -66,10 +64,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(root_id.clone()),
         )
         .await?;
-    println!("✓ Created: acme-corp/engineering");
+    let eng_id = eng_tenant.id.clone();
+    println!("✓ Created: acme-corp/engineering (ID: {})", eng_id);
 
-    let _sales_id = root_id.child("sales");
-    tenant_service
+    let sales_tenant = tenant_service
         .create_tenant(
             &root_context,
             "sales".to_string(),
@@ -77,12 +75,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(root_id.clone()),
         )
         .await?;
-    println!("✓ Created: acme-corp/sales");
+    let _sales_id = sales_tenant.id.clone();
+    println!("✓ Created: acme-corp/sales (ID: {})", _sales_id);
 
     // Team level under engineering: backend, frontend
     println!("\nCreating team tenants under engineering...");
-    let backend_id = eng_id.child("backend");
-    tenant_service
+    let backend_tenant = tenant_service
         .create_tenant(
             &root_context,
             "backend".to_string(),
@@ -90,10 +88,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(eng_id.clone()),
         )
         .await?;
-    println!("✓ Created: acme-corp/engineering/backend");
+    let backend_id = backend_tenant.id.clone();
+    println!(
+        "✓ Created: acme-corp/engineering/backend (ID: {})",
+        backend_id
+    );
 
-    let _frontend_id = eng_id.child("frontend");
-    tenant_service
+    let frontend_tenant = tenant_service
         .create_tenant(
             &root_context,
             "frontend".to_string(),
@@ -101,7 +102,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(eng_id.clone()),
         )
         .await?;
-    println!("✓ Created: acme-corp/engineering/frontend");
+    let _frontend_id = frontend_tenant.id.clone();
+    println!(
+        "✓ Created: acme-corp/engineering/frontend (ID: {})",
+        _frontend_id
+    );
 
     // === QUERY HIERARCHY ===
     println!("\n\nStep 2: Querying tenant hierarchy...\n");

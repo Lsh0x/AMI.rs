@@ -459,9 +459,9 @@ mod tests {
             "arn:wami:iam:12345678:wami:999:user/alice"
         ));
 
-        // Complex wildcard pattern
+        // Complex wildcard pattern (updated for numeric tenant IDs)
         assert!(service.matches_resource(
-            &["arn:wami:iam:t*:wami:*:user/al*".to_string()],
+            &["arn:wami:iam:*:wami:*:user/al*".to_string()],
             "arn:wami:iam:12345678:wami:999:user/alice"
         ));
     }

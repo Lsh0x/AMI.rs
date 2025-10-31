@@ -326,7 +326,7 @@ mod tests {
         // Verify root context
         assert!(context.is_root());
         assert_eq!(context.instance_id(), "999888777");
-        assert_eq!(context.tenant_path().as_string(), "root");
+        assert_eq!(context.tenant_path().as_string(), "0"); // Root tenant ID is 0
     }
 
     #[tokio::test]

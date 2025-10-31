@@ -352,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_parse_custom_service() {
-        let arn_str = "arn:wami:iam:12345678:wami:999888777:resource/res123";
+        let arn_str = "arn:wami:custom-service:12345678:wami:999888777:resource/res123";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.service, Service::Custom("custom-service".to_string()));
@@ -360,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_parse_sso_admin() {
-        let arn_str = "arn:wami:iam:12345678:wami:999888777:permission-set/ps123";
+        let arn_str = "arn:wami:sso-admin:12345678:wami:999888777:permission-set/ps123";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.service, Service::SsoAdmin);
@@ -436,10 +436,14 @@ mod tests {
     fn test_parse_empty_tenant() {
         let result = WamiArn::from_str("arn:wami:iam::wami:999888777:user/77557755");
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Tenant path cannot be empty"));
+        // Empty tenant path will fail when parsing empty string as u64
+        let error_msg = result.unwrap_err().to_string();
+        assert!(
+            error_msg.contains("Invalid tenant path segment")
+                || error_msg.contains("Tenant path cannot be empty"),
+            "Error message: {}",
+            error_msg
+        );
     }
 
     #[test]

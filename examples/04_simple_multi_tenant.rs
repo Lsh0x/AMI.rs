@@ -15,7 +15,6 @@ use wami::context::WamiContext;
 use wami::service::{TenantService, UserService};
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::identity::user::requests::{CreateUserRequest, ListUsersRequest};
-use wami::wami::tenant::model::TenantId;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,11 +25,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create root context
     let root_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("root"))
+        .tenant_path(TenantPath::single(0)) // Root tenant ID is 0
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("root"))
+                .tenant_path(TenantPath::single(0))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -43,9 +42,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let tenant_service = TenantService::new(store.clone());
 
-    // Create Company A tenant
-    let _company_a_id = TenantId::new("company-a");
-    tenant_service
+    // Create Company A tenant (service generates numeric ID automatically)
+    let company_a = tenant_service
         .create_tenant(
             &root_context,
             "company-a".to_string(),
@@ -53,11 +51,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             None, // No parent, this is a root tenant
         )
         .await?;
-    println!("✓ Created tenant: company-a");
+    let company_a_id = company_a.id.clone();
+    println!("✓ Created tenant: company-a (ID: {})", company_a.id);
 
-    // Create Company B tenant
-    let _company_b_id = TenantId::new("company-b");
-    tenant_service
+    // Create Company B tenant (service generates numeric ID automatically)
+    let company_b = tenant_service
         .create_tenant(
             &root_context,
             "company-b".to_string(),
@@ -65,19 +63,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             None,
         )
         .await?;
-    println!("✓ Created tenant: company-b");
+    let company_b_id = company_b.id.clone();
+    println!("✓ Created tenant: company-b (ID: {})", company_b.id);
 
     // === CREATE USERS IN EACH TENANT ===
     println!("\nStep 2: Creating users in each tenant...\n");
 
+    // Get numeric tenant IDs for contexts (first segment is the root tenant ID)
+    let company_a_tenant_id = company_a_id.segments()[0];
+    let company_b_tenant_id = company_b_id.segments()[0];
+
     // Company A context
     let company_a_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("company-a"))
+        .tenant_path(TenantPath::single(company_a_tenant_id))
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("company-a"))
+                .tenant_path(TenantPath::single(company_a_tenant_id))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -88,11 +91,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Company B context
     let company_b_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("company-b"))
+        .tenant_path(TenantPath::single(company_b_tenant_id))
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("company-b"))
+                .tenant_path(TenantPath::single(company_b_tenant_id))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,

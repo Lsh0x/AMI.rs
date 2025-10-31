@@ -25,11 +25,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create root context
     let root_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("root"))
+        .tenant_path(TenantPath::single(0))
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("root"))
+                .tenant_path(TenantPath::single(0))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -43,7 +43,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Step 1: Creating tenants with quota configurations...\n");
 
     // Root tenant with high quotas
-    let root_id = TenantId::new("company");
+    // Root tenant ID is 0
+    let root_id = TenantId::root();
     let root_tenant = tenant_service
         .create_tenant(
             &root_context,
@@ -73,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  - Max policies: 500");
 
     // Department with lower quotas
-    let dept_id = root_id.child("engineering");
+    let dept_id = root_id.child(); // Generate child tenant ID
     let dept_tenant = tenant_service
         .create_tenant(
             &root_context,
@@ -100,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  - Max groups: 10");
 
     // Team with inherited quotas
-    let team_id = dept_id.child("backend-team");
+    let team_id = dept_id.child(); // Generate child tenant ID
     let team_tenant = tenant_service
         .create_tenant(
             &root_context,
