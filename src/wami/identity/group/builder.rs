@@ -67,7 +67,7 @@ pub fn build_group_legacy(
         // Fallback: create a basic ARN
         WamiArn::builder()
             .service(Service::Iam)
-            .tenant("default")
+            .tenant(12345678u64) // Test tenant ID
             .wami_instance(account_id)
             .resource("group", &group_id)
             .build()
@@ -124,12 +124,12 @@ mod tests {
     use crate::wami::tenant::TenantId;
 
     fn test_context() -> WamiContext {
-        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+        let arn: WamiArn = "arn:wami:.*:12345678:wami:123456789012:user/test"
             .parse()
             .unwrap();
         WamiContext::builder()
             .instance_id("123456789012")
-            .tenant_path(TenantPath::single("test"))
+            .tenant_path(TenantPath::single(12345678))
             .caller_arn(arn)
             .is_root(false)
             .build()
@@ -188,7 +188,7 @@ mod tests {
     fn test_set_tenant_id() {
         let context = test_context();
         let group = build_group("admins".to_string(), None, &context).unwrap();
-        let tenant_id = TenantId::new("acme");
+        let tenant_id = TenantId::root(); // Test with root tenant
 
         let updated = set_tenant_id(group, tenant_id.clone());
         assert_eq!(updated.tenant_id, Some(tenant_id));

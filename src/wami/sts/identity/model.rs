@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 ///     user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
 ///     account: "123456789012".to_string(),
 ///     arn: "arn:aws:iam::123456789012:user/alice".to_string(),
-///     wami_arn: "arn:wami:iam:root:wami:123456789012:user/alice".parse().unwrap(),
+///     wami_arn: "arn:wami:.*:0:wami:123456789012:user/alice".parse().unwrap(),
 ///     providers: vec![],
 /// };
 /// ```

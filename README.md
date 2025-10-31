@@ -16,11 +16,12 @@
 - 🌐 **Multi-cloud Support** - AWS, GCP, Azure, and custom identity providers
 - 🏗️ **Pure Domain Logic** - Business logic without storage dependencies
 - 💾 **Pluggable Storage** - In-memory, SQL, NoSQL, or custom backends
-- 🏢 **Multi-tenant Architecture** - Built-in hierarchical tenant isolation
+- 🏢 **Multi-tenant Architecture** - Built-in hierarchical tenant isolation with opaque numeric IDs
 - 🔐 **Complete IAM Suite** - Users, groups, roles, policies, credentials
 - 🔑 **Temporary Credentials** - STS sessions and role assumption
 - 📊 **SSO Administration** - Permission sets, assignments, and federation
 - 🏷️ **ARN System** - Unified resource naming with multi-tenant and multi-cloud support
+- 🔢 **Opaque Tenant IDs** - Numeric tenant IDs (u64) for security and scalability
 - 🦀 **100% Rust** - Type-safe, async-first, zero-cost abstractions
 - ✅ **Well-tested** - 539 unit tests with 89.43% code coverage (all passing)
 
@@ -82,14 +83,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize storage
     let mut store = InMemoryWamiStore::default();
     
-    // Create WAMI context with ARN
+    // Create WAMI context with ARN (using numeric tenant IDs)
     let context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("root"))
+        .tenant_path(TenantPath::single(0)) // Root tenant uses ID 0
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("root"))
+                .tenant_path(TenantPath::single(0))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -120,7 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 **Output:**
 ```
 ✅ Created user: alice
-✅ WAMI ARN: arn:wami:iam:root:wami:123456789012:user/...
+✅ WAMI ARN: arn:wami:iam:0:wami:123456789012:user/...
 ✅ Retrieved: "alice"
 ```
 
@@ -199,11 +200,11 @@ use wami::wami::identity::{user, group, role};
 // Create WAMI context
 let context = WamiContext::builder()
     .instance_id("123456789012")
-    .tenant_path(TenantPath::single("root"))
+    .tenant_path(TenantPath::single(0)) // Root tenant uses ID 0
     .caller_arn(
         WamiArn::builder()
             .service(wami::arn::Service::Iam)
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(0))
             .wami_instance("123456789012")
             .resource("user", "admin")
             .build()?,
@@ -242,14 +243,14 @@ use wami::wami::credentials::access_key::builder::build_access_key;
 use wami::service::{SessionTokenService, AssumeRoleService};
 use wami::wami::sts::session_token::requests::GetSessionTokenRequest;
 
-// Create WAMI context
+// Create WAMI context (using numeric tenant IDs)
 let context = WamiContext::builder()
     .instance_id("123456789012")
-    .tenant_path(TenantPath::single("root"))
+    .tenant_path(TenantPath::single(0)) // Root tenant uses ID 0
     .caller_arn(
         WamiArn::builder()
             .service(wami::arn::Service::Iam)
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(0))
             .wami_instance("123456789012")
             .resource("user", "alice")
             .build()?,
@@ -278,31 +279,31 @@ let session = sts_service
 ```rust
 use wami::arn::{WamiArn, Service, TenantPath};
 
-// Build a WAMI native ARN
+// Build a WAMI native ARN (using numeric tenant IDs)
 let arn = WamiArn::builder()
     .service(Service::Iam)
-    .tenant_hierarchy(vec!["t1", "t2", "t3"])
+    .tenant_hierarchy(vec![12345678, 87654321, 99999999]) // Opaque numeric IDs
     .wami_instance("999888777")
     .resource("user", "77557755")
     .build()?;
 
 println!("{}", arn);
-// Output: arn:wami:iam:t1/t2/t3:wami:999888777:user/77557755
+// Output: arn:wami:iam:12345678/87654321/99999999:wami:999888777:user/77557755
 
 // Build a cloud-synced ARN
 let cloud_arn = WamiArn::builder()
     .service(Service::Iam)
-    .tenant("t1")
+    .tenant(12345678) // Numeric tenant ID
     .wami_instance("999888777")
     .cloud_provider("aws", "223344556677")
     .resource("user", "77557755")
     .build()?;
 
 println!("{}", cloud_arn);
-// Output: arn:wami:iam:t1:wami:999888777:aws:223344556677:global:user/77557755
+// Output: arn:wami:iam:12345678:wami:999888777:aws:223344556677:global:user/77557755
 
 // Parse an ARN
-let parsed = WamiArn::from_str("arn:wami:iam:t1:wami:999888777:user/77557755")?;
+let parsed = WamiArn::from_str("arn:wami:iam:12345678:wami:999888777:user/77557755")?;
 println!("Resource type: {}", parsed.resource_type());
 ```
 
@@ -311,15 +312,27 @@ println!("Resource type: {}", parsed.resource_type());
 ```rust
 use wami::wami::tenant::{Tenant, TenantId};
 
-// Create parent tenant
-let parent_id = TenantId::root("acme-corp");
-let parent = Tenant { id: parent_id.clone(), /* ... */ };
-store.create_tenant(parent).await?;
+// Create parent tenant (service generates unique numeric ID)
+let parent = tenant_service
+    .create_tenant(
+        &context,
+        "acme-corp".to_string(),
+        Some("ACME Corp".to_string()),
+        None, // No parent, this is a root tenant
+    )
+    .await?;
+let parent_id = parent.id.clone();
 
 // Create child tenant
-let child_id = parent_id.child("engineering");
-let child = Tenant { id: child_id.clone(), parent_id: Some(parent_id), /* ... */ };
-store.create_tenant(child).await?;
+let child = tenant_service
+    .create_tenant(
+        &context,
+        "engineering".to_string(),
+        Some("Engineering Dept".to_string()),
+        Some(parent_id.clone()),
+    )
+    .await?;
+let child_id = child.id.clone();
 
 // Query hierarchy
 let descendants = store.get_descendants(&parent_id).await?;
@@ -406,6 +419,7 @@ See **[Contributing Guide](CONTRIBUTING.md)** for more details.
 - [ ] Advanced policy evaluation engine
 - [x] **Identity Provider Support** - SAML and OIDC federation (✅ Completed in v0.8.0)
 - [x] **ARN System** - Unified resource naming with multi-tenant and multi-cloud support (✅ Completed in v0.11.0)
+- [x] **Opaque Numeric Tenant IDs** - Secure tenant identification with u64-based IDs (✅ Completed in v0.11.0)
 - [ ] Audit logging and compliance
 - [ ] Service/orchestration layer
 

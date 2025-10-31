@@ -86,7 +86,7 @@ mod tests {
 
     #[test]
     fn test_belongs_to_tenant() {
-        let tenant_id = TenantId::new("test-tenant");
+        let tenant_id = TenantId::root();
         let user = User {
             user_name: "alice".to_string(),
             user_id: "123".to_string(),
@@ -103,14 +103,14 @@ mod tests {
 
         assert!(user_operations::belongs_to_tenant(&user, &tenant_id));
         
-        let other_tenant = TenantId::new("other-tenant");
+        let other_tenant = TenantId::from_string("other-tenant").unwrap();
         assert!(!user_operations::belongs_to_tenant(&user, &other_tenant));
     }
 
     #[test]
     fn test_filter_by_tenant() {
-        let tenant1 = TenantId::new("tenant1");
-        let tenant2 = TenantId::new("tenant2");
+        let tenant1 = TenantId::root();
+        let tenant2 = TenantId::root(); // Different root IDs
 
         let users = vec![
             User {

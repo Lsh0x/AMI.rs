@@ -53,7 +53,7 @@ fn building_native_arns() -> Result<()> {
     // Simple single-tenant ARN
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant("t1")
+        .tenant(12345678) // Numeric tenant ID
         .wami_instance("999888777")
         .resource("user", "77557755")
         .build()?;
@@ -64,7 +64,7 @@ fn building_native_arns() -> Result<()> {
     // Multi-tenant hierarchy ARN
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant_hierarchy(vec!["t1", "t2", "t3"])
+        .tenant_hierarchy(vec![12345678, 87654321, 99999999]) // Numeric tenant IDs
         .wami_instance("999888777")
         .resource("role", "12345678")
         .build()?;
@@ -75,7 +75,7 @@ fn building_native_arns() -> Result<()> {
     // Using service_str for custom services
     let arn = WamiArn::builder()
         .service_str("custom-service")
-        .tenant("t1")
+        .tenant(12345678) // Numeric tenant ID
         .wami_instance("999888777")
         .resource("custom-resource", "res123")
         .build()?;
@@ -86,7 +86,7 @@ fn building_native_arns() -> Result<()> {
     // STS service
     let arn = WamiArn::builder()
         .service(Service::Sts)
-        .tenant("t1")
+        .tenant(12345678) // Numeric tenant ID
         .wami_instance("999888777")
         .resource("session", "sess-abc123")
         .build()?;
@@ -105,7 +105,7 @@ fn building_cloud_synced_arns() -> Result<()> {
     // AWS-synced ARN
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant_hierarchy(vec!["t1", "t2", "t3"])
+        .tenant_hierarchy(vec![12345678, 87654321, 99999999]) // Numeric tenant IDs
         .wami_instance("999888777")
         .cloud_provider("aws", "223344556677")
         .resource("user", "77557755")
@@ -119,7 +119,7 @@ fn building_cloud_synced_arns() -> Result<()> {
     // GCP-synced ARN
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant_hierarchy(vec!["t1", "t2", "t3"])
+        .tenant_hierarchy(vec![12345678, 87654321, 99999999]) // Numeric tenant IDs
         .wami_instance("999888777")
         .cloud_provider("gcp", "554433221")
         .resource("serviceAccount", "77557755")
@@ -131,7 +131,7 @@ fn building_cloud_synced_arns() -> Result<()> {
     // Azure-synced ARN
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant("t1")
+        .tenant(12345678) // Numeric tenant ID
         .wami_instance("999888777")
         .cloud_provider("azure", "sub-12345-67890")
         .resource("user", "77557755")
@@ -143,7 +143,7 @@ fn building_cloud_synced_arns() -> Result<()> {
     // Scaleway-synced ARN
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant("t1")
+        .tenant(12345678) // Numeric tenant ID
         .wami_instance("999888777")
         .cloud_provider("scaleway", "112233445")
         .resource("user", "77557755")
@@ -161,7 +161,7 @@ fn parsing_arns() -> Result<()> {
     println!("## 3. Parsing ARNs\n");
 
     // Parse WAMI native ARN
-    let arn_str = "arn:wami:iam:t1/t2/t3:wami:999888777:user/77557755";
+    let arn_str = "arn:wami:iam:12345678/87654321/99999999:wami:999888777:user/77557755";
     let arn = WamiArn::from_str(arn_str)?;
 
     println!("Parsed WAMI native ARN:");
@@ -173,7 +173,8 @@ fn parsing_arns() -> Result<()> {
     println!("  Resource ID: {}\n", arn.resource_id());
 
     // Parse cloud-synced ARN
-    let arn_str = "arn:wami:iam:t1/t2/t3:wami:999888777:aws:223344556677:user/77557755";
+    let arn_str =
+        "arn:wami:iam:12345678/87654321/99999999:wami:999888777:aws:223344556677:user/77557755";
     let arn = parse_arn(arn_str)?;
 
     println!("Parsed cloud-synced ARN:");
@@ -185,7 +186,7 @@ fn parsing_arns() -> Result<()> {
     // Roundtrip test
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant("t1")
+        .tenant(12345678) // Numeric tenant ID
         .wami_instance("999888777")
         .resource("policy", "pol123")
         .build()?;
@@ -209,7 +210,7 @@ fn transforming_to_provider_formats() -> Result<()> {
     // AWS transformation
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant_hierarchy(vec!["t1", "t2", "t3"])
+        .tenant_hierarchy(vec![12345678, 87654321, 99999999]) // Numeric tenant IDs
         .wami_instance("999888777")
         .cloud_provider("aws", "223344556677")
         .resource("user", "77557755")
@@ -236,7 +237,7 @@ fn transforming_to_provider_formats() -> Result<()> {
     // GCP transformation
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant("t1")
+        .tenant(12345678) // Numeric tenant ID
         .wami_instance("999888777")
         .cloud_provider("gcp", "my-project-123")
         .resource("serviceAccount", "sa-77557755")
@@ -252,7 +253,7 @@ fn transforming_to_provider_formats() -> Result<()> {
     // Azure transformation
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant("t1")
+        .tenant(12345678) // Numeric tenant ID
         .wami_instance("999888777")
         .cloud_provider("azure", "sub-12345-67890")
         .resource("user", "77557755")
@@ -268,7 +269,7 @@ fn transforming_to_provider_formats() -> Result<()> {
     // Scaleway transformation
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant("t1")
+        .tenant(12345678) // Numeric tenant ID
         .wami_instance("999888777")
         .cloud_provider("scaleway", "org-112233")
         .resource("user", "77557755")
@@ -292,25 +293,25 @@ fn querying_by_prefix() -> Result<()> {
     let arns = vec![
         WamiArn::builder()
             .service(Service::Iam)
-            .tenant_hierarchy(vec!["t1", "t2", "t3"])
+            .tenant_hierarchy(vec![12345678, 87654321, 99999999]) // Numeric tenant IDs
             .wami_instance("999888777")
             .resource("user", "1001")
             .build()?,
         WamiArn::builder()
             .service(Service::Iam)
-            .tenant_hierarchy(vec!["t1", "t2", "t3"])
+            .tenant_hierarchy(vec![12345678, 87654321, 99999999]) // Numeric tenant IDs
             .wami_instance("999888777")
             .resource("role", "2001")
             .build()?,
         WamiArn::builder()
             .service(Service::Iam)
-            .tenant_hierarchy(vec!["t1", "t2"])
+            .tenant_hierarchy(vec![12345678, 87654321]) // Numeric tenant IDs
             .wami_instance("999888777")
             .resource("user", "3001")
             .build()?,
         WamiArn::builder()
             .service(Service::Iam)
-            .tenant_hierarchy(vec!["t1", "t2", "t3"])
+            .tenant_hierarchy(vec![12345678, 87654321, 99999999]) // Numeric tenant IDs
             .wami_instance("999888777")
             .cloud_provider("aws", "223344556677")
             .resource("user", "4001")
@@ -324,7 +325,7 @@ fn querying_by_prefix() -> Result<()> {
     println!();
 
     // Query by tenant prefix
-    let prefix = "arn:wami:iam:t1/t2/t3:wami:999888777";
+    let prefix = "arn:wami:iam:12345678/87654321/99999999:wami:999888777";
     println!("ARNs matching prefix '{}':", prefix);
     for arn in &arns {
         if arn.matches_prefix(prefix) {
@@ -334,7 +335,7 @@ fn querying_by_prefix() -> Result<()> {
     println!();
 
     // Query cloud-synced resources
-    let prefix = "arn:wami:iam:t1/t2/t3:wami:999888777:aws";
+    let prefix = "arn:wami:iam:12345678/87654321/99999999:wami:999888777:aws";
     println!("AWS-synced ARNs:");
     for arn in &arns {
         if arn.matches_prefix(prefix) {
@@ -344,8 +345,8 @@ fn querying_by_prefix() -> Result<()> {
     println!();
 
     // Query by service and instance
-    let prefix = "arn:wami:iam:t1/t2:wami:999888777";
-    println!("ARNs in tenant t1/t2 (including descendants):");
+    let prefix = "arn:wami:iam:12345678/87654321:wami:999888777";
+    println!("ARNs in tenant 12345678/87654321 (including descendants):");
     for arn in &arns {
         if arn.matches_prefix(prefix) {
             println!("  ✓ {}", arn);
@@ -361,14 +362,10 @@ fn querying_by_prefix() -> Result<()> {
 fn hierarchical_tenants() -> Result<()> {
     println!("## 6. Hierarchical Tenants\n");
 
-    // Create tenant hierarchy
-    let root = TenantPath::single("acme");
-    let division = TenantPath::new(vec!["acme".to_string(), "engineering".to_string()]);
-    let team = TenantPath::new(vec![
-        "acme".to_string(),
-        "engineering".to_string(),
-        "backend".to_string(),
-    ]);
+    // Create tenant hierarchy (using numeric IDs)
+    let root = TenantPath::single(11111111); // Root tenant ID
+    let division = TenantPath::new(vec![11111111, 22222222]); // Root -> Division
+    let team = TenantPath::new(vec![11111111, 22222222, 33333333]); // Root -> Division -> Team
 
     println!("Tenant Hierarchy:");
     println!("  Root:     {}", root);
@@ -448,7 +445,7 @@ fn arn_introspection() -> Result<()> {
 
     let arn = WamiArn::builder()
         .service(Service::Iam)
-        .tenant_hierarchy(vec!["acme", "engineering", "backend"])
+        .tenant_hierarchy(vec![11111111, 22222222, 33333333]) // Numeric tenant IDs
         .wami_instance("prod-001")
         .cloud_provider("aws", "223344556677")
         .resource("role", "backend-deploy-role")

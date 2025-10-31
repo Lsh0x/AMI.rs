@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 ///     federated_user_name: None,
 ///     principal_arn: None,
 ///     arn: "arn:aws:sts::123456789012:assumed-role/MyRole/session-name".to_string(),
-///     wami_arn: "arn:wami:sts:root:wami:123456789012:session/session-id".parse().unwrap(),
+///     wami_arn: "arn:wami:.*:0:wami:123456789012:session/session-id".parse().unwrap(),
 ///     providers: vec![],
 ///     tenant_id: None,
 ///     created_at: Utc::now(),
@@ -118,7 +118,7 @@ mod tests {
             arn: "arn:aws:sts::123456789012:assumed-role/Test/test".to_string(),
             wami_arn: WamiArn::builder()
                 .service(crate::arn::Service::Sts)
-                .tenant_path(TenantPath::single("root"))
+                .tenant_path(TenantPath::single(0))
                 .wami_instance("123456789012")
                 .resource("session", "test")
                 .build()

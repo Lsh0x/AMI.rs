@@ -124,11 +124,11 @@ mod tests {
         use crate::arn::{TenantPath, WamiArn};
         WamiContext::builder()
             .instance_id("123456789012")
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(0))
             .caller_arn(
                 WamiArn::builder()
                     .service(crate::arn::Service::Iam)
-                    .tenant_path(TenantPath::single("root"))
+                    .tenant_path(TenantPath::single(0))
                     .wami_instance("123456789012")
                     .resource("user", "test-user")
                     .build()

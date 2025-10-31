@@ -51,7 +51,7 @@ pub struct ProviderArnInfo {
 ///
 /// let arn = WamiArn::builder()
 ///     .service(Service::Iam)
-///     .tenant("t1")
+///     .tenant(12345678)
 ///     .wami_instance("999888777")
 ///     .cloud_provider("aws", "223344556677")
 ///     .resource("user", "77557755")
@@ -459,7 +459,7 @@ mod tests {
     fn test_aws_transformer() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_provider("aws", "223344556677")
             .resource("user", "77557755")
@@ -482,7 +482,7 @@ mod tests {
     fn test_aws_transformer_wrong_provider() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_provider("gcp", "123456")
             .resource("user", "77557755")
@@ -499,7 +499,7 @@ mod tests {
     fn test_aws_transformer_not_cloud_synced() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .resource("user", "77557755")
             .build()
@@ -515,7 +515,7 @@ mod tests {
     fn test_gcp_transformer() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_provider("gcp", "554433221")
             .resource("serviceAccount", "77557755")
@@ -534,7 +534,7 @@ mod tests {
     fn test_azure_transformer() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_provider("azure", "sub-12345")
             .resource("user", "77557755")
@@ -553,7 +553,7 @@ mod tests {
     fn test_scaleway_transformer() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_provider("scaleway", "112233445")
             .resource("user", "77557755")
@@ -585,7 +585,7 @@ mod tests {
     fn test_aws_sts_service() {
         let arn = WamiArn::builder()
             .service(Service::Sts)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_provider("aws", "223344556677")
             .resource("assumed-role", "role123")
@@ -601,7 +601,7 @@ mod tests {
     fn test_aws_resource_with_slash() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_provider("aws", "223344556677")
             .resource("policy", "path/to/policy")
@@ -620,7 +620,7 @@ mod tests {
     fn test_aws_transformer_with_region() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_provider_with_region("aws", "223344556677", "us-east-1")
             .resource("user", "alice")
@@ -647,7 +647,7 @@ mod tests {
         // Not cloud synced
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .resource("user", "alice")
             .build()
@@ -659,7 +659,7 @@ mod tests {
         // Wrong provider
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_provider("aws", "123456")
             .resource("user", "alice")
@@ -694,7 +694,7 @@ mod tests {
         // Not cloud synced
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .resource("user", "alice")
             .build()

@@ -135,11 +135,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // Create on-premise context
     let onprem_context = wami::context::WamiContext::builder()
         .instance_id("dc1-prod")
-        .tenant_path(wami::arn::TenantPath::single("onprem"))
+        .tenant_path(wami::arn::TenantPath::single(60000001)) // Numeric tenant ID for on-prem
         .caller_arn(
             wami::arn::WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(wami::arn::TenantPath::single("onprem"))
+                .tenant_path(wami::arn::TenantPath::single(60000001))
                 .wami_instance("dc1-prod")
                 .resource("user", "admin")
                 .build()?,
@@ -150,11 +150,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // Create AWS context
     let aws_context = wami::context::WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(wami::arn::TenantPath::single("aws"))
+        .tenant_path(wami::arn::TenantPath::single(70000001)) // Numeric tenant ID for AWS
         .caller_arn(
             wami::arn::WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(wami::arn::TenantPath::single("aws"))
+                .tenant_path(wami::arn::TenantPath::single(70000001))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,

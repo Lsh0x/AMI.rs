@@ -35,11 +35,11 @@
 //!     // Create WamiContext
 //!     let context = WamiContext::builder()
 //!         .instance_id("123456789012")
-//!         .tenant_path(TenantPath::single("root"))
+//!         .tenant_path(TenantPath::single(0))
 //!         .caller_arn(
 //!             WamiArn::builder()
 //!                 .service(wami::arn::Service::Iam)
-//!                 .tenant_path(TenantPath::single("root"))
+//!                 .tenant_path(TenantPath::single(0))
 //!                 .wami_instance("123456789012")
 //!                 .resource("user", "admin")
 //!                 .build()?,

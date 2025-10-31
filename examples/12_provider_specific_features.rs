@@ -26,11 +26,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create AWS context
     let aws_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("aws"))
+        .tenant_path(TenantPath::single(10000001)) // Numeric tenant ID for AWS
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("aws"))
+                .tenant_path(TenantPath::single(10000001))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -41,11 +41,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create GCP context
     let gcp_context = WamiContext::builder()
         .instance_id("my-gcp-project")
-        .tenant_path(TenantPath::single("gcp"))
+        .tenant_path(TenantPath::single(20000001)) // Numeric tenant ID for GCP
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("gcp"))
+                .tenant_path(TenantPath::single(20000001))
                 .wami_instance("my-gcp-project")
                 .resource("user", "admin")
                 .build()?,
@@ -56,11 +56,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create Azure context
     let azure_context = WamiContext::builder()
         .instance_id("my-subscription")
-        .tenant_path(TenantPath::single("azure"))
+        .tenant_path(TenantPath::single(30000001)) // Numeric tenant ID for Azure
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("azure"))
+                .tenant_path(TenantPath::single(30000001))
                 .wami_instance("my-subscription")
                 .resource("user", "admin")
                 .build()?,

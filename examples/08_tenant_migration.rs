@@ -27,11 +27,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create root context
     let root_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("root"))
+        .tenant_path(TenantPath::single(0))
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("root"))
+                .tenant_path(TenantPath::single(0))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -42,11 +42,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create old tenant context
     let old_tenant_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("old-tenant"))
+        .tenant_path(TenantPath::single(80000000))
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("old-tenant"))
+                .tenant_path(TenantPath::single(80000000))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -57,11 +57,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create new tenant context
     let new_tenant_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("new-tenant"))
+        .tenant_path(TenantPath::single(90000000))
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("new-tenant"))
+                .tenant_path(TenantPath::single(90000000))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let tenant_service = TenantService::new(store.clone());
 
-    let _old_tenant_id = TenantId::new("old-tenant");
+    let _old_tenant_id = TenantId::from_string("80000000").unwrap();
     tenant_service
         .create_tenant(
             &root_context,
@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     println!("✓ Created source tenant: old-tenant");
 
-    let _new_tenant_id = TenantId::new("new-tenant");
+    let _new_tenant_id = TenantId::from_string("90000000").unwrap();
     tenant_service
         .create_tenant(
             &root_context,

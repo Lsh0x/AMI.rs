@@ -2275,6 +2275,7 @@ dependencies = [
  "bcrypt",
  "chrono",
  "env_logger",
+ "getrandom 0.2.16",
  "hex",
  "log",
  "rand",

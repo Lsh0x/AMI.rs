@@ -28,11 +28,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create root context
     let root_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("root"))
+        .tenant_path(TenantPath::single(0))
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("root"))
+                .tenant_path(TenantPath::single(0))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -43,11 +43,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create tenant A context
     let tenant_a_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("company-a"))
+        .tenant_path(TenantPath::single(10000000))
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("company-a"))
+                .tenant_path(TenantPath::single(10000000))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -58,11 +58,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create tenant B context
     let tenant_b_context = WamiContext::builder()
         .instance_id("123456789012")
-        .tenant_path(TenantPath::single("company-b"))
+        .tenant_path(TenantPath::single(20000000))
         .caller_arn(
             WamiArn::builder()
                 .service(wami::arn::Service::Iam)
-                .tenant_path(TenantPath::single("company-b"))
+                .tenant_path(TenantPath::single(20000000))
                 .wami_instance("123456789012")
                 .resource("user", "admin")
                 .build()?,
@@ -76,7 +76,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tenant_service = TenantService::new(store.clone());
 
     // Tenant A (source)
-    let _tenant_a_id = TenantId::new("company-a");
+    // Tenant IDs are now numeric - use actual IDs from created tenants
+    // For this example, we'll use placeholder IDs that match the context
+    let _tenant_a_id = TenantId::from_string("10000000").unwrap();
     tenant_service
         .create_tenant(
             &root_context,
@@ -88,7 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✓ Created tenant: company-a");
 
     // Tenant B (target)
-    let _tenant_b_id = TenantId::new("company-b");
+    let _tenant_b_id = TenantId::from_string("20000000").unwrap();
     tenant_service
         .create_tenant(
             &root_context,
