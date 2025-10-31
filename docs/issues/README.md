@@ -9,6 +9,7 @@ This directory tracks feature requests, enhancements, and major work items for t
 | ID | Title | Priority | Type | Status |
 |----|-------|----------|------|--------|
 | [#001](ISSUE_001_CONDITION_KEYS.md) | Implement Policy Condition Keys | High | Feature Enhancement | 🔴 Open |
+| [#002](ISSUE_002_PROVIDER_SYNC.md) | Implement Cloud Provider Synchronization | High | Feature Enhancement | 🔴 Open |
 
 ### Closed Issues
 
@@ -16,14 +17,15 @@ This directory tracks feature requests, enhancements, and major work items for t
 
 ## Issue Statistics
 
-- **Total Issues**: 1
-- **Open**: 1 (100%)
+- **Total Issues**: 2
+- **Open**: 2 (100%)
 - **Closed**: 0 (0%)
 - **In Progress**: 0
 
 ## Quick Links
 
 - [Issue #001: Policy Condition Keys](ISSUE_001_CONDITION_KEYS.md) - Add comprehensive condition support to policy evaluation
+- [Issue #002: Provider Synchronization](ISSUE_002_PROVIDER_SYNC.md) - Sync WAMI resources to actual cloud providers (AWS/GCP/Azure)
 
 ## Issue Template
 
