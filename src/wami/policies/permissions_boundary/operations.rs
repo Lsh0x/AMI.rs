@@ -219,7 +219,7 @@ mod tests {
             update_date: chrono::Utc::now(),
             policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
             tags: vec![],
-            wami_arn: "arn:wami:iam:root:wami:123456789012:policy/boundary"
+            wami_arn: "arn:wami:.*:0:wami:123456789012:policy/boundary"
                 .parse()
                 .unwrap(),
             providers: vec![],
@@ -245,7 +245,7 @@ mod tests {
             update_date: chrono::Utc::now(),
             policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
             tags: vec![],
-            wami_arn: "arn:wami:iam:root:wami:123456789012:policy/inline"
+            wami_arn: "arn:wami:.*:0:wami:123456789012:policy/inline"
                 .parse()
                 .unwrap(),
             providers: vec![],
@@ -271,7 +271,7 @@ mod tests {
             update_date: chrono::Utc::now(),
             policy_document: "".to_string(),
             tags: vec![],
-            wami_arn: "arn:wami:iam:root:wami:123456789012:policy/empty"
+            wami_arn: "arn:wami:.*:0:wami:123456789012:policy/empty"
                 .parse()
                 .unwrap(),
             providers: vec![],
@@ -305,7 +305,7 @@ mod tests {
             }"#
             .to_string(),
             tags: vec![],
-            wami_arn: "arn:wami:iam:root:wami:123456789012:policy/boundary"
+            wami_arn: "arn:wami:.*:0:wami:123456789012:policy/boundary"
                 .parse()
                 .unwrap(),
             providers: vec![],
@@ -353,7 +353,7 @@ mod tests {
             }"#
             .to_string(),
             tags: vec![],
-            wami_arn: "arn:wami:iam:root:wami:123456789012:policy/boundary"
+            wami_arn: "arn:wami:.*:0:wami:123456789012:policy/boundary"
                 .parse()
                 .unwrap(),
             providers: vec![],

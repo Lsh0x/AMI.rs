@@ -6,7 +6,7 @@ use crate::store::traits::TenantStore;
 use crate::wami::tenant::{QuotaMode, Tenant, TenantId, TenantQuotas, TenantStatus, TenantType};
 
 fn build_test_tenant(name: &str, parent: Option<TenantId>) -> Tenant {
-    let tenant_id = TenantId::new(name);
+    let tenant_id = TenantId::root(); // Generate numeric ID for test
     Tenant {
         id: tenant_id.clone(),
         name: name.to_string(),
@@ -50,7 +50,7 @@ async fn test_tenant_get_nonexistent() {
     let store = InMemoryTenantStore::new();
 
     let result = store
-        .get_tenant(&TenantId::new("nonexistent"))
+        .get_tenant(&TenantId::root()) // Use a numeric ID that doesn't exist
         .await
         .unwrap();
     assert!(result.is_none());
@@ -127,7 +127,7 @@ async fn test_tenant_delete() {
 async fn test_tenant_delete_nonexistent_fails() {
     let mut store = InMemoryTenantStore::new();
 
-    let result = store.delete_tenant(&TenantId::new("nonexistent")).await;
+    let result = store.delete_tenant(&TenantId::root()).await; // Use root that doesn't exist
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
@@ -194,17 +194,17 @@ async fn test_tenant_get_ancestors() {
     let mut store = InMemoryTenantStore::new();
 
     // Create hierarchy: root -> child -> grandchild (using proper TenantId hierarchy)
-    let root_id = TenantId::root("root");
+    let root_id = TenantId::root();
     let mut root = build_test_tenant("root", None);
     root.id = root_id.clone();
     store.create_tenant(root).await.unwrap();
 
-    let child_id = root_id.child("child");
+    let child_id = root_id.child();
     let mut child = build_test_tenant("child", Some(root_id.clone()));
     child.id = child_id.clone();
     store.create_tenant(child).await.unwrap();
 
-    let grandchild_id = child_id.child("grandchild");
+    let grandchild_id = child_id.child();
     let mut grandchild = build_test_tenant("grandchild", Some(child_id.clone()));
     grandchild.id = grandchild_id.clone();
     store.create_tenant(grandchild).await.unwrap();
@@ -218,7 +218,7 @@ async fn test_tenant_get_ancestors() {
 async fn test_tenant_get_ancestors_root() {
     let mut store = InMemoryTenantStore::new();
 
-    let root_id = TenantId::root("root");
+    let root_id = TenantId::root();
     let mut root = build_test_tenant("root", None);
     root.id = root_id.clone();
     store.create_tenant(root).await.unwrap();
@@ -233,22 +233,22 @@ async fn test_tenant_get_descendants() {
     let mut store = InMemoryTenantStore::new();
 
     // Create hierarchy (using proper TenantId hierarchy)
-    let root_id = TenantId::root("root");
+    let root_id = TenantId::root();
     let mut root = build_test_tenant("root", None);
     root.id = root_id.clone();
     store.create_tenant(root).await.unwrap();
 
-    let child1_id = root_id.child("child1");
+    let child1_id = root_id.child();
     let mut child1 = build_test_tenant("child1", Some(root_id.clone()));
     child1.id = child1_id.clone();
     store.create_tenant(child1).await.unwrap();
 
-    let child2_id = root_id.child("child2");
+    let child2_id = root_id.child();
     let mut child2 = build_test_tenant("child2", Some(root_id.clone()));
     child2.id = child2_id.clone();
     store.create_tenant(child2).await.unwrap();
 
-    let grandchild_id = child1_id.child("grandchild");
+    let grandchild_id = child1_id.child();
     let mut grandchild = build_test_tenant("grandchild", Some(child1_id));
     grandchild.id = grandchild_id.clone();
     store.create_tenant(grandchild).await.unwrap();
@@ -300,7 +300,7 @@ async fn test_tenant_get_effective_quotas_nonexistent() {
     let store = InMemoryTenantStore::new();
 
     let result = store
-        .get_effective_quotas(&TenantId::new("nonexistent"))
+        .get_effective_quotas(&TenantId::root()) // Use root that doesn't exist
         .await;
     assert!(result.is_err());
     assert!(matches!(

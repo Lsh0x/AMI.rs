@@ -22,7 +22,7 @@ use crate::error::{AmiError, Result};
 ///
 /// assert_eq!(
 ///     arn.to_string(),
-///     "arn:wami:iam:t1/t2/t3:wami:999888777:user/77557755"
+///     "arn:wami:iam:12345678/87654321/99999999:wami:999888777:user/77557755"
 /// );
 /// ```
 ///
@@ -42,7 +42,7 @@ use crate::error::{AmiError, Result};
 ///
 /// assert_eq!(
 ///     arn.to_string(),
-///     "arn:wami:iam:t1/t2/t3:wami:999888777:aws:223344556677:global:user/77557755"
+///     "arn:wami:iam:12345678/87654321/99999999:wami:999888777:aws:223344556677:global:user/77557755"
 /// );
 /// ```
 #[derive(Debug, Default)]
@@ -95,7 +95,7 @@ impl ArnBuilder {
     /// ```
     /// use wami::arn::{WamiArn, TenantPath};
     ///
-    /// let path = TenantPath::new(vec!["t1".to_string(), "t2".to_string()]);
+    /// let path = TenantPath::new(vec![12345678, 87654321]);
     /// let builder = WamiArn::builder().tenant_path(path);
     /// ```
     pub fn tenant_path(mut self, path: TenantPath) -> Self {
@@ -103,7 +103,7 @@ impl ArnBuilder {
         self
     }
 
-    /// Sets the tenant hierarchy from a vector of tenant IDs.
+    /// Sets the tenant hierarchy from a vector of numeric tenant ID segments.
     ///
     /// # Examples
     ///
@@ -111,25 +111,23 @@ impl ArnBuilder {
     /// use wami::arn::WamiArn;
     ///
     /// let builder = WamiArn::builder()
-    ///     .tenant_hierarchy(vec!["t1", "t2", "t3"]);
+    ///     .tenant_hierarchy(vec![12345678, 87654321, 99999999]);
     /// ```
-    pub fn tenant_hierarchy<S: Into<String>>(mut self, segments: Vec<S>) -> Self {
-        self.tenant_path = Some(TenantPath::new(
-            segments.into_iter().map(|s| s.into()).collect(),
-        ));
+    pub fn tenant_hierarchy(mut self, segments: Vec<u64>) -> Self {
+        self.tenant_path = Some(TenantPath::new(segments));
         self
     }
 
-    /// Sets a single tenant (non-hierarchical).
+    /// Sets a single tenant (non-hierarchical) using a numeric tenant ID.
     ///
     /// # Examples
     ///
     /// ```
     /// use wami::arn::WamiArn;
     ///
-    /// let builder = WamiArn::builder().tenant("t1");
+    /// let builder = WamiArn::builder().tenant(12345678);
     /// ```
-    pub fn tenant(mut self, tenant_id: impl Into<String>) -> Self {
+    pub fn tenant(mut self, tenant_id: u64) -> Self {
         self.tenant_path = Some(TenantPath::single(tenant_id));
         self
     }
@@ -380,21 +378,21 @@ mod tests {
     fn test_builder_wami_native() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant_hierarchy(vec!["t1", "t2", "t3"])
+            .tenant_hierarchy(vec![12345678, 87654321, 99999999])
             .wami_instance("999888777")
             .resource("user", "77557755")
             .build()
             .unwrap();
 
         assert_eq!(arn.service, Service::Iam);
-        assert_eq!(arn.tenant_path.segments, vec!["t1", "t2", "t3"]);
+        assert_eq!(arn.tenant_path.segments, vec![12345678, 87654321, 99999999]);
         assert_eq!(arn.wami_instance_id, "999888777");
         assert_eq!(arn.cloud_mapping, None);
         assert_eq!(arn.resource.resource_type, "user");
         assert_eq!(arn.resource.resource_id, "77557755");
         assert_eq!(
             arn.to_string(),
-            "arn:wami:iam:t1/t2/t3:wami:999888777:user/77557755"
+            "arn:wami:iam:12345678/87654321/99999999:wami:999888777:user/77557755"
         );
     }
 
@@ -402,7 +400,7 @@ mod tests {
     fn test_builder_cloud_synced() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant_hierarchy(vec!["t1", "t2", "t3"])
+            .tenant_hierarchy(vec![12345678, 87654321, 99999999])
             .wami_instance("999888777")
             .cloud_provider("aws", "223344556677")
             .resource("user", "77557755")
@@ -418,7 +416,7 @@ mod tests {
         assert_eq!(arn.cloud_mapping.as_ref().unwrap().region, None);
         assert_eq!(
             arn.to_string(),
-            "arn:wami:iam:t1/t2/t3:wami:999888777:aws:223344556677:global:user/77557755"
+            "arn:wami:iam:12345678/87654321/99999999:wami:999888777:aws:223344556677:global:user/77557755"
         );
     }
 
@@ -426,7 +424,7 @@ mod tests {
     fn test_builder_cloud_synced_with_region() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant_hierarchy(vec!["t1", "t2", "t3"])
+            .tenant_hierarchy(vec![12345678, 87654321, 99999999])
             .wami_instance("999888777")
             .cloud_provider_with_region("aws", "223344556677", "us-east-1")
             .resource("user", "77557755")
@@ -439,7 +437,7 @@ mod tests {
         );
         assert_eq!(
             arn.to_string(),
-            "arn:wami:iam:t1/t2/t3:wami:999888777:aws:223344556677:us-east-1:user/77557755"
+            "arn:wami:iam:12345678/87654321/99999999:wami:999888777:aws:223344556677:us-east-1:user/77557755"
         );
     }
 
@@ -447,7 +445,7 @@ mod tests {
     fn test_builder_region_method() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_provider("aws", "223344556677")
             .region("eu-west-1")
@@ -465,16 +463,16 @@ mod tests {
     fn test_builder_single_tenant() {
         let arn = WamiArn::builder()
             .service(Service::Sts)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("111222333")
             .resource("session", "sess123")
             .build()
             .unwrap();
 
-        assert_eq!(arn.tenant_path.segments, vec!["t1"]);
+        assert_eq!(arn.tenant_path.segments, vec![12345678]);
         assert_eq!(
             arn.to_string(),
-            "arn:wami:sts:t1:wami:111222333:session/sess123"
+            "arn:wami:sts:12345678:wami:111222333:session/sess123"
         );
     }
 
@@ -482,7 +480,7 @@ mod tests {
     fn test_builder_service_str() {
         let arn = WamiArn::builder()
             .service_str("iam")
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .resource("policy", "pol123")
             .build()
@@ -495,7 +493,7 @@ mod tests {
     fn test_builder_custom_service() {
         let arn = WamiArn::builder()
             .service_str("custom-service")
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .resource("resource", "res123")
             .build()
@@ -504,7 +502,7 @@ mod tests {
         assert_eq!(arn.service, Service::Custom("custom-service".to_string()));
         assert_eq!(
             arn.to_string(),
-            "arn:wami:custom-service:t1:wami:999888777:resource/res123"
+            "arn:wami:custom-service:12345678:wami:999888777:resource/res123"
         );
     }
 
@@ -512,7 +510,7 @@ mod tests {
     fn test_builder_no_cloud_mapping() {
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_provider("aws", "123456")
             .no_cloud_mapping()
@@ -526,7 +524,7 @@ mod tests {
     #[test]
     fn test_builder_missing_service() {
         let result = WamiArn::builder()
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .resource("user", "77557755")
             .build();
@@ -557,7 +555,7 @@ mod tests {
     fn test_builder_missing_instance() {
         let result = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .resource("user", "77557755")
             .build();
 
@@ -572,7 +570,7 @@ mod tests {
     fn test_builder_missing_resource() {
         let result = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .build();
 
@@ -604,7 +602,7 @@ mod tests {
         let resource = Resource::new("role", "role123");
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .resource_obj(resource)
             .build()
@@ -619,7 +617,7 @@ mod tests {
         let mapping = CloudMapping::new("gcp", "554433221");
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant("t1")
+            .tenant(12345678)
             .wami_instance("999888777")
             .cloud_mapping(mapping)
             .resource("user", "77557755")

@@ -39,7 +39,7 @@
 //!
 //!     // Authorize
 //!     let authz_service = AuthorizationService::new(store.clone());
-//!     let resource: WamiArn = "arn:wami:iam:t1:wami:999:user/alice".parse()?;
+//!     let resource: WamiArn = "arn:wami:iam:12345678:wami:999:user/alice".parse()?;
 //!     
 //!     if authz_service.authorize(&context, "iam:GetUser", &resource).await? {
 //!         println!("Access granted");

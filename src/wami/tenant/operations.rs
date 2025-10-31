@@ -8,18 +8,15 @@ pub mod tenant_operations {
     use super::*;
 
     /// Build a new tenant (pure function)
+    ///
+    /// The tenant_id must be pre-generated and guaranteed to be unique.
+    /// Use `generate_unique_tenant_id()` in the service layer to ensure uniqueness.
     pub fn build_tenant(
+        tenant_id: TenantId,
         name: String,
         organization: Option<String>,
         parent_id: Option<TenantId>,
     ) -> Tenant {
-        // Create hierarchical ID if parent exists, otherwise root ID
-        let tenant_id = if let Some(ref parent) = parent_id {
-            parent.child(&name)
-        } else {
-            TenantId::new(&name)
-        };
-
         Tenant {
             id: tenant_id.clone(),
             name,
@@ -89,10 +86,11 @@ mod tests {
 
     #[test]
     fn test_build_tenant_basic() {
-        let tenant = build_tenant("test-tenant".to_string(), None, None);
+        let tenant_id = TenantId::root();
+        let tenant = build_tenant(tenant_id.clone(), "test-tenant".to_string(), None, None);
 
         assert_eq!(tenant.name, "test-tenant");
-        assert_eq!(tenant.id.as_str(), "test-tenant");
+        assert_eq!(tenant.id, tenant_id);
         assert!(tenant.organization.is_none());
         assert!(tenant.parent_id.is_none());
         assert_eq!(tenant.tenant_type, TenantType::Enterprise);
@@ -104,7 +102,13 @@ mod tests {
 
     #[test]
     fn test_build_tenant_with_organization() {
-        let tenant = build_tenant("acme".to_string(), Some("ACME Corp".to_string()), None);
+        let tenant_id = TenantId::root();
+        let tenant = build_tenant(
+            tenant_id,
+            "acme".to_string(),
+            Some("ACME Corp".to_string()),
+            None,
+        );
 
         assert_eq!(tenant.name, "acme");
         assert_eq!(tenant.organization, Some("ACME Corp".to_string()));
@@ -112,11 +116,18 @@ mod tests {
 
     #[test]
     fn test_build_tenant_with_parent() {
-        let parent_id = TenantId::new("parent");
-        let tenant = build_tenant("child".to_string(), None, Some(parent_id.clone()));
+        let parent_id = TenantId::root();
+        let tenant_id = parent_id.child();
+        let tenant = build_tenant(
+            tenant_id.clone(),
+            "child".to_string(),
+            None,
+            Some(parent_id.clone()),
+        );
 
         assert_eq!(tenant.name, "child");
         assert_eq!(tenant.parent_id, Some(parent_id));
+        assert_eq!(tenant.id, tenant_id);
     }
 
     #[test]
@@ -151,9 +162,9 @@ mod tests {
 
     #[test]
     fn test_is_valid_depth() {
-        let root = TenantId::root("root");
-        let child = root.child("child");
-        let grandchild = child.child("grandchild");
+        let root = TenantId::root();
+        let child = root.child();
+        let grandchild = child.child();
 
         assert!(is_valid_depth(&root, 0));
         assert!(is_valid_depth(&root, 5));
@@ -169,7 +180,8 @@ mod tests {
 
     #[test]
     fn test_can_create_child_active() {
-        let mut tenant = build_tenant("test".to_string(), None, None);
+        let tenant_id = TenantId::root();
+        let mut tenant = build_tenant(tenant_id, "test".to_string(), None, None);
         tenant.can_create_sub_tenants = true;
         tenant.status = TenantStatus::Active;
 
@@ -178,7 +190,8 @@ mod tests {
 
     #[test]
     fn test_can_create_child_suspended() {
-        let mut tenant = build_tenant("test".to_string(), None, None);
+        let tenant_id = TenantId::root();
+        let mut tenant = build_tenant(tenant_id, "test".to_string(), None, None);
         tenant.can_create_sub_tenants = true;
         tenant.status = TenantStatus::Suspended;
 
@@ -187,7 +200,8 @@ mod tests {
 
     #[test]
     fn test_can_create_child_disabled() {
-        let mut tenant = build_tenant("test".to_string(), None, None);
+        let tenant_id = TenantId::root();
+        let mut tenant = build_tenant(tenant_id, "test".to_string(), None, None);
         tenant.can_create_sub_tenants = false;
         tenant.status = TenantStatus::Active;
 
@@ -196,7 +210,8 @@ mod tests {
 
     #[test]
     fn test_tenant_defaults() {
-        let tenant = build_tenant("test".to_string(), None, None);
+        let tenant_id = TenantId::root();
+        let tenant = build_tenant(tenant_id, "test".to_string(), None, None);
 
         assert!(tenant.provider_accounts.is_empty());
         assert!(tenant.providers.is_empty());

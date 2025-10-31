@@ -11,15 +11,15 @@
 //! ## WAMI Native (no cloud sync):
 //! ```text
 //! arn:wami:{service}:{tenant_path}:wami:{wami_instance_id}:{resource_type}/{resource_id}
-//! Example: arn:wami:iam:t1/t2/t3:wami:999888777:user/77557755
+//! Example: arn:wami:iam:12345678/87654321/99999999:wami:999888777:user/77557755
 //! ```
 //!
 //! ## Cloud-Synced Resources:
 //! ```text
 //! arn:wami:{service}:{tenant_path}:wami:{wami_instance_id}:{provider}:{provider_account_id}:{resource_type}/{resource_id}
 //! Examples:
-//! - arn:wami:iam:t1/t2/t3:wami:999888777:aws:223344556677:user/77557755
-//! - arn:wami:iam:t1/t2/t3:wami:999888777:gcp:554433221:user/77557755
+//! - arn:wami:iam:12345678/87654321/99999999:wami:999888777:aws:223344556677:user/77557755
+//! - arn:wami:iam:12345678/87654321/99999999:wami:999888777:gcp:554433221:user/77557755
 //! ```
 //!
 //! # Usage
@@ -42,7 +42,7 @@
 //!
 //! assert_eq!(
 //!     arn.to_string(),
-//!     "arn:wami:iam:t1/t2/t3:wami:999888777:user/77557755"
+//!     "arn:wami:iam:12345678/87654321/99999999:wami:999888777:user/77557755"
 //! );
 //!
 //! // Cloud-synced ARN
@@ -64,7 +64,7 @@
 //! use wami::arn::WamiArn;
 //! use std::str::FromStr;
 //!
-//! let arn = WamiArn::from_str("arn:wami:iam:t1:wami:999888777:user/77557755").unwrap();
+//! let arn = WamiArn::from_str("arn:wami:iam:12345678:wami:999888777:user/77557755").unwrap();
 //! assert_eq!(arn.resource_type(), "user");
 //! assert_eq!(arn.primary_tenant(), Some("t1"));
 //! ```

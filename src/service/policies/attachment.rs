@@ -394,11 +394,11 @@ mod tests {
     async fn create_test_context() -> WamiContext {
         WamiContext::builder()
             .instance_id("123456789012")
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(0))
             .caller_arn(
                 WamiArn::builder()
                     .service(crate::arn::Service::Iam)
-                    .tenant_path(TenantPath::single("root"))
+                    .tenant_path(TenantPath::single(0))
                     .wami_instance("123456789012")
                     .resource("user", "admin")
                     .build()
@@ -608,7 +608,7 @@ mod tests {
 
         let request = AttachUserPolicyRequest {
             user_name: "alice".to_string(),
-            policy_arn: "arn:wami:iam:root:wami:123456789012:policy/nonexistent".to_string(),
+            policy_arn: "arn:wami:.*:0:wami:123456789012:policy/nonexistent".to_string(),
         };
         let result = service.attach_user_policy(request).await;
         assert!(result.is_err());

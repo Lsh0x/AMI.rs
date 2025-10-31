@@ -264,12 +264,12 @@ mod tests {
     use crate::wami::policies::policy::builder as policy_builder;
 
     fn test_context() -> WamiContext {
-        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+        let arn: WamiArn = "arn:wami:.*:12345678:wami:123456789012:user/test"
             .parse()
             .unwrap();
         WamiContext::builder()
             .instance_id("123456789012")
-            .tenant_path(TenantPath::single("test"))
+            .tenant_path(TenantPath::single(12345678))
             .caller_arn(arn)
             .is_root(false)
             .build()

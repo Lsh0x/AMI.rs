@@ -101,12 +101,9 @@ mod tests {
             target_id: "123456789012".to_string(),
             target_type: "AWS_ACCOUNT".to_string(),
             created_date: Utc::now(),
-            wami_arn: format!(
-                "arn:wami:sso-admin:root:wami:123456789012:assignment/{}",
-                id
-            )
-            .parse()
-            .unwrap(),
+            wami_arn: format!("arn:wami:.*:0:wami:123456789012:assignment/{}", id)
+                .parse()
+                .unwrap(),
             providers: vec![],
         }
     }

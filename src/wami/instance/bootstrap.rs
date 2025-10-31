@@ -50,7 +50,7 @@ use crate::error::{AmiError, Result};
 use crate::service::auth::authentication::hash_secret;
 use crate::store::traits::{AccessKeyStore, UserStore};
 use crate::wami::credentials::AccessKey;
-use crate::wami::identity::root_user::{ROOT_TENANT, ROOT_USER_ID, ROOT_USER_NAME};
+use crate::wami::identity::root_user::{ROOT_TENANT_ID, ROOT_USER_ID, ROOT_USER_NAME};
 use crate::wami::identity::User;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -86,7 +86,7 @@ impl InstanceBootstrap {
     /// Initialize a new WAMI instance with root user and credentials
     ///
     /// This creates:
-    /// 1. A root user with ARN: `arn:wami:iam:root:wami:{instance_id}:user/root`
+    /// 1. A root user with ARN: `arn:wami:iam:0:wami:{instance_id}:user/root`
     /// 2. An access key pair for the root user
     /// 3. Securely hashed secret (bcrypt)
     ///
@@ -151,7 +151,7 @@ impl InstanceBootstrap {
         // Build root user ARN
         let wami_arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant_path(TenantPath::single(ROOT_TENANT))
+            .tenant_path(TenantPath::single(ROOT_TENANT_ID))
             .wami_instance(&instance_id)
             .resource("user", ROOT_USER_ID)
             .build()?;
@@ -181,7 +181,7 @@ impl InstanceBootstrap {
         // Create access key ARN
         let access_key_arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant_path(TenantPath::single(ROOT_TENANT))
+            .tenant_path(TenantPath::single(ROOT_TENANT_ID))
             .wami_instance(&instance_id)
             .resource("access-key", &access_key_id)
             .build()?;

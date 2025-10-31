@@ -107,12 +107,9 @@ mod tests {
             relay_state: None,
             instance_arn: instance_arn.to_string(),
             created_date: Utc::now(),
-            wami_arn: format!(
-                "arn:wami:sso-admin:root:wami:123456789012:permission-set/ps-{}",
-                name
-            )
-            .parse()
-            .unwrap(),
+            wami_arn: format!("arn:wami:.*:0:wami:123456789012:permission-set/ps-{}", name)
+                .parse()
+                .unwrap(),
             providers: vec![],
         }
     }

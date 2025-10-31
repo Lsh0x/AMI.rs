@@ -65,7 +65,7 @@ pub fn build_user_legacy(
         // Fallback: create a basic ARN
         WamiArn::builder()
             .service(Service::Iam)
-            .tenant("default")
+            .tenant(12345678u64) // Test tenant ID
             .wami_instance(account_id)
             .resource("user", &user_id)
             .build()
@@ -156,10 +156,10 @@ mod tests {
     use crate::wami::tenant::TenantId;
 
     fn test_context() -> WamiContext {
-        let user_arn: WamiArn = "arn:wami:iam:t1:wami:999:user/test".parse().unwrap();
+        let user_arn: WamiArn = "arn:wami:iam:12345678:wami:999:user/test".parse().unwrap();
         WamiContext::builder()
             .instance_id("999888777")
-            .tenant_path(TenantPath::single("t1"))
+            .tenant_path(TenantPath::single(12345678))
             .caller_arn(user_arn)
             .is_root(false)
             .build()
@@ -267,7 +267,7 @@ mod tests {
     fn test_set_tenant_id() {
         let context = test_context();
         let user = build_user("alice".to_string(), None, &context).unwrap();
-        let tenant_id = TenantId::new("acme");
+        let tenant_id = TenantId::root(); // Test with root tenant
 
         let updated = set_tenant_id(user, tenant_id.clone());
         assert_eq!(updated.tenant_id, Some(tenant_id));

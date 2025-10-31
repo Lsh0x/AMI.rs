@@ -167,7 +167,9 @@ where
         let arn = &user.wami_arn;
 
         // Check if this is the root user
-        let is_root = user.user_name == ROOT_USER_NAME && arn.tenant_path.to_string() == "root";
+        // Root user is in the root tenant (ID = 0)
+        let is_root = user.user_name == ROOT_USER_NAME
+            && arn.tenant_path.root_u64() == Some(crate::wami::identity::root_user::ROOT_TENANT_ID);
 
         // Extract instance_id and tenant_path from the ARN
         let instance_id = arn.wami_instance_id.clone();
@@ -213,7 +215,9 @@ where
         // Create root context
         WamiContext::builder()
             .instance_id(instance_id)
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(
+                crate::wami::identity::root_user::ROOT_TENANT_ID,
+            ))
             .caller_arn(user.wami_arn.clone())
             .is_root(true)
             .build()

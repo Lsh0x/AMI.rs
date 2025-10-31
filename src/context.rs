@@ -225,13 +225,13 @@ mod tests {
 
     #[test]
     fn test_context_builder() {
-        let arn: WamiArn = "arn:wami:iam:t1/t2:wami:999888777:user/12345"
+        let arn: WamiArn = "arn:wami:iam:12345678/87654321:wami:999888777:user/12345"
             .parse()
             .unwrap();
 
         let context = WamiContext::builder()
             .instance_id("999888777")
-            .tenant_path(TenantPath::new(vec!["t1".to_string(), "t2".to_string()]))
+            .tenant_path(TenantPath::new(vec![12345678, 87654321]))
             .caller_arn(arn.clone())
             .is_root(false)
             .region("us-east-1")
@@ -239,7 +239,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(context.instance_id(), "999888777");
-        assert_eq!(context.tenant_path().to_string(), "t1/t2");
+        assert_eq!(context.tenant_path().to_string(), "12345678/87654321");
         assert_eq!(context.caller_arn(), &arn);
         assert!(!context.is_root());
         assert_eq!(context.region(), Some("us-east-1"));
@@ -247,76 +247,70 @@ mod tests {
 
     #[test]
     fn test_root_context() {
-        let arn: WamiArn = "arn:wami:iam:root:wami:999888777:user/root"
-            .parse()
-            .unwrap();
+        let arn: WamiArn = "arn:wami:iam:0:wami:999888777:user/root".parse().unwrap();
 
         let context = WamiContext::builder()
             .instance_id("999888777")
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(0))
             .caller_arn(arn)
             .is_root(true)
             .build()
             .unwrap();
 
         assert!(context.is_root());
-        assert_eq!(context.tenant_path().to_string(), "root");
+        assert_eq!(context.tenant_path().to_string(), "0");
     }
 
     #[test]
     fn test_can_access_tenant() {
-        let arn: WamiArn = "arn:wami:iam:t1:wami:999888777:user/12345".parse().unwrap();
+        let arn: WamiArn = "arn:wami:iam:12345678:wami:999888777:user/12345"
+            .parse()
+            .unwrap();
 
         let context = WamiContext::builder()
             .instance_id("999888777")
-            .tenant_path(TenantPath::single("t1"))
+            .tenant_path(TenantPath::single(12345678))
             .caller_arn(arn)
             .is_root(false)
             .build()
             .unwrap();
 
         // Can access same tenant
-        assert!(context.can_access_tenant(&TenantPath::single("t1")));
+        assert!(context.can_access_tenant(&TenantPath::single(12345678)));
 
         // Can access child tenant
-        assert!(
-            context.can_access_tenant(&TenantPath::new(vec!["t1".to_string(), "t2".to_string()]))
-        );
+        assert!(context.can_access_tenant(&TenantPath::new(vec![12345678, 87654321])));
 
         // Cannot access sibling tenant
-        assert!(!context.can_access_tenant(&TenantPath::single("t2")));
+        assert!(!context.can_access_tenant(&TenantPath::single(99999999)));
 
         // Cannot access parent tenant (root)
-        assert!(!context.can_access_tenant(&TenantPath::single("root")));
+        assert!(!context.can_access_tenant(&TenantPath::single(0)));
     }
 
     #[test]
     fn test_root_can_access_any_tenant() {
-        let arn: WamiArn = "arn:wami:iam:root:wami:999888777:user/root"
-            .parse()
-            .unwrap();
+        let arn: WamiArn = "arn:wami:iam:0:wami:999888777:user/root".parse().unwrap();
 
         let context = WamiContext::builder()
             .instance_id("999888777")
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(0))
             .caller_arn(arn)
             .is_root(true)
             .build()
             .unwrap();
 
         // Root can access any tenant
-        assert!(context.can_access_tenant(&TenantPath::single("root")));
-        assert!(context.can_access_tenant(&TenantPath::single("t1")));
-        assert!(context.can_access_tenant(&TenantPath::new(vec![
-            "t1".to_string(),
-            "t2".to_string(),
-            "t3".to_string()
-        ])));
+        assert!(context.can_access_tenant(&TenantPath::single(0)));
+        assert!(context.can_access_tenant(&TenantPath::single(12345678)));
+        assert!(context.can_access_tenant(&TenantPath::new(vec![12345678, 87654321, 99999999])));
     }
 
     #[test]
     fn test_session_expiration() {
-        let arn: WamiArn = "arn:wami:iam:t1:wami:999888777:user/12345".parse().unwrap();
+        let arn: WamiArn = "arn:wami:iam:12345678:wami:999888777:user/12345"
+            .parse()
+            .unwrap();
 
         let future_time = chrono::Utc::now().timestamp() + 3600; // 1 hour from now
         let session = SessionInfo {
@@ -327,7 +321,7 @@ mod tests {
 
         let context = WamiContext::builder()
             .instance_id("999888777")
-            .tenant_path(TenantPath::single("t1"))
+            .tenant_path(TenantPath::single(12345678))
             .caller_arn(arn)
             .session_info(session)
             .build()
@@ -338,7 +332,9 @@ mod tests {
 
     #[test]
     fn test_expired_session() {
-        let arn: WamiArn = "arn:wami:iam:t1:wami:999888777:user/12345".parse().unwrap();
+        let arn: WamiArn = "arn:wami:iam:12345678:wami:999888777:user/12345"
+            .parse()
+            .unwrap();
 
         let past_time = chrono::Utc::now().timestamp() - 3600; // 1 hour ago
         let session = SessionInfo {
@@ -349,7 +345,7 @@ mod tests {
 
         let context = WamiContext::builder()
             .instance_id("999888777")
-            .tenant_path(TenantPath::single("t1"))
+            .tenant_path(TenantPath::single(12345678))
             .caller_arn(arn)
             .session_info(session)
             .build()
@@ -360,7 +356,9 @@ mod tests {
 
     #[test]
     fn test_context_builder_all_fields() {
-        let arn: WamiArn = "arn:wami:iam:t1:wami:999888777:user/12345".parse().unwrap();
+        let arn: WamiArn = "arn:wami:iam:12345678:wami:999888777:user/12345"
+            .parse()
+            .unwrap();
         let future_time = chrono::Utc::now().timestamp() + 3600;
         let session = SessionInfo {
             session_token: "token123".to_string(),
@@ -370,7 +368,7 @@ mod tests {
 
         let context = WamiContext::builder()
             .instance_id("999888777")
-            .tenant_path(TenantPath::single("t1"))
+            .tenant_path(TenantPath::single(12345678))
             .caller_arn(arn.clone())
             .is_root(false)
             .region("us-west-2")
@@ -389,11 +387,13 @@ mod tests {
 
     #[test]
     fn test_context_without_optional_fields() {
-        let arn: WamiArn = "arn:wami:iam:t1:wami:999888777:user/12345".parse().unwrap();
+        let arn: WamiArn = "arn:wami:iam:12345678:wami:999888777:user/12345"
+            .parse()
+            .unwrap();
 
         let context = WamiContext::builder()
             .instance_id("999888777")
-            .tenant_path(TenantPath::single("t1"))
+            .tenant_path(TenantPath::single(12345678))
             .caller_arn(arn)
             .is_root(false)
             .build()
@@ -407,7 +407,7 @@ mod tests {
     fn test_missing_required_fields() {
         // Missing instance_id
         let result = WamiContext::builder()
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(0))
             .build();
         assert!(result.is_err());
 

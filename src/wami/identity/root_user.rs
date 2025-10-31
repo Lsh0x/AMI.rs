@@ -2,7 +2,7 @@
 //!
 //! The root user is a special user that exists for each WAMI instance. It has:
 //! - Full access to all resources in the instance (bypasses all authorization checks)
-//! - Special ARN format: `arn:wami:iam:root:wami:{instance_id}:user/root`
+//! - Special ARN format: `arn:wami:iam:0:wami:{instance_id}:user/root`
 //! - Cannot be deleted
 //! - Created automatically during instance initialization
 //!
@@ -32,7 +32,7 @@
 //! assert!(root_user.is_root());
 //! assert_eq!(
 //!     root_user.arn().to_string(),
-//!     "arn:wami:iam:root:wami:999888777:user/root"
+//!     "arn:wami:.*:0:wami:999888777:user/root"
 //! );
 //! ```
 
@@ -45,7 +45,9 @@ use serde::{Deserialize, Serialize};
 
 /// Constants for root user
 pub const ROOT_USER_NAME: &str = "root";
-pub const ROOT_TENANT: &str = "root";
+/// Root tenant numeric ID constant
+/// Using 0 as a special reserved value for root tenant
+pub const ROOT_TENANT_ID: u64 = 0;
 pub const ROOT_USER_ID: &str = "root";
 
 /// Root User - Special administrative user with full access
@@ -77,10 +79,10 @@ impl RootUser {
         let instance_id = instance_id.into();
         let now = Utc::now();
 
-        // Build root user ARN: arn:wami:iam:root:wami:{instance_id}:user/root
+        // Build root user ARN: arn:wami:iam:0:wami:{instance_id}:user/root
         let arn = WamiArn::builder()
             .service(Service::Iam)
-            .tenant_path(TenantPath::single(ROOT_TENANT))
+            .tenant_path(TenantPath::single(ROOT_TENANT_ID))
             .wami_instance(instance_id.clone())
             .resource("user", ROOT_USER_ID)
             .build()
@@ -157,7 +159,7 @@ impl RootUser {
     pub(crate) fn create_context_internal(&self) -> Result<WamiContext> {
         WamiContext::builder()
             .instance_id(self.instance_id())
-            .tenant_path(TenantPath::single(ROOT_TENANT))
+            .tenant_path(TenantPath::single(ROOT_TENANT_ID))
             .caller_arn(self.user.wami_arn.clone())
             .is_root(true)
             .build()
@@ -174,7 +176,7 @@ impl RootUser {
     ) -> Result<WamiContext> {
         WamiContext::builder()
             .instance_id(self.instance_id())
-            .tenant_path(TenantPath::single(ROOT_TENANT))
+            .tenant_path(TenantPath::single(ROOT_TENANT_ID))
             .caller_arn(self.user.wami_arn.clone())
             .is_root(true)
             .region(region)
@@ -216,10 +218,7 @@ mod tests {
         assert_eq!(arn.service, Service::Iam);
         assert_eq!(arn.tenant_path.as_string(), "root");
         assert_eq!(arn.wami_instance_id, "999888777");
-        assert_eq!(
-            arn.to_string(),
-            "arn:wami:iam:root:wami:999888777:user/root"
-        );
+        assert_eq!(arn.to_string(), "arn:wami:.*:0:wami:999888777:user/root");
     }
 
     #[test]
@@ -236,7 +235,7 @@ mod tests {
 
         assert!(context.is_root());
         assert_eq!(context.instance_id(), "999888777");
-        assert_eq!(context.tenant_path().to_string(), "root");
+        assert_eq!(context.tenant_path().to_string(), "0");
         assert_eq!(
             context.caller_arn().to_string(),
             root_user.arn().to_string()

@@ -20,7 +20,7 @@
 //!
 //!     // Assume we have an authenticated context
 //!     let context = todo!("Get from authentication");
-//!     let resource_arn: WamiArn = "arn:wami:iam:t1:wami:999:user/alice".parse()?;
+//!     let resource_arn: WamiArn = "arn:wami:iam:12345678:wami:999:user/alice".parse()?;
 //!
 //!     // Check if user can perform action
 //!     let allowed = authz_service
@@ -375,23 +375,26 @@ mod tests {
 
         // Exact match
         assert!(service.matches_resource(
-            &["arn:wami:iam:t1:wami:999:user/alice".to_string()],
-            "arn:wami:iam:t1:wami:999:user/alice"
+            &["arn:wami:iam:12345678:wami:999:user/alice".to_string()],
+            "arn:wami:iam:12345678:wami:999:user/alice"
         ));
 
         // Wildcard all
-        assert!(service.matches_resource(&["*".to_string()], "arn:wami:iam:t1:wami:999:user/alice"));
+        assert!(service.matches_resource(
+            &["*".to_string()],
+            "arn:wami:iam:12345678:wami:999:user/alice"
+        ));
 
         // Wildcard pattern
         assert!(service.matches_resource(
             &["arn:wami:iam:*:user/*".to_string()],
-            "arn:wami:iam:t1:wami:999:user/alice"
+            "arn:wami:iam:12345678:wami:999:user/alice"
         ));
 
         // No match
         assert!(!service.matches_resource(
-            &["arn:wami:iam:t1:wami:999:role/*".to_string()],
-            "arn:wami:iam:t1:wami:999:user/alice"
+            &["arn:wami:iam:12345678:wami:999:role/*".to_string()],
+            "arn:wami:iam:12345678:wami:999:user/alice"
         ));
     }
 
@@ -402,11 +405,13 @@ mod tests {
             store: Arc::new(RwLock::new(store)),
         };
 
-        assert!(service.wildcard_match("arn:*:user/*", "arn:wami:iam:t1:wami:999:user/alice"));
+        assert!(service.wildcard_match("arn:*:user/*", "arn:wami:iam:12345678:wami:999:user/alice"));
         assert!(service.wildcard_match("*.example.com", "api.example.com"));
         assert!(service.wildcard_match("test-*-prod", "test-api-prod"));
 
-        assert!(!service.wildcard_match("arn:*:role/*", "arn:wami:iam:t1:wami:999:user/alice"));
+        assert!(
+            !service.wildcard_match("arn:*:role/*", "arn:wami:iam:12345678:wami:999:user/alice")
+        );
     }
 
     #[test]
@@ -443,7 +448,7 @@ mod tests {
         };
 
         // Empty resources
-        assert!(!service.matches_resource(&[], "arn:wami:iam:t1:wami:999:user/alice"));
+        assert!(!service.matches_resource(&[], "arn:wami:iam:12345678:wami:999:user/alice"));
 
         // Multiple patterns
         assert!(service.matches_resource(
@@ -451,13 +456,13 @@ mod tests {
                 "arn:wami:iam:*:role/*".to_string(),
                 "arn:wami:iam:*:user/*".to_string()
             ],
-            "arn:wami:iam:t1:wami:999:user/alice"
+            "arn:wami:iam:12345678:wami:999:user/alice"
         ));
 
         // Complex wildcard pattern
         assert!(service.matches_resource(
             &["arn:wami:iam:t*:wami:*:user/al*".to_string()],
-            "arn:wami:iam:t1:wami:999:user/alice"
+            "arn:wami:iam:12345678:wami:999:user/alice"
         ));
     }
 
@@ -486,7 +491,7 @@ mod tests {
             ],
         };
 
-        let resource: WamiArn = "arn:wami:iam:t1:wami:999:user/alice".parse().unwrap();
+        let resource: WamiArn = "arn:wami:iam:12345678:wami:999:user/alice".parse().unwrap();
         let effect = service.evaluate_policy_document(&policy, "iam:DeleteUser", &resource);
 
         // Deny should override Allow
@@ -510,7 +515,7 @@ mod tests {
             }],
         };
 
-        let resource: WamiArn = "arn:wami:iam:t1:wami:999:user/alice".parse().unwrap();
+        let resource: WamiArn = "arn:wami:iam:12345678:wami:999:user/alice".parse().unwrap();
         let effect = service.evaluate_policy_document(&policy, "iam:GetUser", &resource);
 
         assert_eq!(effect, PolicyEffect::NoMatch);
@@ -533,7 +538,7 @@ mod tests {
             }],
         };
 
-        let resource: WamiArn = "arn:wami:iam:t1:wami:999:user/alice".parse().unwrap();
+        let resource: WamiArn = "arn:wami:iam:12345678:wami:999:user/alice".parse().unwrap();
         let effect = service.evaluate_policy_document(&policy, "iam:GetUser", &resource);
 
         assert_eq!(effect, PolicyEffect::Deny);

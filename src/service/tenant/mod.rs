@@ -23,6 +23,103 @@ impl<S: TenantStore> TenantService<S> {
         Self { store }
     }
 
+    /// Generate a unique tenant ID with global uniqueness validation
+    ///
+    /// This function generates a numeric tenant ID and ensures it doesn't collide
+    /// with any existing tenant (root or child) in the system.
+    async fn generate_unique_tenant_id(&self, parent_id: Option<&TenantId>) -> Result<TenantId> {
+        const MAX_RETRIES: usize = 10; // Extremely unlikely to need retries
+
+        for _ in 0..MAX_RETRIES {
+            let tenant_id = if let Some(parent) = parent_id {
+                parent.child()
+            } else {
+                TenantId::root()
+            };
+
+            // Check global uniqueness - verify tenant doesn't already exist
+            let exists = self.store.read().unwrap().get_tenant(&tenant_id).await?;
+
+            if exists.is_none() {
+                return Ok(tenant_id);
+            }
+
+            // Collision detected, retry (extremely rare with u64)
+        }
+
+        Err(crate::error::AmiError::ResourceLimitExceeded {
+            resource_type: "tenant_id_generation".to_string(),
+            limit: MAX_RETRIES,
+        })
+    }
+
+    /// Validate that tenant name is unique within the parent
+    ///
+    /// Names must be unique within a parent tenant to enable name-to-ID mapping for UI display.
+    async fn validate_name_uniqueness(
+        &self,
+        name: &str,
+        parent_id: Option<&TenantId>,
+    ) -> Result<()> {
+        let children = if let Some(parent) = parent_id {
+            self.list_child_tenants(parent).await?
+        } else {
+            // For root tenants, check all tenants without a parent
+            self.list_tenants()
+                .await?
+                .into_iter()
+                .filter(|t| t.parent_id.is_none())
+                .collect()
+        };
+
+        // Check if name already exists within the parent
+        if children.iter().any(|t| t.name == name) {
+            return Err(crate::error::AmiError::ResourceExists {
+                resource: format!(
+                    "Tenant with name '{}' already exists{}",
+                    name,
+                    parent_id
+                        .map(|p| format!(" in parent {}", p.as_str()))
+                        .unwrap_or_else(|| " at root level".to_string())
+                ),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Find a tenant by name within a parent
+    ///
+    /// This enables name-to-ID mapping for UI display purposes.
+    /// Names are unique within a parent, so this lookup is deterministic.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The tenant name to search for
+    /// * `parent_id` - The parent tenant ID (None for root-level tenants)
+    ///
+    /// # Returns
+    ///
+    /// The tenant if found, None otherwise
+    pub async fn find_tenant_by_name(
+        &self,
+        name: &str,
+        parent_id: Option<&TenantId>,
+    ) -> Result<Option<Tenant>> {
+        let candidates = if let Some(parent) = parent_id {
+            self.list_child_tenants(parent).await?
+        } else {
+            // For root tenants, get all tenants without a parent
+            self.list_tenants()
+                .await?
+                .into_iter()
+                .filter(|t| t.parent_id.is_none())
+                .collect()
+        };
+
+        Ok(candidates.into_iter().find(|t| t.name == name))
+    }
+
     /// Create a new tenant
     pub async fn create_tenant(
         &self,
@@ -31,18 +128,25 @@ impl<S: TenantStore> TenantService<S> {
         organization: Option<String>,
         parent_id: Option<TenantId>,
     ) -> Result<Tenant> {
-        // Validate name
+        // Validate name format
         tenant_operations::validate_name(&name)?;
 
-        // Build tenant using pure function
-        let mut tenant = tenant_operations::build_tenant(name, organization, parent_id);
+        // Validate name uniqueness within parent
+        self.validate_name_uniqueness(&name, parent_id.as_ref())
+            .await?;
+
+        // Generate unique numeric tenant ID (globally validated)
+        let tenant_id = self.generate_unique_tenant_id(parent_id.as_ref()).await?;
+
+        // Build tenant using pure function with pre-generated ID
+        let mut tenant = tenant_operations::build_tenant(tenant_id, name, organization, parent_id);
 
         // Generate ARN using context
         tenant.arn = WamiArn::builder()
             .service(Service::Iam)
             .tenant_path(context.tenant_path().clone())
             .wami_instance(context.instance_id())
-            .resource("tenant", tenant.id.to_string())
+            .resource("tenant", tenant.id.as_str())
             .build()?
             .to_string();
 
@@ -116,12 +220,12 @@ mod tests {
 
     fn test_context() -> crate::context::WamiContext {
         use crate::arn::{TenantPath, WamiArn};
-        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+        let arn: WamiArn = "arn:wami:iam:12345678:wami:123456789012:user/test"
             .parse()
             .unwrap();
         crate::context::WamiContext::builder()
             .instance_id("123456789012")
-            .tenant_path(TenantPath::single("test"))
+            .tenant_path(TenantPath::single(12345678))
             .caller_arn(arn)
             .is_root(false)
             .build()

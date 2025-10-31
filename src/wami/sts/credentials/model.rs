@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 ///     session_token: "FwoGZXIvYXdzEBYaDH...".to_string(),
 ///     expiration: Utc::now() + chrono::Duration::hours(1),
 ///     arn: "arn:aws:sts::123456789012:assumed-role/MyRole/session".to_string(),
-///     wami_arn: "arn:wami:sts:root:wami:123456789012:credentials/session-id".parse().unwrap(),
+///     wami_arn: "arn:wami:.*:0:wami:123456789012:credentials/session-id".parse().unwrap(),
 ///     providers: vec![],
 ///     tenant_id: None,
 /// };
@@ -79,7 +79,7 @@ mod tests {
     fn test_credentials_is_expired() {
         let wami_arn = WamiArn::builder()
             .service(crate::arn::Service::Sts)
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(0))
             .wami_instance("123456789012")
             .resource("credentials", "test")
             .build()
@@ -116,7 +116,7 @@ mod tests {
     fn test_credentials_time_remaining() {
         let wami_arn = WamiArn::builder()
             .service(crate::arn::Service::Sts)
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(0))
             .wami_instance("123456789012")
             .resource("credentials", "test")
             .build()
@@ -142,7 +142,7 @@ mod tests {
     fn test_credentials_expires_within() {
         let wami_arn = WamiArn::builder()
             .service(crate::arn::Service::Sts)
-            .tenant_path(TenantPath::single("root"))
+            .tenant_path(TenantPath::single(0))
             .wami_instance("123456789012")
             .resource("credentials", "test")
             .build()

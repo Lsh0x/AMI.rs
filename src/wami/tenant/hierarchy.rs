@@ -107,39 +107,41 @@ mod tests {
 
     #[test]
     fn test_tenant_node_new() {
-        let tenant = create_test_tenant(TenantId::new("root"), None);
+        let tenant = create_test_tenant(TenantId::root(), None);
         let node = TenantNode::new(tenant.clone());
-        assert_eq!(node.tenant.id.as_str(), "root");
+        assert_eq!(node.tenant.id.depth(), 0); // Root tenant
         assert_eq!(node.children.len(), 0);
     }
 
     #[test]
     fn test_tenant_node_add_child() {
-        let root_tenant = create_test_tenant(TenantId::new("root"), None);
+        let root_tenant = create_test_tenant(TenantId::root(), None);
         let mut root_node = TenantNode::new(root_tenant);
 
-        let child_tenant = create_test_tenant(TenantId::new("child"), Some(TenantId::new("root")));
+        let child_tenant = create_test_tenant(TenantId::root().child(), Some(TenantId::root()));
         let child_node = TenantNode::new(child_tenant);
         root_node.add_child(child_node);
 
         assert_eq!(root_node.children.len(), 1);
-        assert_eq!(root_node.children[0].tenant.id.as_str(), "child");
+        assert_eq!(root_node.children[0].tenant.id.depth(), 1); // Child tenant
     }
 
     #[test]
     fn test_tenant_node_all_descendants() {
-        let root_tenant = create_test_tenant(TenantId::new("root"), None);
+        let root_tenant = create_test_tenant(TenantId::root(), None);
         let mut root_node = TenantNode::new(root_tenant);
 
-        let child1 = create_test_tenant(TenantId::new("child1"), Some(TenantId::new("root")));
+        let child1 = create_test_tenant(TenantId::root().child(), Some(TenantId::root()));
         let mut child1_node = TenantNode::new(child1);
 
-        let grandchild =
-            create_test_tenant(TenantId::new("grandchild"), Some(TenantId::new("child1")));
+        let grandchild = create_test_tenant(
+            TenantId::root().child().child(),
+            Some(TenantId::root().child()),
+        );
         let grandchild_node = TenantNode::new(grandchild);
         child1_node.add_child(grandchild_node);
 
-        let child2 = create_test_tenant(TenantId::new("child2"), Some(TenantId::new("root")));
+        let child2 = create_test_tenant(TenantId::root().child(), Some(TenantId::root()));
         let child2_node = TenantNode::new(child2);
 
         root_node.add_child(child1_node);
@@ -154,18 +156,20 @@ mod tests {
 
     #[test]
     fn test_tenant_node_descendant_count() {
-        let root_tenant = create_test_tenant(TenantId::new("root"), None);
+        let root_tenant = create_test_tenant(TenantId::root(), None);
         let mut root_node = TenantNode::new(root_tenant);
 
-        let child1 = create_test_tenant(TenantId::new("child1"), Some(TenantId::new("root")));
+        let child1 = create_test_tenant(TenantId::root().child(), Some(TenantId::root()));
         let mut child1_node = TenantNode::new(child1);
 
-        let grandchild =
-            create_test_tenant(TenantId::new("grandchild"), Some(TenantId::new("child1")));
+        let grandchild = create_test_tenant(
+            TenantId::root().child().child(),
+            Some(TenantId::root().child()),
+        );
         let grandchild_node = TenantNode::new(grandchild);
         child1_node.add_child(grandchild_node);
 
-        let child2 = create_test_tenant(TenantId::new("child2"), Some(TenantId::new("root")));
+        let child2 = create_test_tenant(TenantId::root().child(), Some(TenantId::root()));
         let child2_node = TenantNode::new(child2);
 
         root_node.add_child(child1_node);
@@ -176,11 +180,13 @@ mod tests {
 
     #[test]
     fn test_build_tree() {
-        let root = create_test_tenant(TenantId::new("root"), None);
-        let child1 = create_test_tenant(TenantId::new("child1"), Some(TenantId::new("root")));
-        let child2 = create_test_tenant(TenantId::new("child2"), Some(TenantId::new("root")));
-        let grandchild =
-            create_test_tenant(TenantId::new("grandchild"), Some(TenantId::new("child1")));
+        let root = create_test_tenant(TenantId::root(), None);
+        let child1 = create_test_tenant(TenantId::root().child(), Some(TenantId::root()));
+        let child2 = create_test_tenant(TenantId::root().child(), Some(TenantId::root()));
+        let grandchild = create_test_tenant(
+            TenantId::root().child().child(),
+            Some(TenantId::root().child()),
+        );
 
         let tenants = vec![
             root.clone(),
@@ -188,20 +194,20 @@ mod tests {
             child2.clone(),
             grandchild.clone(),
         ];
-        let tree = TenantNode::build_tree(tenants, &TenantId::new("root"));
+        let tree = TenantNode::build_tree(tenants, &TenantId::root());
 
         assert!(tree.is_some());
         let root_node = tree.unwrap();
-        assert_eq!(root_node.tenant.id.as_str(), "root");
+        assert_eq!(root_node.tenant.id.depth(), 0); // Root tenant
         assert_eq!(root_node.children.len(), 2);
         assert_eq!(root_node.descendant_count(), 3);
     }
 
     #[test]
     fn test_build_tree_no_root() {
-        let child1 = create_test_tenant(TenantId::new("child1"), Some(TenantId::new("root")));
+        let child1 = create_test_tenant(TenantId::root().child(), Some(TenantId::root()));
         let tenants = vec![child1];
-        let tree = TenantNode::build_tree(tenants, &TenantId::new("root"));
+        let tree = TenantNode::build_tree(tenants, &TenantId::root());
         assert!(tree.is_none());
     }
 }

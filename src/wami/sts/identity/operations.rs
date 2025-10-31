@@ -87,16 +87,13 @@ mod tests {
     #[test]
     fn test_build_identity() {
         let identity = build_identity(
-            "arn:wami:iam:root:wami:123456789012:user/alice".to_string(),
+            "arn:wami:.*:0:wami:123456789012:user/alice".to_string(),
             "123456789012".to_string(),
             "AIDAI123456".to_string(),
         );
 
         let identity = identity.unwrap();
-        assert_eq!(
-            identity.arn,
-            "arn:wami:iam:root:wami:123456789012:user/alice"
-        );
+        assert_eq!(identity.arn, "arn:wami:.*:0:wami:123456789012:user/alice");
         assert_eq!(identity.account, "123456789012");
         assert_eq!(identity.user_id, "AIDAI123456");
     }

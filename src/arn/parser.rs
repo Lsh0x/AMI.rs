@@ -58,11 +58,11 @@ impl FromStr for WamiArn {
     /// use wami::arn::WamiArn;
     /// use std::str::FromStr;
     ///
-    /// let arn = WamiArn::from_str("arn:wami:iam:t1/t2/t3:wami:999888777:user/77557755").unwrap();
+    /// let arn = WamiArn::from_str("arn:wami:iam:12345678/87654321/99999999:wami:999888777:user/77557755").unwrap();
     /// assert_eq!(arn.resource_type(), "user");
     /// assert_eq!(arn.resource_id(), "77557755");
     ///
-    /// let arn = WamiArn::from_str("arn:wami:iam:t1:wami:999888777:aws:223344556677:user/77557755").unwrap();
+    /// let arn = WamiArn::from_str("arn:wami:iam:12345678:wami:999888777:aws:223344556677:user/77557755").unwrap();
     /// assert!(arn.is_cloud_synced());
     /// assert_eq!(arn.provider(), Some("aws"));
     /// ```
@@ -96,12 +96,24 @@ impl FromStr for WamiArn {
         // Parse service
         let service = Service::from(parts[2]);
 
-        // Parse tenant path (may contain '/')
-        let tenant_segments: Vec<String> = parts[3].split('/').map(|s| s.to_string()).collect();
+        // Parse tenant path (numeric segments separated by '/')
+        let tenant_segments: std::result::Result<Vec<u64>, ArnParseError> = parts[3]
+            .split('/')
+            .map(|s| {
+                s.parse::<u64>().map_err(|_| {
+                    ArnParseError::InvalidComponent(format!(
+                        "Invalid tenant path segment: '{}' (must be a u64)",
+                        s
+                    ))
+                })
+            })
+            .collect();
 
-        if tenant_segments.is_empty() || tenant_segments.iter().any(|s| s.is_empty()) {
+        let tenant_segments = tenant_segments?;
+
+        if tenant_segments.is_empty() {
             return Err(ArnParseError::InvalidComponent(
-                "Tenant path cannot be empty or contain empty segments".to_string(),
+                "Tenant path cannot be empty".to_string(),
             ));
         }
 
@@ -227,7 +239,7 @@ impl FromStr for WamiArn {
 /// ```
 /// use wami::arn::parse_arn;
 ///
-/// let arn = parse_arn("arn:wami:iam:t1:wami:999888777:user/77557755").unwrap();
+/// let arn = parse_arn("arn:wami:iam:12345678:wami:999888777:user/77557755").unwrap();
 /// assert_eq!(arn.resource_type(), "user");
 /// ```
 #[allow(clippy::result_large_err)]
@@ -241,11 +253,11 @@ mod tests {
 
     #[test]
     fn test_parse_wami_native() {
-        let arn_str = "arn:wami:iam:t1/t2/t3:wami:999888777:user/77557755";
+        let arn_str = "arn:wami:iam:12345678/87654321/99999999:wami:999888777:user/77557755";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.service, Service::Iam);
-        assert_eq!(arn.tenant_path.segments, vec!["t1", "t2", "t3"]);
+        assert_eq!(arn.tenant_path.segments, vec![12345678, 87654321, 99999999]);
         assert_eq!(arn.wami_instance_id, "999888777");
         assert_eq!(arn.cloud_mapping, None);
         assert_eq!(arn.resource.resource_type, "user");
@@ -255,11 +267,11 @@ mod tests {
 
     #[test]
     fn test_parse_cloud_synced_aws() {
-        let arn_str = "arn:wami:iam:t1/t2/t3:wami:999888777:aws:223344556677:global:user/77557755";
+        let arn_str = "arn:wami:iam:12345678/87654321/99999999:wami:999888777:aws:223344556677:global:user/77557755";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.service, Service::Iam);
-        assert_eq!(arn.tenant_path.segments, vec!["t1", "t2", "t3"]);
+        assert_eq!(arn.tenant_path.segments, vec![12345678, 87654321, 99999999]);
         assert_eq!(arn.wami_instance_id, "999888777");
         assert!(arn.is_cloud_synced());
         assert_eq!(arn.cloud_mapping.as_ref().unwrap().provider, "aws");
@@ -275,7 +287,7 @@ mod tests {
     #[test]
     fn test_parse_cloud_synced_with_region() {
         let arn_str =
-            "arn:wami:iam:t1/t2/t3:wami:999888777:aws:223344556677:us-east-1:user/77557755";
+            "arn:wami:iam:12345678/87654321/99999999:wami:999888777:aws:223344556677:us-east-1:user/77557755";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.service, Service::Iam);
@@ -290,7 +302,7 @@ mod tests {
     #[test]
     fn test_parse_legacy_cloud_synced_without_region() {
         // Support legacy format without region for backward compatibility
-        let arn_str = "arn:wami:iam:t1:wami:999888777:aws:223344556677:user/77557755";
+        let arn_str = "arn:wami:iam:12345678:wami:999888777:aws:223344556677:user/77557755";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.service, Service::Iam);
@@ -301,7 +313,7 @@ mod tests {
     #[test]
     fn test_parse_cloud_synced_gcp() {
         let arn_str =
-            "arn:wami:iam:t1/t2/t3:wami:999888777:gcp:554433221:us-central1:user/77557755";
+            "arn:wami:iam:12345678/87654321/99999999:wami:999888777:gcp:554433221:us-central1:user/77557755";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.cloud_mapping.as_ref().unwrap().provider, "gcp");
@@ -315,7 +327,7 @@ mod tests {
     #[test]
     fn test_parse_cloud_synced_scaleway() {
         let arn_str =
-            "arn:wami:iam:t1/t2/t3:wami:999888777:scaleway:112233445:fr-par:user/77557755";
+            "arn:wami:iam:12345678/87654321/99999999:wami:999888777:scaleway:112233445:fr-par:user/77557755";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.cloud_mapping.as_ref().unwrap().provider, "scaleway");
@@ -328,11 +340,11 @@ mod tests {
 
     #[test]
     fn test_parse_single_tenant() {
-        let arn_str = "arn:wami:sts:t1:wami:111222333:session/sess123";
+        let arn_str = "arn:wami:sts:12345678:wami:111222333:session/sess123";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.service, Service::Sts);
-        assert_eq!(arn.tenant_path.segments, vec!["t1"]);
+        assert_eq!(arn.tenant_path.segments, vec![12345678]);
         assert_eq!(arn.wami_instance_id, "111222333");
         assert_eq!(arn.resource.resource_type, "session");
         assert_eq!(arn.resource.resource_id, "sess123");
@@ -340,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_parse_custom_service() {
-        let arn_str = "arn:wami:custom-service:t1:wami:999888777:resource/res123";
+        let arn_str = "arn:wami:iam:12345678:wami:999888777:resource/res123";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.service, Service::Custom("custom-service".to_string()));
@@ -348,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_parse_sso_admin() {
-        let arn_str = "arn:wami:sso-admin:t1:wami:999888777:permission-set/ps123";
+        let arn_str = "arn:wami:iam:12345678:wami:999888777:permission-set/ps123";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.service, Service::SsoAdmin);
@@ -358,7 +370,7 @@ mod tests {
 
     #[test]
     fn test_parse_resource_with_slash() {
-        let arn_str = "arn:wami:iam:t1:wami:999888777:policy/path/to/policy";
+        let arn_str = "arn:wami:iam:12345678:wami:999888777:policy/path/to/policy";
         let arn = WamiArn::from_str(arn_str).unwrap();
 
         assert_eq!(arn.resource.resource_type, "policy");
@@ -367,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_parse_roundtrip_native() {
-        let original = "arn:wami:iam:t1/t2/t3:wami:999888777:user/77557755";
+        let original = "arn:wami:iam:12345678/87654321/99999999:wami:999888777:user/77557755";
         let arn = WamiArn::from_str(original).unwrap();
         let serialized = arn.to_string();
         assert_eq!(original, serialized);
@@ -375,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_parse_roundtrip_cloud_synced_global() {
-        let original = "arn:wami:iam:t1/t2/t3:wami:999888777:aws:223344556677:global:user/77557755";
+        let original = "arn:wami:iam:12345678/87654321/99999999:wami:999888777:aws:223344556677:global:user/77557755";
         let arn = WamiArn::from_str(original).unwrap();
         let serialized = arn.to_string();
         assert_eq!(original, serialized);
@@ -384,7 +396,7 @@ mod tests {
     #[test]
     fn test_parse_roundtrip_cloud_synced_regional() {
         let original =
-            "arn:wami:iam:t1/t2/t3:wami:999888777:aws:223344556677:us-east-1:user/77557755";
+            "arn:wami:iam:12345678/87654321/99999999:wami:999888777:aws:223344556677:us-east-1:user/77557755";
         let arn = WamiArn::from_str(original).unwrap();
         let serialized = arn.to_string();
         assert_eq!(original, serialized);
@@ -412,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_parse_missing_wami_marker() {
-        let result = WamiArn::from_str("arn:wami:iam:t1:invalid:999888777:user/77557755");
+        let result = WamiArn::from_str("arn:wami:iam:12345678:invalid:999888777:user/77557755");
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -432,7 +444,7 @@ mod tests {
 
     #[test]
     fn test_parse_empty_instance_id() {
-        let result = WamiArn::from_str("arn:wami:iam:t1:wami::user/77557755");
+        let result = WamiArn::from_str("arn:wami:iam:12345678:wami::user/77557755");
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -442,7 +454,7 @@ mod tests {
 
     #[test]
     fn test_parse_invalid_resource_format() {
-        let result = WamiArn::from_str("arn:wami:iam:t1:wami:999888777:invalid");
+        let result = WamiArn::from_str("arn:wami:iam:12345678:wami:999888777:invalid");
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -452,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_parse_too_few_parts() {
-        let result = WamiArn::from_str("arn:wami:iam:t1");
+        let result = WamiArn::from_str("arn:wami:iam:12345678");
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -462,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_parse_arn_function() {
-        let result = parse_arn("arn:wami:iam:t1:wami:999888777:user/77557755");
+        let result = parse_arn("arn:wami:iam:12345678:wami:999888777:user/77557755");
         assert!(result.is_ok());
 
         let result = parse_arn("invalid");
