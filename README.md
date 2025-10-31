@@ -20,6 +20,7 @@
 - 🔐 **Complete IAM Suite** - Users, groups, roles, policies, credentials
 - 🔑 **Temporary Credentials** - STS sessions and role assumption
 - 📊 **SSO Administration** - Permission sets, assignments, and federation
+- 🏷️ **ARN System** - Unified resource naming with multi-tenant and multi-cloud support
 - 🦀 **100% Rust** - Type-safe, async-first, zero-cost abstractions
 - ✅ **Well-tested** - 539 unit tests with 89.43% code coverage (all passing)
 
@@ -29,7 +30,7 @@
 
 ### Getting Started
 - **[Getting Started Guide](docs/GETTING_STARTED.md)** - Step-by-step tutorial for your first WAMI app
-- **[Examples](examples/README.md)** - 23 working examples demonstrating all major features
+- **[Examples](examples/README.md)** - 24 working examples demonstrating all major features
 
 ### Core Concepts
 - **[Architecture](docs/ARCHITECTURE.md)** - Design principles, components, and data flow
@@ -45,7 +46,8 @@
 - **[Store Implementation](docs/STORE_IMPLEMENTATION.md)** - Create custom storage backends
 - **[Multi-cloud Providers](docs/MULTICLOUD_PROVIDERS.md)** - AWS, GCP, Azure provider details
 - **[Permission Checking](docs/PERMISSION_CHECKING.md)** - Policy evaluation and authorization
-- **[ARN Architecture](docs/ARN_ARCHITECTURE_COMPLETE.md)** - Resource naming across providers
+- **[ARN Specification](docs/ARN_SPECIFICATION.md)** - Complete ARN format documentation and usage guide
+- **[ARN Architecture](docs/ARN_ARCHITECTURE_COMPLETE.md)** - Resource naming across providers with multi-tenant and multi-cloud support
 
 ### Project Information
 - **[Changelog](docs/CHANGELOG.md)** - Version history and release notes
@@ -62,35 +64,50 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-wami = "0.8.0"
+wami = "0.11.0"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
 ### Your First Example
 
 ```rust
-use wami::wami::identity::user::builder;
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::store::memory::InMemoryWamiStore;
 use wami::store::traits::UserStore;
-use wami::provider::aws::AwsProvider;
+use wami::wami::identity::user::builder::build_user;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize storage
-    let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let mut store = InMemoryWamiStore::default();
     
-    // Build a user (pure function)
-    let user = builder::build_user(
+    // Create WAMI context with ARN
+    let context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+    
+    // Build a user (pure function with ARN support)
+    let user = build_user(
         "alice".to_string(),
         Some("/engineering/".to_string()),
-        &provider,
-        "123456789012"
-    );
+        &context,
+    )?;
     
     // Store it
     let created = store.create_user(user).await?;
-    println!("✅ Created user: {}", created.arn);
+    println!("✅ Created user: {}", created.user_name);
+    println!("✅ WAMI ARN: {}", created.wami_arn);
     
     // Retrieve it
     let retrieved = store.get_user("alice").await?;
@@ -102,7 +119,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 **Output:**
 ```
-✅ Created user: arn:aws:iam::123456789012:user/engineering/alice
+✅ Created user: alice
+✅ WAMI ARN: arn:wami:iam:root:wami:123456789012:user/...
 ✅ Retrieved: "alice"
 ```
 
@@ -110,7 +128,7 @@ See **[Getting Started Guide](docs/GETTING_STARTED.md)** for more examples.
 
 ## 🎯 Example Programs
 
-WAMI includes **23 runnable examples** demonstrating all major features:
+WAMI includes **24 runnable examples** demonstrating all major features:
 
 | Category | Examples | Status |
 |----------|----------|--------|
@@ -120,6 +138,7 @@ WAMI includes **23 runnable examples** demonstrating all major features:
 | **Policies & RBAC** | 14-17, 23: Policy Basics, Evaluation, RBAC, ABAC, Boundaries | ✅ All Working |
 | **STS & Federation** | 18-20: Session Tokens, Role Assumption, Federation | ✅ All Working |
 | **SSO & Federation** | 21-22: SSO Setup, Identity Providers | ✅ All Working |
+| **ARN System** | 25: ARN Usage (Building, Parsing, Transforming) | ✅ All Working |
 
 Run any example with:
 ```bash
@@ -147,6 +166,7 @@ WAMI follows a clean 3-layer architecture:
 │  • Policies        │  Builders & validators     │
 │  • STS Sessions    │                            │
 │  • Tenants         │                            │
+│  • ARN System      │                            │
 └────────────────────┬────────────────────────────┘
                      │
 ┌────────────────────┼────────────────────────────┐
@@ -172,47 +192,118 @@ Read more in **[Architecture Guide](docs/ARCHITECTURE.md)**.
 ### 🔐 Identity Management
 
 ```rust
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::wami::identity::{user, group, role};
 
+// Create WAMI context
+let context = WamiContext::builder()
+    .instance_id("123456789012")
+    .tenant_path(TenantPath::single("root"))
+    .caller_arn(
+        WamiArn::builder()
+            .service(wami::arn::Service::Iam)
+            .tenant_path(TenantPath::single("root"))
+            .wami_instance("123456789012")
+            .resource("user", "admin")
+            .build()?,
+    )
+    .is_root(false)
+    .build()?;
+
 // Create user
-let user = user::builder::build_user("alice".into(), None, &provider, account);
+let user = user::builder::build_user("alice".into(), None, &context)?;
 store.create_user(user).await?;
 
 // Create group and add user
-let group = group::builder::build_group("admins".into(), None, &provider, account);
+let group = group::builder::build_group("admins".into(), None, &context)?;
 store.create_group(group).await?;
 store.add_user_to_group("admins", "alice").await?;
 
 // Create role with trust policy
+let trust_policy = r#"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":"sts:AssumeRole"}]}"#;
 let role = role::builder::build_role(
     "AdminRole".into(),
-    trust_policy,
-    None, None, None,
-    &provider, account
-);
+    trust_policy.to_string(),
+    None,
+    None,
+    None,
+    &context,
+)?;
 store.create_role(role).await?;
 ```
 
 ### 🔑 Credentials & STS
 
 ```rust
-use wami::wami::credentials::access_key;
-use wami::wami::sts::session;
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
+use wami::wami::credentials::access_key::builder::build_access_key;
+use wami::service::{SessionTokenService, AssumeRoleService};
+use wami::wami::sts::session_token::requests::GetSessionTokenRequest;
 
-// Create access keys
-let key = access_key::builder::build_access_key("alice".into(), &provider, account);
+// Create WAMI context
+let context = WamiContext::builder()
+    .instance_id("123456789012")
+    .tenant_path(TenantPath::single("root"))
+    .caller_arn(
+        WamiArn::builder()
+            .service(wami::arn::Service::Iam)
+            .tenant_path(TenantPath::single("root"))
+            .wami_instance("123456789012")
+            .resource("user", "alice")
+            .build()?,
+    )
+    .is_root(false)
+    .build()?;
+
+// Create access keys (uses context)
+let key = build_access_key("alice".to_string(), &context)?;
 store.create_access_key(key).await?;
 
-// Create temporary session
-let session = session::builder::build_session(
-    "session-123".into(),
-    "AKIA...".into(),
-    "secret".into(),
-    3600, // 1 hour
-    Some(role_arn),
-    &provider, account
-);
-store.create_session(session).await?;
+// Create temporary session (via service layer)
+let sts_service = SessionTokenService::new(store.clone());
+let token_req = GetSessionTokenRequest {
+    duration_seconds: Some(3600),
+    serial_number: None,
+    token_code: None,
+};
+let session = sts_service
+    .get_session_token(&context, token_req, &user_arn)
+    .await?;
+```
+
+### 🏷️ ARN System
+
+```rust
+use wami::arn::{WamiArn, Service, TenantPath};
+
+// Build a WAMI native ARN
+let arn = WamiArn::builder()
+    .service(Service::Iam)
+    .tenant_hierarchy(vec!["t1", "t2", "t3"])
+    .wami_instance("999888777")
+    .resource("user", "77557755")
+    .build()?;
+
+println!("{}", arn);
+// Output: arn:wami:iam:t1/t2/t3:wami:999888777:user/77557755
+
+// Build a cloud-synced ARN
+let cloud_arn = WamiArn::builder()
+    .service(Service::Iam)
+    .tenant("t1")
+    .wami_instance("999888777")
+    .cloud_provider("aws", "223344556677")
+    .resource("user", "77557755")
+    .build()?;
+
+println!("{}", cloud_arn);
+// Output: arn:wami:iam:t1:wami:999888777:aws:223344556677:global:user/77557755
+
+// Parse an ARN
+let parsed = WamiArn::from_str("arn:wami:iam:t1:wami:999888777:user/77557755")?;
+println!("Resource type: {}", parsed.resource_type());
 ```
 
 ### 🏢 Multi-tenant Support
@@ -249,6 +340,12 @@ wami/
 │   │   ├── sso_admin/    # SSO configuration
 │   │   └── tenant/       # Multi-tenant models
 │   │
+│   ├── arn/              # ARN system (WAMI resource naming)
+│   │   ├── types.rs      # Core ARN types
+│   │   ├── builder.rs     # Fluent ARN builder
+│   │   ├── parser.rs      # ARN parsing
+│   │   └── transformer.rs # Provider-specific transformations
+│   │
 │   ├── store/            # Storage layer
 │   │   ├── traits/       # Storage trait definitions
 │   │   └── memory/       # In-memory implementations
@@ -280,6 +377,7 @@ WAMI has **539 tests** (all passing ✅) covering:
 - ✅ Store implementations (CRUD, queries, concurrency)
 - ✅ Multi-tenant isolation
 - ✅ Resource enumeration and downcasting
+- ✅ ARN building, parsing, and transformation
 
 ---
 
@@ -307,6 +405,7 @@ See **[Contributing Guide](CONTRIBUTING.md)** for more details.
 - [ ] SQL store implementations (PostgreSQL, MySQL)
 - [ ] Advanced policy evaluation engine
 - [x] **Identity Provider Support** - SAML and OIDC federation (✅ Completed in v0.8.0)
+- [x] **ARN System** - Unified resource naming with multi-tenant and multi-cloud support (✅ Completed in v0.11.0)
 - [ ] Audit logging and compliance
 - [ ] Service/orchestration layer
 
