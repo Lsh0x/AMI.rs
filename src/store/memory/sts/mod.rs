@@ -38,3 +38,5 @@ impl InMemoryStsStore {
 
 // Note: StsStore is automatically implemented via blanket implementation
 // because InMemoryStsStore implements all required sub-traits in other files
+
+// Tests are in tests.rs file

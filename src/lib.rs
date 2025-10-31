@@ -246,6 +246,17 @@ pub fn create_memory_store() -> InMemoryStore {
     InMemoryStore::new()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_memory_store() {
+        let _store = create_memory_store();
+        // Just verify it can be created
+    }
+}
+
 // Note: Provider-specific functionality has been removed from the unified store.
 // Resources now carry their own provider-specific information (ARNs, account IDs, etc.).
 // If you need provider-specific functionality, use the client-level providers.

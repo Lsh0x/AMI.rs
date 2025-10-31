@@ -91,3 +91,52 @@ impl User {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_username_valid() {
+        assert!(User::validate_username("alice").is_ok());
+        assert!(User::validate_username("user123").is_ok());
+        assert!(User::validate_username("user-name").is_ok());
+        assert!(User::validate_username("user_name").is_ok());
+        assert!(User::validate_username("user+name").is_ok());
+        assert!(User::validate_username("user=name").is_ok());
+        assert!(User::validate_username("user,name").is_ok());
+        assert!(User::validate_username("user.name").is_ok());
+        assert!(User::validate_username("user@name").is_ok());
+    }
+
+    #[test]
+    fn test_validate_username_empty() {
+        let result = User::validate_username("");
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::error::AmiError::InvalidParameter { .. }
+        ));
+    }
+
+    #[test]
+    fn test_validate_username_too_long() {
+        let long_name = "a".repeat(65);
+        let result = User::validate_username(&long_name);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::error::AmiError::InvalidParameter { .. }
+        ));
+    }
+
+    #[test]
+    fn test_validate_username_invalid_chars() {
+        let result = User::validate_username("user name");
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::error::AmiError::InvalidParameter { .. }
+        ));
+    }
+}

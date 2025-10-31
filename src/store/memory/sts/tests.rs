@@ -9,6 +9,20 @@ use crate::wami::sts::identity::CallerIdentity;
 use crate::wami::sts::session::{SessionStatus, StsSession};
 use chrono::{Duration, Utc};
 
+#[test]
+fn test_in_memory_sts_store_new() {
+    let store = InMemoryStsStore::new();
+    assert!(store.sessions.is_empty());
+    assert!(store.identities.is_empty());
+}
+
+#[test]
+fn test_in_memory_sts_store_default() {
+    let store = InMemoryStsStore::default();
+    assert!(store.sessions.is_empty());
+    assert!(store.identities.is_empty());
+}
+
 // ============================================================================
 // SESSION STORE TESTS
 // ============================================================================

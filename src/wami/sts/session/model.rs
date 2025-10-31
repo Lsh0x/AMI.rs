@@ -99,3 +99,88 @@ impl StsSession {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::arn::{TenantPath, WamiArn};
+
+    fn create_test_session(expiration: chrono::DateTime<chrono::Utc>) -> StsSession {
+        StsSession {
+            session_token: "token".to_string(),
+            access_key_id: "AKIA".to_string(),
+            secret_access_key: "secret".to_string(),
+            expiration,
+            status: SessionStatus::Active,
+            assumed_role_arn: None,
+            federated_user_name: None,
+            principal_arn: None,
+            arn: "arn:aws:sts::123456789012:assumed-role/Test/test".to_string(),
+            wami_arn: WamiArn::builder()
+                .service(crate::arn::Service::Sts)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("session", "test")
+                .build()
+                .unwrap(),
+            providers: vec![],
+            tenant_id: None,
+            created_at: chrono::Utc::now(),
+            last_used: None,
+        }
+    }
+
+    #[test]
+    fn test_session_is_valid() {
+        let mut session = create_test_session(chrono::Utc::now() + chrono::Duration::hours(1));
+        assert!(session.is_valid());
+
+        session.status = SessionStatus::Revoked;
+        assert!(!session.is_valid());
+
+        session.status = SessionStatus::Active;
+        session.expiration = chrono::Utc::now() - chrono::Duration::hours(1);
+        assert!(!session.is_valid());
+    }
+
+    #[test]
+    fn test_session_is_expired() {
+        let expired = create_test_session(chrono::Utc::now() - chrono::Duration::hours(1));
+        assert!(expired.is_expired());
+
+        let valid = create_test_session(chrono::Utc::now() + chrono::Duration::hours(1));
+        assert!(!valid.is_expired());
+    }
+
+    #[test]
+    fn test_session_revoke() {
+        let mut session = create_test_session(chrono::Utc::now() + chrono::Duration::hours(1));
+        assert_eq!(session.status, SessionStatus::Active);
+        session.revoke();
+        assert_eq!(session.status, SessionStatus::Revoked);
+    }
+
+    #[test]
+    fn test_session_touch() {
+        let mut session = create_test_session(chrono::Utc::now() + chrono::Duration::hours(1));
+        assert!(session.last_used.is_none());
+        session.touch();
+        assert!(session.last_used.is_some());
+    }
+
+    #[test]
+    fn test_session_update_status() {
+        let mut session = create_test_session(chrono::Utc::now() + chrono::Duration::hours(1));
+        session.update_status();
+        assert_eq!(session.status, SessionStatus::Active);
+
+        session.expiration = chrono::Utc::now() - chrono::Duration::hours(1);
+        session.update_status();
+        assert_eq!(session.status, SessionStatus::Expired);
+
+        // Revoked sessions shouldn't change
+        session.status = SessionStatus::Revoked;
+        session.update_status();
+        assert_eq!(session.status, SessionStatus::Revoked);
+    }
+}

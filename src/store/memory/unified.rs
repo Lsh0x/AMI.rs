@@ -52,3 +52,34 @@ impl Store for InMemoryStore {
         Ok(&mut self.tenant_store)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_in_memory_store_new() {
+        let _store = InMemoryStore::new();
+        // Just verify it can be created
+    }
+
+    #[test]
+    fn test_in_memory_store_default() {
+        let _store = InMemoryStore::default();
+        // Just verify it can be created
+    }
+
+    #[tokio::test]
+    async fn test_store_methods() {
+        let mut store = InMemoryStore::new();
+
+        let _wami_store = store.wami_store().await.unwrap();
+        // Just verify it doesn't panic
+
+        let _sts_store = store.sts_store().await.unwrap();
+
+        let _sso_store = store.sso_admin_store().await.unwrap();
+
+        let _tenant_store = store.tenant_store().await.unwrap();
+    }
+}

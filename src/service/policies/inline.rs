@@ -390,3 +390,196 @@ where
         Ok(ListRolePoliciesResponse { policy_names })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
+    use crate::store::memory::InMemoryWamiStore;
+    use crate::wami::identity::group::builder::build_group;
+    use crate::wami::identity::role::builder::build_role;
+    use crate::wami::identity::user::builder::build_user;
+    use std::sync::Arc;
+
+    async fn create_test_context() -> WamiContext {
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("root"))
+            .caller_arn(
+                WamiArn::builder()
+                    .service(crate::arn::Service::Iam)
+                    .tenant_path(TenantPath::single("root"))
+                    .wami_instance("123456789012")
+                    .resource("user", "admin")
+                    .build()
+                    .unwrap(),
+            )
+            .is_root(false)
+            .build()
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_put_user_policy() {
+        let store = Arc::new(RwLock::new(InMemoryWamiStore::new()));
+        let service = InlinePolicyService::new(store.clone());
+        let context = create_test_context().await;
+
+        let user = build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
+        let _created_user = store.write().unwrap().create_user(user).await.unwrap();
+
+        let request = PutUserPolicyRequest {
+            user_name: "alice".to_string(),
+            policy_name: "MyInlinePolicy".to_string(),
+            policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
+        };
+        let response = service.put_user_policy(request).await.unwrap();
+        assert!(response.message.contains("added"));
+    }
+
+    #[tokio::test]
+    async fn test_get_user_policy() {
+        let store = Arc::new(RwLock::new(InMemoryWamiStore::new()));
+        let service = InlinePolicyService::new(store.clone());
+        let context = create_test_context().await;
+
+        let user = build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
+        let _created_user = store.write().unwrap().create_user(user).await.unwrap();
+
+        let put_request = PutUserPolicyRequest {
+            user_name: "alice".to_string(),
+            policy_name: "MyInlinePolicy".to_string(),
+            policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
+        };
+        service.put_user_policy(put_request).await.unwrap();
+
+        let get_request = GetUserPolicyRequest {
+            user_name: "alice".to_string(),
+            policy_name: "MyInlinePolicy".to_string(),
+        };
+        let response = service.get_user_policy(get_request).await.unwrap();
+        assert_eq!(response.policy_name, "MyInlinePolicy");
+        assert!(response.policy_document.contains("Version"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_user_policy() {
+        let store = Arc::new(RwLock::new(InMemoryWamiStore::new()));
+        let service = InlinePolicyService::new(store.clone());
+        let context = create_test_context().await;
+
+        let user = build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
+        let _created_user = store.write().unwrap().create_user(user).await.unwrap();
+
+        let put_request = PutUserPolicyRequest {
+            user_name: "alice".to_string(),
+            policy_name: "MyInlinePolicy".to_string(),
+            policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
+        };
+        service.put_user_policy(put_request).await.unwrap();
+
+        let delete_request = DeleteUserPolicyRequest {
+            user_name: "alice".to_string(),
+            policy_name: "MyInlinePolicy".to_string(),
+        };
+        let response = service.delete_user_policy(delete_request).await.unwrap();
+        assert!(response.message.contains("deleted"));
+    }
+
+    #[tokio::test]
+    async fn test_list_user_policies() {
+        let store = Arc::new(RwLock::new(InMemoryWamiStore::new()));
+        let service = InlinePolicyService::new(store.clone());
+        let context = create_test_context().await;
+
+        let user = build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
+        let _created_user = store.write().unwrap().create_user(user).await.unwrap();
+
+        let put_request1 = PutUserPolicyRequest {
+            user_name: "alice".to_string(),
+            policy_name: "Policy1".to_string(),
+            policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
+        };
+        service.put_user_policy(put_request1).await.unwrap();
+
+        let put_request2 = PutUserPolicyRequest {
+            user_name: "alice".to_string(),
+            policy_name: "Policy2".to_string(),
+            policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
+        };
+        service.put_user_policy(put_request2).await.unwrap();
+
+        let list_request = ListUserPoliciesRequest {
+            user_name: "alice".to_string(),
+        };
+        let response = service.list_user_policies(list_request).await.unwrap();
+        assert_eq!(response.policy_names.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_put_group_policy() {
+        let store = Arc::new(RwLock::new(InMemoryWamiStore::new()));
+        let service = InlinePolicyService::new(store.clone());
+        let context = create_test_context().await;
+
+        let group = build_group("developers".to_string(), Some("/".to_string()), &context).unwrap();
+        let _created_group = store.write().unwrap().create_group(group).await.unwrap();
+
+        let request = PutGroupPolicyRequest {
+            group_name: "developers".to_string(),
+            policy_name: "MyInlinePolicy".to_string(),
+            policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
+        };
+        let response = service.put_group_policy(request).await.unwrap();
+        assert!(response.message.contains("added"));
+    }
+
+    #[tokio::test]
+    async fn test_put_role_policy() {
+        let store = Arc::new(RwLock::new(InMemoryWamiStore::new()));
+        let service = InlinePolicyService::new(store.clone());
+        let context = create_test_context().await;
+
+        let role = build_role(
+            "AdminRole".to_string(),
+            r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
+            Some("/".to_string()),
+            None,
+            None,
+            &context,
+        )
+        .unwrap();
+        let _created_role = store.write().unwrap().create_role(role).await.unwrap();
+
+        let request = PutRolePolicyRequest {
+            role_name: "AdminRole".to_string(),
+            policy_name: "MyInlinePolicy".to_string(),
+            policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
+        };
+        let response = service.put_role_policy(request).await.unwrap();
+        assert!(response.message.contains("added"));
+    }
+
+    #[tokio::test]
+    async fn test_invalid_json_policy() {
+        let store = Arc::new(RwLock::new(InMemoryWamiStore::new()));
+        let service = InlinePolicyService::new(store.clone());
+        let context = create_test_context().await;
+
+        let user = build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
+        let _created_user = store.write().unwrap().create_user(user).await.unwrap();
+
+        let request = PutUserPolicyRequest {
+            user_name: "alice".to_string(),
+            policy_name: "MyInlinePolicy".to_string(),
+            policy_document: "invalid json".to_string(),
+        };
+        let result = service.put_user_policy(request).await;
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AmiError::InvalidParameter { .. }
+        ));
+    }
+}
