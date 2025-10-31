@@ -32,7 +32,7 @@
 //! assert!(root_user.is_root());
 //! assert_eq!(
 //!     root_user.arn().to_string(),
-//!     "arn:wami:.*:0:wami:999888777:user/root"
+//!     "arn:wami:iam:0:wami:999888777:user/root"
 //! );
 //! ```
 

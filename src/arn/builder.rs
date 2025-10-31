@@ -14,7 +14,7 @@ use crate::error::{AmiError, Result};
 ///
 /// let arn = WamiArn::builder()
 ///     .service(Service::Iam)
-///     .tenant_hierarchy(vec!["t1", "t2", "t3"])
+///     .tenant_hierarchy(vec![12345678, 87654321, 99999999])
 ///     .wami_instance("999888777")
 ///     .resource("user", "77557755")
 ///     .build()
@@ -33,7 +33,7 @@ use crate::error::{AmiError, Result};
 ///
 /// let arn = WamiArn::builder()
 ///     .service(Service::Iam)
-///     .tenant_hierarchy(vec!["t1", "t2", "t3"])
+///     .tenant_hierarchy(vec![12345678, 87654321, 99999999])
 ///     .wami_instance("999888777")
 ///     .cloud_provider("aws", "223344556677")
 ///     .resource("user", "77557755")
@@ -285,7 +285,7 @@ impl ArnBuilder {
     ///
     /// let result = WamiArn::builder()
     ///     .service(Service::Iam)
-    ///     .tenant("t1")
+    ///     .tenant(12345678)
     ///     .wami_instance("999888777")
     ///     .resource("user", "77557755")
     ///     .build();
@@ -359,7 +359,7 @@ impl WamiArn {
     ///
     /// let arn = WamiArn::builder()
     ///     .service(Service::Iam)
-    ///     .tenant("t1")
+    ///     .tenant(12345678)
     ///     .wami_instance("999888777")
     ///     .resource("user", "77557755")
     ///     .build()

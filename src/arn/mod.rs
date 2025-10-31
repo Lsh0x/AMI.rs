@@ -34,7 +34,7 @@
 //! // WAMI native ARN
 //! let arn = WamiArn::builder()
 //!     .service(Service::Iam)
-//!     .tenant_hierarchy(vec!["t1", "t2", "t3"])
+//!     .tenant_hierarchy(vec![12345678, 87654321, 99999999])
 //!     .wami_instance("999888777")
 //!     .resource("user", "77557755")
 //!     .build()
@@ -48,7 +48,7 @@
 //! // Cloud-synced ARN
 //! let arn = WamiArn::builder()
 //!     .service(Service::Iam)
-//!     .tenant("t1")
+//!     .tenant(12345678)
 //!     .wami_instance("999888777")
 //!     .cloud_provider("aws", "223344556677")
 //!     .resource("user", "77557755")
@@ -66,7 +66,7 @@
 //!
 //! let arn = WamiArn::from_str("arn:wami:iam:12345678:wami:999888777:user/77557755").unwrap();
 //! assert_eq!(arn.resource_type(), "user");
-//! assert_eq!(arn.primary_tenant(), Some("t1"));
+//! assert_eq!(arn.primary_tenant(), Some("12345678".to_string()));
 //! ```
 //!
 //! ## Transforming to Provider Formats
@@ -76,7 +76,7 @@
 //!
 //! let arn = WamiArn::builder()
 //!     .service(Service::Iam)
-//!     .tenant("t1")
+//!     .tenant(12345678)
 //!     .wami_instance("999888777")
 //!     .cloud_provider("aws", "223344556677")
 //!     .resource("user", "77557755")

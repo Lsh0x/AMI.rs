@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// let wami_arn = WamiArn::builder()
 ///     .service(Service::Iam)
-///     .tenant("default")
+///     .tenant(12345678)
 ///     .wami_instance("main")
 ///     .resource("user", "AIDACKCEVSQ6C2EXAMPLE")
 ///     .build()

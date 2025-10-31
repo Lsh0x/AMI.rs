@@ -51,7 +51,7 @@ pub struct ProviderArnInfo {
 ///
 /// let arn = WamiArn::builder()
 ///     .service(Service::Iam)
-///     .tenant("t1")
+///     .tenant(12345678)
 ///     .wami_instance("999888777")
 ///     .cloud_provider("aws", "223344556677")
 ///     .resource("user", "77557755")
