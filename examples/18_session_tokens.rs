@@ -10,7 +10,8 @@
 //! Run with: `cargo run --example 18_session_tokens`
 
 use std::sync::{Arc, RwLock};
-use wami::provider::AwsProvider;
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::{SessionTokenService, UserService};
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::identity::user::requests::CreateUserRequest;
@@ -21,23 +22,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Session Tokens ===\n");
 
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let _provider = Arc::new(AwsProvider::new());
-    let account_id = "123456789012";
+
+    // Create context
+    let context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
 
     // Create user
-    let user_service = UserService::new(store.clone(), account_id.to_string());
+    let user_service = UserService::new(store.clone());
     let alice_req = CreateUserRequest {
         user_name: "alice".to_string(),
         path: Some("/".to_string()),
         permissions_boundary: None,
         tags: None,
     };
-    let alice = user_service.create_user(alice_req).await?;
+    let alice = user_service.create_user(&context, alice_req).await?;
     println!("Step 1: Created user alice");
     println!("  ARN: {}\n", alice.arn);
 
     // Generate session token
-    let sts_service = SessionTokenService::new(store.clone(), account_id.to_string());
+    let sts_service = SessionTokenService::new(store.clone());
 
     let token_req = GetSessionTokenRequest {
         duration_seconds: Some(3600),
@@ -45,7 +59,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         token_code: None,
     };
 
-    let response = sts_service.get_session_token(token_req, &alice.arn).await?;
+    let response = sts_service
+        .get_session_token(&context, token_req, &alice.arn)
+        .await?;
 
     println!("Step 2: Generated session token");
     println!("  Access Key: {}", response.credentials.access_key_id);

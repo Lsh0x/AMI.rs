@@ -9,6 +9,20 @@ use crate::wami::sts::identity::CallerIdentity;
 use crate::wami::sts::session::{SessionStatus, StsSession};
 use chrono::{Duration, Utc};
 
+#[test]
+fn test_in_memory_sts_store_new() {
+    let store = InMemoryStsStore::new();
+    assert!(store.sessions.is_empty());
+    assert!(store.identities.is_empty());
+}
+
+#[test]
+fn test_in_memory_sts_store_default() {
+    let store = InMemoryStsStore::default();
+    assert!(store.sessions.is_empty());
+    assert!(store.identities.is_empty());
+}
+
 // ============================================================================
 // SESSION STORE TESTS
 // ============================================================================
@@ -27,7 +41,9 @@ async fn test_session_create_and_get() {
         federated_user_name: None,
         principal_arn: Some("arn:aws:iam::123456789012:user/alice".to_string()),
         arn: "arn:wami:sts::session-token-123".to_string(),
-        wami_arn: "arn:wami:sts::session/session-token-123".to_string(),
+        wami_arn: "arn:wami:sts:root:wami:123456789012:session/session-token-123"
+            .parse()
+            .unwrap(),
         providers: Vec::new(),
         tenant_id: None,
         created_at: Utc::now(),
@@ -66,7 +82,9 @@ async fn test_session_delete() {
         federated_user_name: None,
         principal_arn: Some("arn:aws:iam::123:user/bob".to_string()),
         arn: "arn:wami:sts::temp-session".to_string(),
-        wami_arn: "arn:wami:sts::session/temp-session".to_string(),
+        wami_arn: "arn:wami:sts:root:wami:123456789012:session/temp-session"
+            .parse()
+            .unwrap(),
         providers: Vec::new(),
         tenant_id: None,
         created_at: Utc::now(),
@@ -107,7 +125,9 @@ async fn test_session_list_multiple() {
             federated_user_name: None,
             principal_arn: Some(format!("arn:aws:iam::123:user/user{}", i)),
             arn: format!("arn:wami:sts::session-{}", i),
-            wami_arn: format!("arn:wami:sts::session/session-{}", i),
+            wami_arn: format!("arn:wami:sts:root:wami:123456789012:session/session-{}", i)
+                .parse()
+                .unwrap(),
             providers: Vec::new(),
             tenant_id: None,
             created_at: Utc::now(),
@@ -134,7 +154,9 @@ async fn test_session_with_role() {
         federated_user_name: None,
         principal_arn: Some("arn:aws:iam::123:user/alice".to_string()),
         arn: "arn:wami:sts::role-session".to_string(),
-        wami_arn: "arn:wami:sts::session/role-session".to_string(),
+        wami_arn: "arn:wami:sts:root:wami:123456789012:session/role-session"
+            .parse()
+            .unwrap(),
         providers: Vec::new(),
         tenant_id: None,
         created_at: Utc::now(),
@@ -173,7 +195,9 @@ async fn test_session_with_providers() {
         federated_user_name: None,
         principal_arn: Some("arn:aws:iam::123:user/test".to_string()),
         arn: "arn:wami:sts::multi-provider-session".to_string(),
-        wami_arn: "arn:wami:sts::session/multi-provider-session".to_string(),
+        wami_arn: "arn:wami:sts:root:wami:123456789012:session/multi-provider-session"
+            .parse()
+            .unwrap(),
         providers: vec![provider_config],
         tenant_id: None,
         created_at: Utc::now(),
@@ -203,7 +227,7 @@ async fn test_identity_create_and_get() {
         user_id: "AIDACKCEVSQ6C2EXAMPLE".to_string(),
         account: "123456789012".to_string(),
         arn: "arn:aws:iam::123456789012:user/alice".to_string(),
-        wami_arn: "arn:wami:iam::hash123:user/alice".to_string(),
+        wami_arn: "arn:wami:iam:root:wami:hash123:user/alice".parse().unwrap(),
         providers: Vec::new(),
     };
 
@@ -248,7 +272,9 @@ async fn test_identity_list_multiple() {
             user_id: format!("USERID{}", i),
             account: "123456789012".to_string(),
             arn: format!("arn:aws:iam::123456789012:user/user{}", i),
-            wami_arn: format!("arn:wami:iam::hash:user/user{}", i),
+            wami_arn: format!("arn:wami:iam:root:wami:hash:user/user{}", i)
+                .parse()
+                .unwrap(),
             providers: Vec::new(),
         };
         store.create_identity(identity).await.unwrap();
@@ -274,7 +300,7 @@ async fn test_identity_with_providers() {
         user_id: "AIDATEST".to_string(),
         account: "123456789012".to_string(),
         arn: "arn:aws:iam::123456789012:user/alice".to_string(),
-        wami_arn: "arn:wami:iam::hash:user/alice".to_string(),
+        wami_arn: "arn:wami:iam:root:wami:hash:user/alice".parse().unwrap(),
         providers: vec![provider_config],
     };
 
@@ -293,7 +319,7 @@ async fn test_identity_update() {
         user_id: "USER1".to_string(),
         account: "111111111111".to_string(),
         arn: "arn:aws:iam::111111111111:user/test".to_string(),
-        wami_arn: "arn:wami:iam::hash:user/test".to_string(),
+        wami_arn: "arn:wami:iam:root:wami:hash:user/test".parse().unwrap(),
         providers: Vec::new(),
     };
 
@@ -304,7 +330,7 @@ async fn test_identity_update() {
         user_id: "USER1".to_string(),
         account: "222222222222".to_string(), // Changed account
         arn: "arn:aws:iam::111111111111:user/test".to_string(),
-        wami_arn: "arn:wami:iam::hash:user/test".to_string(),
+        wami_arn: "arn:wami:iam:root:wami:hash:user/test".parse().unwrap(),
         providers: Vec::new(),
     };
 

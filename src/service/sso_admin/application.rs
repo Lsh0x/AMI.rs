@@ -81,7 +81,12 @@ mod tests {
             status: "ACTIVE".to_string(),
             created_date: Utc::now(),
             portal_url: Some(format!("https://{}.example.com", name)),
-            wami_arn: format!("arn:wami:sso:::application/{}/app-{}", instance_arn, name),
+            wami_arn: format!(
+                "arn:wami:sso-admin:root:wami:123456789012:application/app-{}",
+                name
+            )
+            .parse()
+            .unwrap(),
             providers: vec![],
         }
     }

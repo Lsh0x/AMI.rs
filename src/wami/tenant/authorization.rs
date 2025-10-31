@@ -49,12 +49,25 @@
 //! use wami::wami::tenant::authorization::{TenantAuthorizer, TenantAction};
 //! use wami::store::memory::InMemoryWamiStore;
 //! use wami::store::traits::PolicyStore;
-//! use wami::provider::AwsProvider;
 //! use wami::wami::policies::policy::builder::build_policy;
+//! use wami::{WamiContext, TenantPath, WamiArn, Service};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let mut store = InMemoryWamiStore::default();
-//! let provider = AwsProvider::new();
+//!
+//! let context = WamiContext::builder()
+//!     .instance_id("123456789012")
+//!     .tenant_path(TenantPath::single("root"))
+//!     .caller_arn(
+//!         WamiArn::builder()
+//!             .service(Service::Iam)
+//!             .tenant_path(TenantPath::single("root"))
+//!             .wami_instance("123456789012")
+//!             .resource("user", "admin")
+//!             .build()?,
+//!     )
+//!     .is_root(false)
+//!     .build()?;
 //!
 //! // Create a policy in the store
 //! let policy = build_policy(
@@ -70,9 +83,8 @@
 //!     Some("/".to_string()),
 //!     None, // description
 //!     None, // tags
-//!     &provider,
-//!     "123456789012",
-//! );
+//!     &context,
+//! )?;
 //!
 //! let created_policy = store.create_policy(policy).await?;
 //!

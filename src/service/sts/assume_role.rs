@@ -2,8 +2,9 @@
 //!
 //! Orchestrates role assumption operations.
 
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
 use crate::error::{AmiError, Result};
-use crate::provider::{AwsProvider, CloudProvider, ResourceType};
 use crate::store::traits::{RoleStore, SessionStore};
 use crate::wami::sts::assume_role::{AssumeRoleRequest, AssumeRoleResponse, AssumedRoleUser};
 use crate::wami::sts::session::SessionStatus;
@@ -16,27 +17,12 @@ use std::sync::{Arc, RwLock};
 /// Provides high-level operations for role assumption and temporary credentials.
 pub struct AssumeRoleService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: SessionStore + RoleStore> AssumeRoleService<S> {
-    /// Create a new AssumeRoleService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new AssumeRoleService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Assume an IAM role
@@ -44,23 +30,42 @@ impl<S: SessionStore + RoleStore> AssumeRoleService<S> {
     /// Returns temporary credentials for the assumed role.
     pub async fn assume_role(
         &self,
+        context: &WamiContext,
         request: AssumeRoleRequest,
         principal_arn: &str,
     ) -> Result<AssumeRoleResponse> {
         // Validate request
         request.validate()?;
 
-        // Verify role exists
-        let role_name = self.extract_role_name_from_arn(&request.role_arn)?;
-        let role = self
-            .store
-            .read()
-            .unwrap()
-            .get_role(&role_name)
-            .await?
-            .ok_or_else(|| AmiError::ResourceNotFound {
-                resource: format!("Role: {}", role_name),
-            })?;
+        // Verify role exists - try parsing as WAMI ARN first
+        let role = if let Ok(wami_arn) = request.role_arn.parse::<crate::arn::WamiArn>() {
+            if wami_arn.resource.resource_type == "role" {
+                // Search for role by matching wami_arn
+                let store_guard = self.store.read().unwrap();
+                let (roles, _, _) = store_guard.list_roles(None, None).await?;
+                roles
+                    .into_iter()
+                    .find(|r| r.wami_arn.to_string() == request.role_arn)
+                    .ok_or_else(|| AmiError::ResourceNotFound {
+                        resource: format!("Role: {}", request.role_arn),
+                    })?
+            } else {
+                return Err(AmiError::InvalidParameter {
+                    message: format!("ARN is not a role: {}", request.role_arn),
+                });
+            }
+        } else {
+            // Fall back to AWS format
+            let role_name = self.extract_role_name_from_arn(&request.role_arn)?;
+            self.store
+                .read()
+                .unwrap()
+                .get_role(&role_name)
+                .await?
+                .ok_or_else(|| AmiError::ResourceNotFound {
+                    resource: format!("Role: {}", role_name),
+                })?
+        };
 
         // Determine session duration (default: 1 hour, max: role's max session duration or 12 hours)
         let max_duration = role.max_session_duration.unwrap_or(43200);
@@ -68,7 +73,15 @@ impl<S: SessionStore + RoleStore> AssumeRoleService<S> {
         let expiration = Utc::now() + Duration::seconds(duration_seconds as i64);
 
         // Generate credentials
-        let access_key_id = self.provider.generate_resource_id(ResourceType::AccessKey);
+        let access_key_id = format!(
+            "AKIA{}",
+            uuid::Uuid::new_v4()
+                .to_string()
+                .replace('-', "")
+                .chars()
+                .take(16)
+                .collect::<String>()
+        );
         let secret_access_key = format!(
             "SECRET{}",
             uuid::Uuid::new_v4().to_string().replace('-', "")
@@ -77,14 +90,21 @@ impl<S: SessionStore + RoleStore> AssumeRoleService<S> {
 
         let session_arn = format!(
             "arn:aws:sts::{}:assumed-role/{}/{}",
-            self.account_id, role_name, request.role_session_name
+            context.instance_id(),
+            &role.role_name,
+            request.role_session_name
         );
-        let wami_arn = self.provider.generate_wami_arn(
-            ResourceType::StsSession,
-            &self.account_id,
-            "/",
-            &format!("{}/{}", role_name, request.role_session_name),
-        );
+
+        // Build WAMI ARN for credentials using context
+        let wami_arn = WamiArn::builder()
+            .service(Service::Sts)
+            .tenant_path(context.tenant_path().clone())
+            .wami_instance(context.instance_id())
+            .resource(
+                "session",
+                format!("{}/{}", role.role_name, request.role_session_name),
+            )
+            .build()?;
 
         let credentials = Credentials {
             access_key_id: access_key_id.clone(),
@@ -98,7 +118,15 @@ impl<S: SessionStore + RoleStore> AssumeRoleService<S> {
         };
 
         // Create assumed role user
-        let assumed_role_id = self.provider.generate_resource_id(ResourceType::Role);
+        let assumed_role_id = format!(
+            "AROA{}",
+            uuid::Uuid::new_v4()
+                .to_string()
+                .replace('-', "")
+                .chars()
+                .take(17)
+                .collect::<String>()
+        );
         let assumed_role_user = AssumedRoleUser {
             assumed_role_id,
             arn: session_arn.clone(),
@@ -133,7 +161,19 @@ impl<S: SessionStore + RoleStore> AssumeRoleService<S> {
     // Helper methods
 
     fn extract_role_name_from_arn(&self, arn: &str) -> Result<String> {
-        // Expected format: arn:aws:iam::123456789012:role/RoleName
+        // Try parsing as WAMI ARN first
+        if let Ok(wami_arn) = arn.parse::<crate::arn::WamiArn>() {
+            if wami_arn.resource.resource_type == "role" {
+                // For WAMI ARN, we need to get the role by its resource_id and look up the role_name
+                // But since we only have resource_id, we'll need to search by it or modify the lookup
+                // For now, we'll use the resource_id as identifier and search in store
+                // The store.get_role() uses role_name, so we need a different approach
+                // Actually, we should parse the WAMI ARN and extract resource_id, then search
+                return Ok(wami_arn.resource.resource_id);
+            }
+        }
+
+        // Fall back to AWS format: arn:aws:iam::123456789012:role/RoleName
         let parts: Vec<&str> = arn.split(':').collect();
         if parts.len() < 6 {
             return Err(AmiError::InvalidParameter {
@@ -157,18 +197,33 @@ impl<S: SessionStore + RoleStore> AssumeRoleService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
     use crate::store::memory::InMemoryWamiStore;
     use crate::wami::identity::role::builder::build_role;
 
     fn setup_service() -> AssumeRoleService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        AssumeRoleService::new(store, "123456789012".to_string())
+        AssumeRoleService::new(store)
+    }
+
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
     async fn test_assume_role() {
         let service = setup_service();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         // Create a role
         let trust_policy = r#"{"Version":"2012-10-17","Statement":[]}"#;
@@ -178,11 +233,11 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
-        let role_arn = role.arn.clone();
+        let role_arn = role.wami_arn.to_string();
 
         service
             .store
@@ -202,7 +257,7 @@ mod tests {
         };
 
         let response = service
-            .assume_role(request, "arn:aws:iam::123456789012:user/alice")
+            .assume_role(&context, request, "arn:aws:iam::123456789012:user/alice")
             .await
             .unwrap();
 
@@ -217,15 +272,16 @@ mod tests {
         let service = setup_service();
 
         let request = AssumeRoleRequest {
-            role_arn: "arn:aws:iam::123456789012:role/NonExistentRole".to_string(),
+            role_arn: "arn:wami:iam:test:wami:123456789012:role/nonexistent".to_string(),
             role_session_name: "test-session".to_string(),
             duration_seconds: Some(3600),
             external_id: None,
             policy: None,
         };
 
+        let context = test_context();
         let result = service
-            .assume_role(request, "arn:aws:iam::123456789012:user/alice")
+            .assume_role(&context, request, "arn:aws:iam::123456789012:user/alice")
             .await;
 
         assert!(result.is_err());
@@ -235,7 +291,7 @@ mod tests {
     #[tokio::test]
     async fn test_assume_role_with_external_id() {
         let service = setup_service();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         // Create a role
         let trust_policy = r#"{"Version":"2012-10-17","Statement":[]}"#;
@@ -245,11 +301,11 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
-        let role_arn = role.arn.clone();
+        let role_arn = role.wami_arn.to_string();
 
         service
             .store
@@ -269,7 +325,11 @@ mod tests {
         };
 
         let response = service
-            .assume_role(request, "arn:aws:iam::999999999999:user/external-user")
+            .assume_role(
+                &context,
+                request,
+                "arn:aws:iam::999999999999:user/external-user",
+            )
             .await
             .unwrap();
 
@@ -279,7 +339,7 @@ mod tests {
     #[tokio::test]
     async fn test_assume_role_creates_session() {
         let service = setup_service();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         // Create a role
         let trust_policy = r#"{"Version":"2012-10-17","Statement":[]}"#;
@@ -289,11 +349,11 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
-        let role_arn = role.arn.clone();
+        let role_arn = role.wami_arn.to_string();
 
         service
             .store
@@ -313,7 +373,7 @@ mod tests {
         };
 
         let response = service
-            .assume_role(request, "arn:aws:iam::123456789012:user/bob")
+            .assume_role(&context, request, "arn:aws:iam::123456789012:user/bob")
             .await
             .unwrap();
 

@@ -2,6 +2,7 @@
 //!
 //! Represents an IAM user entity
 
+use crate::arn::WamiArn;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +14,16 @@ use serde::{Deserialize, Serialize};
 ///
 /// ```rust
 /// use wami::wami::identity::user::User;
+/// use wami::arn::{WamiArn, Service};
 /// use chrono::Utc;
+///
+/// let wami_arn = WamiArn::builder()
+///     .service(Service::Iam)
+///     .tenant("default")
+///     .wami_instance("main")
+///     .resource("user", "AIDACKCEVSQ6C2EXAMPLE")
+///     .build()
+///     .unwrap();
 ///
 /// let user = User {
 ///     user_name: "alice".to_string(),
@@ -24,7 +34,7 @@ use serde::{Deserialize, Serialize};
 ///     password_last_used: None,
 ///     permissions_boundary: None,
 ///     tags: vec![],
-///     wami_arn: "arn:wami:iam::123456789012:user/alice".to_string(),
+///     wami_arn,
 ///     providers: vec![],
 ///     tenant_id: None,
 /// };
@@ -47,8 +57,8 @@ pub struct User {
     pub permissions_boundary: Option<String>,
     /// A list of tags associated with the user
     pub tags: Vec<crate::types::Tag>,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    /// The WAMI ARN for cross-provider identification (structured type)
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
     /// Optional tenant ID for multi-tenant isolation
@@ -79,5 +89,54 @@ impl User {
             });
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_username_valid() {
+        assert!(User::validate_username("alice").is_ok());
+        assert!(User::validate_username("user123").is_ok());
+        assert!(User::validate_username("user-name").is_ok());
+        assert!(User::validate_username("user_name").is_ok());
+        assert!(User::validate_username("user+name").is_ok());
+        assert!(User::validate_username("user=name").is_ok());
+        assert!(User::validate_username("user,name").is_ok());
+        assert!(User::validate_username("user.name").is_ok());
+        assert!(User::validate_username("user@name").is_ok());
+    }
+
+    #[test]
+    fn test_validate_username_empty() {
+        let result = User::validate_username("");
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::error::AmiError::InvalidParameter { .. }
+        ));
+    }
+
+    #[test]
+    fn test_validate_username_too_long() {
+        let long_name = "a".repeat(65);
+        let result = User::validate_username(&long_name);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::error::AmiError::InvalidParameter { .. }
+        ));
+    }
+
+    #[test]
+    fn test_validate_username_invalid_chars() {
+        let result = User::validate_username("user name");
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            crate::error::AmiError::InvalidParameter { .. }
+        ));
     }
 }

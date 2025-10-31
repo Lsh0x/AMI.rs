@@ -97,7 +97,12 @@ mod tests {
             instance_arn: instance_arn.to_string(),
             trusted_token_issuer_type: "OIDC".to_string(),
             created_date: Utc::now(),
-            wami_arn: format!("arn:wami:sso:::issuer/{}/tti-{}", instance_arn, name),
+            wami_arn: format!(
+                "arn:wami:sso-admin:root:wami:123456789012:trusted-token-issuer/tti-{}",
+                name
+            )
+            .parse()
+            .unwrap(),
             providers: vec![],
         }
     }

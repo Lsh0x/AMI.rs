@@ -12,7 +12,8 @@
 
 use std::sync::{Arc, RwLock};
 use wami::{
-    provider::AwsProvider,
+    arn::{TenantPath, WamiArn},
+    context::WamiContext,
     service::{
         EvaluationService, PermissionsBoundaryService, PolicyService, RoleService, UserService,
     },
@@ -32,14 +33,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize store and services
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let account_id = "123456789012";
-    let _provider = Arc::new(AwsProvider::new());
 
-    let user_service = UserService::new(store.clone(), account_id.to_string());
-    let role_service = RoleService::new(store.clone(), account_id.to_string());
-    let policy_service = PolicyService::new(store.clone(), account_id.to_string());
-    let boundary_service = PermissionsBoundaryService::new(store.clone(), account_id.to_string());
-    let evaluation_service = EvaluationService::new(store.clone(), account_id.to_string());
+    // Create context
+    let context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    let user_service = UserService::new(store.clone());
+    let role_service = RoleService::new(store.clone());
+    let policy_service = PolicyService::new(store.clone());
+    let boundary_service =
+        PermissionsBoundaryService::new(store.clone(), "123456789012".to_string());
+    let evaluation_service = EvaluationService::new(store.clone(), "123456789012".to_string());
 
     // ==========================================
     // Part 1: Create User with Admin Policy
@@ -53,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: None,
     };
-    let alice = user_service.create_user(alice_req).await?;
+    let alice = user_service.create_user(&context, alice_req).await?;
     println!("✅ Created user: {}", alice.user_name);
     println!("   ARN: {}\n", alice.arn);
 
@@ -67,13 +82,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }]
     }"#;
     let admin_policy = policy_service
-        .create_policy(CreatePolicyRequest {
-            policy_name: "AdminPolicy".to_string(),
-            policy_document: admin_policy_doc.to_string(),
-            path: Some("/".to_string()),
-            description: Some("Full admin access".to_string()),
-            tags: None,
-        })
+        .create_policy(
+            &context,
+            CreatePolicyRequest {
+                policy_name: "AdminPolicy".to_string(),
+                policy_document: admin_policy_doc.to_string(),
+                path: Some("/".to_string()),
+                description: Some("Full admin access".to_string()),
+                tags: None,
+            },
+        )
         .await?;
     println!("✅ Created admin policy: {}", admin_policy.policy_name);
     println!("   ARN: {}", admin_policy.arn);
@@ -93,13 +111,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }]
     }"#;
     let s3_boundary = policy_service
-        .create_policy(CreatePolicyRequest {
-            policy_name: "S3OnlyBoundary".to_string(),
-            policy_document: s3_boundary_doc.to_string(),
-            path: Some("/boundaries/".to_string()),
-            description: Some("Limits permissions to S3 only".to_string()),
-            tags: None,
-        })
+        .create_policy(
+            &context,
+            CreatePolicyRequest {
+                policy_name: "S3OnlyBoundary".to_string(),
+                policy_document: s3_boundary_doc.to_string(),
+                path: Some("/boundaries/".to_string()),
+                description: Some("Limits permissions to S3 only".to_string()),
+                tags: None,
+            },
+        )
         .await?;
     println!("✅ Created boundary policy: {}", s3_boundary.policy_name);
     println!("   ARN: {}", s3_boundary.arn);
@@ -215,7 +236,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: None,
     };
-    let dev_role = role_service.create_role(dev_role_req).await?;
+    let dev_role = role_service.create_role(&context, dev_role_req).await?;
     println!("✅ Created role: {}", dev_role.role_name);
     println!("   ARN: {}\n", dev_role.arn);
 
@@ -233,13 +254,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }]
     }"#;
     let read_only_boundary = policy_service
-        .create_policy(CreatePolicyRequest {
-            policy_name: "ReadOnlyBoundary".to_string(),
-            policy_document: read_only_boundary_doc.to_string(),
-            path: Some("/boundaries/".to_string()),
-            description: Some("Limits to read-only operations".to_string()),
-            tags: None,
-        })
+        .create_policy(
+            &context,
+            CreatePolicyRequest {
+                policy_name: "ReadOnlyBoundary".to_string(),
+                policy_document: read_only_boundary_doc.to_string(),
+                path: Some("/boundaries/".to_string()),
+                description: Some("Limits to read-only operations".to_string()),
+                tags: None,
+            },
+        )
         .await?;
     println!(
         "✅ Created read-only boundary: {}",

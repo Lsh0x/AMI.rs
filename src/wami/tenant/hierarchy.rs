@@ -77,3 +77,131 @@ impl TenantNode {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::wami::tenant::{Tenant, TenantId, TenantStatus, TenantType};
+
+    fn create_test_tenant(id: TenantId, parent_id: Option<TenantId>) -> Tenant {
+        Tenant {
+            id: id.clone(),
+            name: format!("tenant-{}", id),
+            parent_id,
+            organization: Some(format!("{} Organization", id.as_str())),
+            status: TenantStatus::Active,
+            tenant_type: TenantType::Root,
+            provider_accounts: std::collections::HashMap::new(),
+            arn: format!("arn:wami:tenant::{}", id.as_str()),
+            providers: Vec::new(),
+            created_at: chrono::Utc::now(),
+            quotas: crate::wami::tenant::TenantQuotas::default(),
+            quota_mode: crate::wami::tenant::QuotaMode::Inherited,
+            max_child_depth: 5,
+            can_create_sub_tenants: true,
+            admin_principals: Vec::new(),
+            metadata: std::collections::HashMap::new(),
+            billing_info: None,
+        }
+    }
+
+    #[test]
+    fn test_tenant_node_new() {
+        let tenant = create_test_tenant(TenantId::new("root"), None);
+        let node = TenantNode::new(tenant.clone());
+        assert_eq!(node.tenant.id.as_str(), "root");
+        assert_eq!(node.children.len(), 0);
+    }
+
+    #[test]
+    fn test_tenant_node_add_child() {
+        let root_tenant = create_test_tenant(TenantId::new("root"), None);
+        let mut root_node = TenantNode::new(root_tenant);
+
+        let child_tenant = create_test_tenant(TenantId::new("child"), Some(TenantId::new("root")));
+        let child_node = TenantNode::new(child_tenant);
+        root_node.add_child(child_node);
+
+        assert_eq!(root_node.children.len(), 1);
+        assert_eq!(root_node.children[0].tenant.id.as_str(), "child");
+    }
+
+    #[test]
+    fn test_tenant_node_all_descendants() {
+        let root_tenant = create_test_tenant(TenantId::new("root"), None);
+        let mut root_node = TenantNode::new(root_tenant);
+
+        let child1 = create_test_tenant(TenantId::new("child1"), Some(TenantId::new("root")));
+        let mut child1_node = TenantNode::new(child1);
+
+        let grandchild =
+            create_test_tenant(TenantId::new("grandchild"), Some(TenantId::new("child1")));
+        let grandchild_node = TenantNode::new(grandchild);
+        child1_node.add_child(grandchild_node);
+
+        let child2 = create_test_tenant(TenantId::new("child2"), Some(TenantId::new("root")));
+        let child2_node = TenantNode::new(child2);
+
+        root_node.add_child(child1_node);
+        root_node.add_child(child2_node);
+
+        let descendants = root_node.all_descendants();
+        assert_eq!(descendants.len(), 3);
+        assert!(descendants.iter().any(|id| id.as_str() == "child1"));
+        assert!(descendants.iter().any(|id| id.as_str() == "child2"));
+        assert!(descendants.iter().any(|id| id.as_str() == "grandchild"));
+    }
+
+    #[test]
+    fn test_tenant_node_descendant_count() {
+        let root_tenant = create_test_tenant(TenantId::new("root"), None);
+        let mut root_node = TenantNode::new(root_tenant);
+
+        let child1 = create_test_tenant(TenantId::new("child1"), Some(TenantId::new("root")));
+        let mut child1_node = TenantNode::new(child1);
+
+        let grandchild =
+            create_test_tenant(TenantId::new("grandchild"), Some(TenantId::new("child1")));
+        let grandchild_node = TenantNode::new(grandchild);
+        child1_node.add_child(grandchild_node);
+
+        let child2 = create_test_tenant(TenantId::new("child2"), Some(TenantId::new("root")));
+        let child2_node = TenantNode::new(child2);
+
+        root_node.add_child(child1_node);
+        root_node.add_child(child2_node);
+
+        assert_eq!(root_node.descendant_count(), 3);
+    }
+
+    #[test]
+    fn test_build_tree() {
+        let root = create_test_tenant(TenantId::new("root"), None);
+        let child1 = create_test_tenant(TenantId::new("child1"), Some(TenantId::new("root")));
+        let child2 = create_test_tenant(TenantId::new("child2"), Some(TenantId::new("root")));
+        let grandchild =
+            create_test_tenant(TenantId::new("grandchild"), Some(TenantId::new("child1")));
+
+        let tenants = vec![
+            root.clone(),
+            child1.clone(),
+            child2.clone(),
+            grandchild.clone(),
+        ];
+        let tree = TenantNode::build_tree(tenants, &TenantId::new("root"));
+
+        assert!(tree.is_some());
+        let root_node = tree.unwrap();
+        assert_eq!(root_node.tenant.id.as_str(), "root");
+        assert_eq!(root_node.children.len(), 2);
+        assert_eq!(root_node.descendant_count(), 3);
+    }
+
+    #[test]
+    fn test_build_tree_no_root() {
+        let child1 = create_test_tenant(TenantId::new("child1"), Some(TenantId::new("root")));
+        let tenants = vec![child1];
+        let tree = TenantNode::build_tree(tenants, &TenantId::new("root"));
+        assert!(tree.is_none());
+    }
+}

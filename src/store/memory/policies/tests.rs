@@ -1,15 +1,29 @@
 //! Tests for Policy Store Implementation
 
-use crate::provider::aws::AwsProvider;
+use crate::arn::{TenantPath, WamiArn};
+use crate::context::WamiContext;
 use crate::store::memory::InMemoryWamiStore;
 use crate::store::traits::PolicyStore;
 use crate::types::PaginationParams;
 use crate::wami::policies::policy::builder as policy_builder;
 
+fn test_context() -> WamiContext {
+    let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+        .parse()
+        .unwrap();
+    WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("test"))
+        .caller_arn(arn)
+        .is_root(false)
+        .build()
+        .unwrap()
+}
+
 #[tokio::test]
 async fn test_policy_create_and_get() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     let policy_doc = r#"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:*","Resource":"*"}]}"#.to_string();
     let policy = policy_builder::build_policy(
@@ -18,9 +32,9 @@ async fn test_policy_create_and_get() {
         Some("/".to_string()),
         Some("Full S3 access policy".to_string()),
         None, // tags
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
 
     let policy_arn = policy.arn.clone();
 
@@ -48,7 +62,7 @@ async fn test_policy_get_nonexistent() {
 #[tokio::test]
 async fn test_policy_update() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     let policy_doc = r#"{"Version":"2012-10-17"}"#.to_string();
     let policy = policy_builder::build_policy(
@@ -57,9 +71,9 @@ async fn test_policy_update() {
         Some("/".to_string()),
         Some("Original description".to_string()),
         None, // tags
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
 
     let policy_arn = policy.arn.clone();
     store.create_policy(policy.clone()).await.unwrap();
@@ -80,7 +94,7 @@ async fn test_policy_update() {
 #[tokio::test]
 async fn test_policy_delete() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     let policy_doc = r#"{"Version":"2012-10-17"}"#.to_string();
     let policy = policy_builder::build_policy(
@@ -89,9 +103,9 @@ async fn test_policy_delete() {
         Some("/".to_string()),
         None, // description
         None, // tags
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
 
     let policy_arn = policy.arn.clone();
     store.create_policy(policy).await.unwrap();
@@ -118,7 +132,7 @@ async fn test_policy_list_empty() {
 #[tokio::test]
 async fn test_policy_list_multiple() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
     let policy_doc = r#"{"Version":"2012-10-17"}"#.to_string();
 
     for name in &["PolicyA", "PolicyB", "PolicyC"] {
@@ -128,9 +142,9 @@ async fn test_policy_list_multiple() {
             Some("/".to_string()),
             None, // description
             None, // tags
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
         store.create_policy(policy).await.unwrap();
     }
 
@@ -143,7 +157,7 @@ async fn test_policy_list_multiple() {
 #[tokio::test]
 async fn test_policy_list_with_path_prefix() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
     let policy_doc = r#"{"Version":"2012-10-17"}"#.to_string();
 
     let policy1 = policy_builder::build_policy(
@@ -152,18 +166,18 @@ async fn test_policy_list_with_path_prefix() {
         Some("/admin/".to_string()),
         None, // description
         None, // tags
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
     let policy2 = policy_builder::build_policy(
         "UserPolicy".to_string(),
         policy_doc,
         Some("/users/".to_string()),
         None, // description
         None, // tags
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
 
     store.create_policy(policy1).await.unwrap();
     store.create_policy(policy2).await.unwrap();
@@ -177,7 +191,7 @@ async fn test_policy_list_with_path_prefix() {
 #[tokio::test]
 async fn test_policy_list_with_pagination() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
     let policy_doc = r#"{"Version":"2012-10-17"}"#.to_string();
 
     // Create 5 policies
@@ -188,9 +202,9 @@ async fn test_policy_list_with_pagination() {
             Some("/".to_string()),
             None, // description
             None, // tags
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
         store.create_policy(policy).await.unwrap();
     }
 

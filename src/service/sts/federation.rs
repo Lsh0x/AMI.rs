@@ -2,8 +2,9 @@
 //!
 //! Orchestrates federated user token operations.
 
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider, ResourceType};
 use crate::store::traits::SessionStore;
 use crate::wami::sts::federation::{
     FederatedUser, GetFederationTokenRequest, GetFederationTokenResponse,
@@ -18,27 +19,12 @@ use std::sync::{Arc, RwLock};
 /// Provides high-level operations for federation token creation.
 pub struct FederationService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: SessionStore> FederationService<S> {
-    /// Create a new FederationService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new FederationService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Get a federation token
@@ -46,6 +32,7 @@ impl<S: SessionStore> FederationService<S> {
     /// Returns temporary credentials for a federated user.
     pub async fn get_federation_token(
         &self,
+        context: &WamiContext,
         request: GetFederationTokenRequest,
         principal_arn: &str,
     ) -> Result<GetFederationTokenResponse> {
@@ -57,7 +44,15 @@ impl<S: SessionStore> FederationService<S> {
         let expiration = Utc::now() + Duration::seconds(duration_seconds as i64);
 
         // Generate credentials
-        let access_key_id = self.provider.generate_resource_id(ResourceType::AccessKey);
+        let access_key_id = format!(
+            "AKIA{}",
+            uuid::Uuid::new_v4()
+                .to_string()
+                .replace('-', "")
+                .chars()
+                .take(16)
+                .collect::<String>()
+        );
         let secret_access_key = format!(
             "SECRET{}",
             uuid::Uuid::new_v4().to_string().replace('-', "")
@@ -66,14 +61,17 @@ impl<S: SessionStore> FederationService<S> {
 
         let session_arn = format!(
             "arn:aws:sts::{}:federated-user/{}",
-            self.account_id, request.name
+            context.instance_id(),
+            request.name
         );
-        let wami_arn = self.provider.generate_wami_arn(
-            ResourceType::StsSession,
-            &self.account_id,
-            "/",
-            &format!("federated-user/{}", request.name),
-        );
+
+        // Build WAMI ARN for credentials using context
+        let wami_arn = WamiArn::builder()
+            .service(Service::Sts)
+            .tenant_path(context.tenant_path().clone())
+            .wami_instance(context.instance_id())
+            .resource("federated-user", &request.name)
+            .build()?;
 
         let credentials = Credentials {
             access_key_id: access_key_id.clone(),
@@ -87,7 +85,15 @@ impl<S: SessionStore> FederationService<S> {
         };
 
         // Create federated user
-        let federated_user_id = self.provider.generate_resource_id(ResourceType::User);
+        let federated_user_id = format!(
+            "AIDAI{}",
+            uuid::Uuid::new_v4()
+                .to_string()
+                .replace('-', "")
+                .chars()
+                .take(13)
+                .collect::<String>()
+        );
         let federated_user = FederatedUser {
             federated_user_id,
             arn: session_arn.clone(),
@@ -127,12 +133,27 @@ mod tests {
 
     fn setup_service() -> FederationService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        FederationService::new(store, "123456789012".to_string())
+        FederationService::new(store)
+    }
+
+    fn test_context() -> crate::context::WamiContext {
+        use crate::arn::{TenantPath, WamiArn};
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        crate::context::WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
     async fn test_get_federation_token() {
         let service = setup_service();
+        let context = test_context();
 
         let request = GetFederationTokenRequest {
             name: "federated-user".to_string(),
@@ -141,7 +162,7 @@ mod tests {
         };
 
         let response = service
-            .get_federation_token(request, "arn:aws:iam::123456789012:user/alice")
+            .get_federation_token(&context, request, "arn:aws:iam::123456789012:user/alice")
             .await
             .unwrap();
 
@@ -161,8 +182,9 @@ mod tests {
             policy: None,
         };
 
+        let context = test_context();
         let response = service
-            .get_federation_token(request, "arn:aws:iam::123456789012:user/bob")
+            .get_federation_token(&context, request, "arn:aws:iam::123456789012:user/bob")
             .await
             .unwrap();
 
@@ -179,8 +201,9 @@ mod tests {
             policy: None,
         };
 
+        let context = test_context();
         let result = service
-            .get_federation_token(request, "arn:aws:iam::123456789012:user/alice")
+            .get_federation_token(&context, request, "arn:aws:iam::123456789012:user/alice")
             .await;
 
         assert!(result.is_err());
@@ -196,8 +219,9 @@ mod tests {
             policy: None,
         };
 
+        let context = test_context();
         let response = service
-            .get_federation_token(request, "arn:aws:iam::123456789012:user/charlie")
+            .get_federation_token(&context, request, "arn:aws:iam::123456789012:user/charlie")
             .await
             .unwrap();
 
@@ -236,8 +260,9 @@ mod tests {
             policy: Some(policy.to_string()),
         };
 
+        let context = test_context();
         let response = service
-            .get_federation_token(request, "arn:aws:iam::123456789012:user/admin")
+            .get_federation_token(&context, request, "arn:aws:iam::123456789012:user/admin")
             .await
             .unwrap();
 

@@ -229,20 +229,39 @@ impl IdentityProviderStore for InMemoryWamiStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::provider::AwsProvider;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
     use crate::wami::identity::identity_provider::builder;
+
+    fn test_context() -> WamiContext {
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("root"))
+            .caller_arn(
+                WamiArn::builder()
+                    .service(crate::arn::Service::Iam)
+                    .tenant_path(TenantPath::single("root"))
+                    .wami_instance("123456789012")
+                    .resource("user", "test-user")
+                    .build()
+                    .unwrap(),
+            )
+            .is_root(false)
+            .build()
+            .unwrap()
+    }
 
     #[tokio::test]
     async fn test_saml_provider_crud() {
         let mut store = InMemoryWamiStore::default();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         let saml = builder::build_saml_provider(
             "TestProvider".to_string(),
             "<EntityDescriptor />".to_string(),
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         // Create
         let created = store.create_saml_provider(saml.clone()).await.unwrap();
@@ -271,15 +290,15 @@ mod tests {
     #[tokio::test]
     async fn test_oidc_provider_crud() {
         let mut store = InMemoryWamiStore::default();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         let oidc = builder::build_oidc_provider(
             "https://accounts.google.com".to_string(),
             vec!["client-id".to_string()],
             vec!["0123456789abcdef0123456789abcdef01234567".to_string()],
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         // Create
         let created = store.create_oidc_provider(oidc.clone()).await.unwrap();
@@ -307,14 +326,14 @@ mod tests {
     #[tokio::test]
     async fn test_tagging_operations() {
         let mut store = InMemoryWamiStore::default();
-        let provider = AwsProvider::new();
+        let context = test_context();
 
         let saml = builder::build_saml_provider(
             "TagTest".to_string(),
             "<EntityDescriptor />".to_string(),
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let created = store.create_saml_provider(saml).await.unwrap();
 

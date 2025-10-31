@@ -4,6 +4,8 @@
 //! to users, groups, and roles.
 
 use std::sync::{Arc, RwLock};
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::{AttachmentService, InlinePolicyService, PolicyService, UserService};
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::identity::user::CreateUserRequest;
@@ -20,25 +22,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize store
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let account_id = "123456789012".to_string();
+
+    // Create context
+    let context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
 
     println!("=== Policy Attachment Example ===\n");
 
     // Step 1: Create a user
     println!("1. Creating user 'alice'...");
-    let user_service = UserService::new(store.clone(), account_id.clone());
+    let user_service = UserService::new(store.clone());
     let create_user_req = CreateUserRequest {
         user_name: "alice".to_string(),
         path: Some("/".to_string()),
         tags: Some(vec![]),
         permissions_boundary: None,
     };
-    let user = user_service.create_user(create_user_req).await?;
+    let user = user_service.create_user(&context, create_user_req).await?;
     println!("   Created user: {} (ARN: {})\n", user.user_name, user.arn);
 
     // Step 2: Create a managed policy
     println!("2. Creating managed policy 'S3ReadOnly'...");
-    let policy_service = PolicyService::new(store.clone(), account_id.clone());
+    let policy_service = PolicyService::new(store.clone());
     let policy_doc = r#"{
         "Version": "2012-10-17",
         "Statement": [{
@@ -55,7 +71,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         description: Some("Read-only access to S3".to_string()),
         tags: Some(vec![]),
     };
-    let policy = policy_service.create_policy(create_policy_req).await?;
+    let policy = policy_service
+        .create_policy(&context, create_policy_req)
+        .await?;
     println!(
         "   Created policy: {} (ARN: {})\n",
         policy.policy_name, policy.arn

@@ -1,11 +1,53 @@
 //! User Builder Functions
 
 use super::model::User;
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
+use crate::error::Result;
 use crate::provider::{CloudProvider, ResourceType};
 use chrono::Utc;
+use uuid::Uuid;
 
-/// Build a new User with provider-specific identifiers
-pub fn build_user(
+/// Build a new User with context-based identifiers
+#[allow(clippy::result_large_err)]
+pub fn build_user(user_name: String, path: Option<String>, context: &WamiContext) -> Result<User> {
+    let user_id = Uuid::new_v4().to_string();
+    let path = path.unwrap_or_else(|| "/".to_string());
+
+    // Build WAMI ARN using context
+    let wami_arn = WamiArn::builder()
+        .service(Service::Iam)
+        .tenant_path(context.tenant_path().clone())
+        .wami_instance(context.instance_id())
+        .resource("user", &user_id)
+        .build()?;
+
+    // Generate AWS-compatible ARN (for backward compatibility)
+    let arn = format!(
+        "arn:aws:iam::{}:user{}/{}",
+        context.instance_id(),
+        if path == "/" { "" } else { &path },
+        user_name
+    );
+
+    Ok(User {
+        user_name,
+        user_id,
+        arn,
+        path,
+        create_date: Utc::now(),
+        password_last_used: None,
+        permissions_boundary: None,
+        tags: vec![],
+        wami_arn,
+        providers: Vec::new(),
+        tenant_id: None,
+    })
+}
+
+/// Build a new User with provider-specific identifiers (legacy)
+#[deprecated(note = "Use build_user with WamiContext instead")]
+pub fn build_user_legacy(
     user_name: String,
     path: Option<String>,
     provider: &dyn CloudProvider,
@@ -15,7 +57,20 @@ pub fn build_user(
     let path = path.unwrap_or_else(|| "/".to_string());
     let arn =
         provider.generate_resource_identifier(ResourceType::User, account_id, &path, &user_name);
-    let wami_arn = provider.generate_wami_arn(ResourceType::User, account_id, &path, &user_name);
+    let wami_arn_str =
+        provider.generate_wami_arn(ResourceType::User, account_id, &path, &user_name);
+
+    // Parse the wami_arn string to WamiArn
+    let wami_arn = wami_arn_str.parse().unwrap_or_else(|_| {
+        // Fallback: create a basic ARN
+        WamiArn::builder()
+            .service(Service::Iam)
+            .tenant("default")
+            .wami_instance(account_id)
+            .resource("user", &user_id)
+            .build()
+            .expect("Failed to build fallback ARN")
+    });
 
     User {
         user_name,
@@ -96,24 +151,31 @@ pub fn remove_tags(mut user: User, tag_keys: &[String]) -> User {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::provider::aws::AwsProvider;
+    use crate::arn::TenantPath;
     use crate::types::Tag;
     use crate::wami::tenant::TenantId;
 
-    fn test_provider() -> AwsProvider {
-        AwsProvider::new()
+    fn test_context() -> WamiContext {
+        let user_arn: WamiArn = "arn:wami:iam:t1:wami:999:user/test".parse().unwrap();
+        WamiContext::builder()
+            .instance_id("999888777")
+            .tenant_path(TenantPath::single("t1"))
+            .caller_arn(user_arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[test]
     fn test_build_user() {
-        let provider = test_provider();
-        let user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("alice".to_string(), None, &context).unwrap();
 
         assert_eq!(user.user_name, "alice");
         assert_eq!(user.path, "/");
         assert!(!user.user_id.is_empty());
         assert!(user.arn.contains("alice"));
-        assert!(user.wami_arn.contains("alice"));
+        assert_eq!(user.wami_arn.resource.resource_type, "user");
         assert!(user.permissions_boundary.is_none());
         assert!(user.tags.is_empty());
         assert!(user.tenant_id.is_none());
@@ -121,13 +183,13 @@ mod tests {
 
     #[test]
     fn test_build_user_with_custom_path() {
-        let provider = test_provider();
+        let context = test_context();
         let user = build_user(
             "bob".to_string(),
             Some("/engineering/".to_string()),
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         assert_eq!(user.user_name, "bob");
         assert_eq!(user.path, "/engineering/");
@@ -135,8 +197,8 @@ mod tests {
 
     #[test]
     fn test_build_user_with_defaults() {
-        let provider = test_provider();
-        let user = build_user("test".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("test".to_string(), None, &context).unwrap();
 
         assert!(user.password_last_used.is_none());
         assert!(user.permissions_boundary.is_none());
@@ -147,8 +209,8 @@ mod tests {
 
     #[test]
     fn test_update_user_name() {
-        let provider = test_provider();
-        let user = build_user("old".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("old".to_string(), None, &context).unwrap();
         let updated = update_user_name(user, "new".to_string());
 
         assert_eq!(updated.user_name, "new");
@@ -156,8 +218,8 @@ mod tests {
 
     #[test]
     fn test_update_user_path() {
-        let provider = test_provider();
-        let user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("alice".to_string(), None, &context).unwrap();
         let updated = update_user_path(user, "/admin/".to_string());
 
         assert_eq!(updated.path, "/admin/");
@@ -165,8 +227,8 @@ mod tests {
 
     #[test]
     fn test_add_provider_to_user() {
-        let provider = test_provider();
-        let user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("alice".to_string(), None, &context).unwrap();
 
         let provider_config = crate::provider::ProviderConfig {
             provider_name: "aws".to_string(),
@@ -183,8 +245,8 @@ mod tests {
 
     #[test]
     fn test_add_provider_duplicate() {
-        let provider = test_provider();
-        let user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("alice".to_string(), None, &context).unwrap();
 
         let provider_config = crate::provider::ProviderConfig {
             provider_name: "aws".to_string(),
@@ -203,8 +265,8 @@ mod tests {
 
     #[test]
     fn test_set_tenant_id() {
-        let provider = test_provider();
-        let user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("alice".to_string(), None, &context).unwrap();
         let tenant_id = TenantId::new("acme");
 
         let updated = set_tenant_id(user, tenant_id.clone());
@@ -213,8 +275,8 @@ mod tests {
 
     #[test]
     fn test_clear_permissions_boundary() {
-        let provider = test_provider();
-        let mut user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let mut user = build_user("alice".to_string(), None, &context).unwrap();
         user.permissions_boundary = Some("arn:aws:iam::123:policy/boundary".to_string());
 
         let updated = clear_permissions_boundary(user);
@@ -223,8 +285,8 @@ mod tests {
 
     #[test]
     fn test_set_permissions_boundary() {
-        let provider = test_provider();
-        let user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("alice".to_string(), None, &context).unwrap();
 
         let updated =
             set_permissions_boundary(user, "arn:aws:iam::123:policy/boundary".to_string());
@@ -236,8 +298,8 @@ mod tests {
 
     #[test]
     fn test_add_tags() {
-        let provider = test_provider();
-        let user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("alice".to_string(), None, &context).unwrap();
 
         let tags = vec![
             Tag {
@@ -256,8 +318,8 @@ mod tests {
 
     #[test]
     fn test_add_tags_no_duplicates() {
-        let provider = test_provider();
-        let user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("alice".to_string(), None, &context).unwrap();
 
         let tags1 = vec![Tag {
             key: "Env".to_string(),
@@ -278,8 +340,8 @@ mod tests {
 
     #[test]
     fn test_remove_tags() {
-        let provider = test_provider();
-        let user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("alice".to_string(), None, &context).unwrap();
 
         let tags = vec![
             Tag {
@@ -305,8 +367,8 @@ mod tests {
 
     #[test]
     fn test_remove_tags_multiple() {
-        let provider = test_provider();
-        let user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("alice".to_string(), None, &context).unwrap();
 
         let tags = vec![
             Tag {
@@ -332,8 +394,8 @@ mod tests {
 
     #[test]
     fn test_remove_tags_nonexistent() {
-        let provider = test_provider();
-        let user = build_user("alice".to_string(), None, &provider, "123456789012");
+        let context = test_context();
+        let user = build_user("alice".to_string(), None, &context).unwrap();
 
         let tags = vec![Tag {
             key: "A".to_string(),

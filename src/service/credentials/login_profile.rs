@@ -2,8 +2,8 @@
 //!
 //! Orchestrates login profile management operations.
 
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::traits::LoginProfileStore;
 use crate::wami::credentials::login_profile::{
     builder as login_builder, CreateLoginProfileRequest, LoginProfile, UpdateLoginProfileRequest,
@@ -15,32 +15,18 @@ use std::sync::{Arc, RwLock};
 /// Provides high-level operations for console password management.
 pub struct LoginProfileService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: LoginProfileStore> LoginProfileService<S> {
-    /// Create a new LoginProfileService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new LoginProfileService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Create a new login profile
     pub async fn create_login_profile(
         &self,
+        context: &WamiContext,
         request: CreateLoginProfileRequest,
     ) -> Result<LoginProfile> {
         // Use wami builder to create login profile
@@ -48,9 +34,8 @@ impl<S: LoginProfileStore> LoginProfileService<S> {
         let login_profile = login_builder::build_login_profile(
             request.user_name,
             request.password_reset_required,
-            &*self.provider,
-            &self.account_id,
-        );
+            context,
+        )?;
 
         // Store it
         self.store
@@ -111,11 +96,25 @@ impl<S: LoginProfileStore> LoginProfileService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
     use crate::store::memory::InMemoryWamiStore;
 
     fn setup_service() -> LoginProfileService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        LoginProfileService::new(store, "123456789012".to_string())
+        LoginProfileService::new(store)
+    }
+
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
@@ -128,7 +127,11 @@ mod tests {
             password_reset_required: true,
         };
 
-        let profile = service.create_login_profile(request).await.unwrap();
+        let context = test_context();
+        let profile = service
+            .create_login_profile(&context, request)
+            .await
+            .unwrap();
         assert_eq!(profile.user_name, "alice");
         assert!(profile.password_reset_required);
 
@@ -149,7 +152,11 @@ mod tests {
             password: "InitialP@ss123".to_string(),
             password_reset_required: true,
         };
-        service.create_login_profile(create_request).await.unwrap();
+        let context = test_context();
+        service
+            .create_login_profile(&context, create_request)
+            .await
+            .unwrap();
 
         // Update profile - change password_reset_required flag
         let update_request = UpdateLoginProfileRequest {
@@ -171,7 +178,11 @@ mod tests {
             password: "TempP@ss789".to_string(),
             password_reset_required: false,
         };
-        service.create_login_profile(request).await.unwrap();
+        let context = test_context();
+        service
+            .create_login_profile(&context, request)
+            .await
+            .unwrap();
 
         service.delete_login_profile("charlie").await.unwrap();
 

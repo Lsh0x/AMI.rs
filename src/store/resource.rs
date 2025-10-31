@@ -44,7 +44,7 @@ use serde::{Deserialize, Serialize};
 ///     password_last_used: None,
 ///     permissions_boundary: None,
 ///     tags: vec![],
-///     wami_arn: "arn:wami:iam:tenant-x:user/alice".to_string(),
+///     wami_arn: "arn:wami:iam:tenant-x:wami:123456789012:user/alice".parse().unwrap(),
 ///     providers: vec![],
 ///     tenant_id: None,
 /// };
@@ -86,22 +86,23 @@ pub enum Resource {
 impl Resource {
     /// Extracts the ARN from any resource type
     ///
-    /// All resources must have an `arn` field for this to work.
-    pub fn arn(&self) -> &str {
+    /// Returns the cloud provider ARN (AWS-format) as a string reference.
+    /// For resources that only have WAMI ARNs, this returns a temporary allocation.
+    pub fn arn(&self) -> String {
         match self {
-            Resource::User(r) => &r.arn,
-            Resource::Role(r) => &r.arn,
-            Resource::Policy(r) => &r.arn,
-            Resource::Group(r) => &r.arn,
-            Resource::AccessKey(r) => &r.wami_arn,
-            Resource::MfaDevice(r) => &r.wami_arn,
-            Resource::LoginProfile(r) => &r.wami_arn,
-            Resource::ServerCertificate(r) => &r.server_certificate_metadata.arn,
-            Resource::ServiceCredential(r) => &r.wami_arn,
-            Resource::SigningCertificate(r) => &r.wami_arn,
-            Resource::StsSession(r) => &r.arn,
-            Resource::Credentials(r) => &r.arn,
-            Resource::Tenant(r) => &r.arn,
+            Resource::User(r) => r.arn.clone(),
+            Resource::Role(r) => r.arn.clone(),
+            Resource::Policy(r) => r.arn.clone(),
+            Resource::Group(r) => r.arn.clone(),
+            Resource::AccessKey(r) => r.wami_arn.to_string(),
+            Resource::MfaDevice(r) => r.wami_arn.to_string(),
+            Resource::LoginProfile(r) => r.wami_arn.to_string(),
+            Resource::ServerCertificate(r) => r.server_certificate_metadata.arn.clone(),
+            Resource::ServiceCredential(r) => r.wami_arn.to_string(),
+            Resource::SigningCertificate(r) => r.wami_arn.to_string(),
+            Resource::StsSession(r) => r.arn.clone(),
+            Resource::Credentials(r) => r.arn.clone(),
+            Resource::Tenant(r) => r.arn.clone(),
         }
     }
 
@@ -254,36 +255,42 @@ impl Resource {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::provider::aws::AwsProvider;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
     use crate::wami::credentials::access_key::builder as access_key_builder;
     use crate::wami::identity::group::builder as group_builder;
     use crate::wami::identity::role::builder as role_builder;
     use crate::wami::identity::user::builder as user_builder;
     use crate::wami::policies::policy::builder as policy_builder;
 
-    fn test_provider() -> AwsProvider {
-        AwsProvider::new()
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[test]
     fn test_resource_user_arn() {
-        let provider = test_provider();
-        let user = user_builder::build_user(
-            "alice".to_string(),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let context = test_context();
+        let user =
+            user_builder::build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
 
         let resource = Resource::User(user.clone());
 
-        assert_eq!(resource.arn(), &user.arn);
+        assert_eq!(resource.arn(), user.arn.clone());
         assert_eq!(resource.resource_type(), "user");
     }
 
     #[test]
     fn test_resource_role_arn() {
-        let provider = test_provider();
+        let context = test_context();
         let trust_policy = r#"{"Version":"2012-10-17"}"#.to_string();
         let role = role_builder::build_role(
             "admin-role".to_string(),
@@ -291,35 +298,32 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let resource = Resource::Role(role.clone());
 
-        assert_eq!(resource.arn(), &role.arn);
+        assert_eq!(resource.arn(), role.arn.clone());
         assert_eq!(resource.resource_type(), "role");
     }
 
     #[test]
     fn test_resource_group_arn() {
-        let provider = test_provider();
-        let group = group_builder::build_group(
-            "developers".to_string(),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let context = test_context();
+        let group =
+            group_builder::build_group("developers".to_string(), Some("/".to_string()), &context)
+                .unwrap();
 
         let resource = Resource::Group(group.clone());
 
-        assert_eq!(resource.arn(), &group.arn);
+        assert_eq!(resource.arn(), group.arn.clone());
         assert_eq!(resource.resource_type(), "group");
     }
 
     #[test]
     fn test_resource_policy_arn() {
-        let provider = test_provider();
+        let context = test_context();
         let policy_doc = r#"{"Version":"2012-10-17"}"#.to_string();
         let policy = policy_builder::build_policy(
             "TestPolicy".to_string(),
@@ -327,25 +331,25 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let resource = Resource::Policy(policy.clone());
 
-        assert_eq!(resource.arn(), &policy.arn);
+        assert_eq!(resource.arn(), policy.arn);
         assert_eq!(resource.resource_type(), "policy");
     }
 
     #[test]
     fn test_resource_access_key_arn() {
-        let provider = test_provider();
+        let context = test_context();
         let access_key =
-            access_key_builder::build_access_key("alice".to_string(), &provider, "123456789012");
+            access_key_builder::build_access_key("alice".to_string(), &context).unwrap();
 
         let resource = Resource::AccessKey(access_key.clone());
 
-        assert_eq!(resource.arn(), &access_key.wami_arn);
+        assert_eq!(resource.arn(), access_key.wami_arn.to_string());
         assert_eq!(resource.resource_type(), "access-key");
     }
 
@@ -353,13 +357,9 @@ mod tests {
 
     #[test]
     fn test_resource_as_user() {
-        let provider = test_provider();
-        let user = user_builder::build_user(
-            "bob".to_string(),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let context = test_context();
+        let user =
+            user_builder::build_user("bob".to_string(), Some("/".to_string()), &context).unwrap();
 
         let resource = Resource::User(user.clone());
 
@@ -373,7 +373,7 @@ mod tests {
 
     #[test]
     fn test_resource_as_role() {
-        let provider = test_provider();
+        let context = test_context();
         let trust_policy = r#"{"Version":"2012-10-17"}"#.to_string();
         let role = role_builder::build_role(
             "test-role".to_string(),
@@ -381,9 +381,9 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let resource = Resource::Role(role.clone());
 
@@ -397,7 +397,7 @@ mod tests {
 
     #[test]
     fn test_resource_as_policy() {
-        let provider = test_provider();
+        let context = test_context();
         let policy_doc = r#"{"Version":"2012-10-17"}"#.to_string();
         let policy = policy_builder::build_policy(
             "MyPolicy".to_string(),
@@ -405,9 +405,9 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let resource = Resource::Policy(policy.clone());
 
@@ -421,13 +421,10 @@ mod tests {
 
     #[test]
     fn test_resource_as_group() {
-        let provider = test_provider();
-        let group = group_builder::build_group(
-            "admins".to_string(),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let context = test_context();
+        let group =
+            group_builder::build_group("admins".to_string(), Some("/".to_string()), &context)
+                .unwrap();
 
         let resource = Resource::Group(group.clone());
 
@@ -438,13 +435,9 @@ mod tests {
 
     #[test]
     fn test_resource_into_user() {
-        let provider = test_provider();
-        let user = user_builder::build_user(
-            "charlie".to_string(),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let context = test_context();
+        let user = user_builder::build_user("charlie".to_string(), Some("/".to_string()), &context)
+            .unwrap();
 
         let resource = Resource::User(user.clone());
         let extracted = resource.into_user();
@@ -454,7 +447,7 @@ mod tests {
 
     #[test]
     fn test_resource_into_role() {
-        let provider = test_provider();
+        let context = test_context();
         let trust_policy = r#"{"Version":"2012-10-17"}"#.to_string();
         let role = role_builder::build_role(
             "my-role".to_string(),
@@ -462,9 +455,9 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let resource = Resource::Role(role.clone());
         let extracted = resource.into_role();
@@ -474,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_resource_into_policy() {
-        let provider = test_provider();
+        let context = test_context();
         let policy_doc = r#"{"Version":"2012-10-17"}"#.to_string();
         let policy = policy_builder::build_policy(
             "S3Policy".to_string(),
@@ -482,9 +475,9 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let resource = Resource::Policy(policy.clone());
         let extracted = resource.into_policy();
@@ -494,13 +487,10 @@ mod tests {
 
     #[test]
     fn test_resource_into_group() {
-        let provider = test_provider();
-        let group = group_builder::build_group(
-            "ops-team".to_string(),
-            Some("/".to_string()),
-            &provider,
-            "123456789012",
-        );
+        let context = test_context();
+        let group =
+            group_builder::build_group("ops-team".to_string(), Some("/".to_string()), &context)
+                .unwrap();
 
         let resource = Resource::Group(group.clone());
         let extracted = resource.into_group();
@@ -511,7 +501,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Expected User, got role")]
     fn test_resource_into_wrong_type_panics() {
-        let provider = test_provider();
+        let context = test_context();
         let trust_policy = r#"{"Version":"2012-10-17"}"#.to_string();
         let role = role_builder::build_role(
             "my-role".to_string(),
@@ -519,9 +509,9 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let resource = Resource::Role(role);
 
@@ -531,11 +521,11 @@ mod tests {
 
     #[test]
     fn test_resource_type_names() {
-        let provider = test_provider();
+        let context = test_context();
 
         // User
         let user =
-            user_builder::build_user("test".to_string(), Some("/".to_string()), &provider, "123");
+            user_builder::build_user("test".to_string(), Some("/".to_string()), &context).unwrap();
         assert_eq!(Resource::User(user).resource_type(), "user");
 
         // Role
@@ -545,9 +535,9 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123",
-        );
+            &context,
+        )
+        .unwrap();
         assert_eq!(Resource::Role(role).resource_type(), "role");
 
         // Policy
@@ -557,26 +547,26 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            &provider,
-            "123",
-        );
+            &context,
+        )
+        .unwrap();
         assert_eq!(Resource::Policy(policy).resource_type(), "policy");
 
         // Group
         let group =
-            group_builder::build_group("grp".to_string(), Some("/".to_string()), &provider, "123");
+            group_builder::build_group("grp".to_string(), Some("/".to_string()), &context).unwrap();
         assert_eq!(Resource::Group(group).resource_type(), "group");
 
         // Access Key
-        let key = access_key_builder::build_access_key("user".to_string(), &provider, "123");
+        let key = access_key_builder::build_access_key("user".to_string(), &context).unwrap();
         assert_eq!(Resource::AccessKey(key).resource_type(), "access-key");
     }
 
     #[test]
     fn test_resource_all_downcast_combinations() {
-        let provider = test_provider();
+        let context = test_context();
         let user =
-            user_builder::build_user("test".to_string(), Some("/".to_string()), &provider, "123");
+            user_builder::build_user("test".to_string(), Some("/".to_string()), &context).unwrap();
         let resource = Resource::User(user);
 
         // User should only match as_user

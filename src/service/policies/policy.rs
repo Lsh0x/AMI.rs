@@ -2,8 +2,8 @@
 //!
 //! Orchestrates policy management operations.
 
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::traits::PolicyStore;
 use crate::wami::policies::policy::{
     builder as policy_builder, CreatePolicyRequest, ListPoliciesRequest, Policy,
@@ -16,31 +16,20 @@ use std::sync::{Arc, RwLock};
 /// Provides high-level operations for policy management.
 pub struct PolicyService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: PolicyStore> PolicyService<S> {
-    /// Create a new PolicyService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new PolicyService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Create a new policy
-    pub async fn create_policy(&self, request: CreatePolicyRequest) -> Result<Policy> {
+    pub async fn create_policy(
+        &self,
+        context: &WamiContext,
+        request: CreatePolicyRequest,
+    ) -> Result<Policy> {
         // Use wami builder to create policy (includes tags)
         let policy = policy_builder::build_policy(
             request.policy_name,
@@ -48,9 +37,8 @@ impl<S: PolicyStore> PolicyService<S> {
             request.path,
             request.description,
             request.tags,
-            &*self.provider,
-            &self.account_id,
-        );
+            context,
+        )?;
 
         // Store it
         self.store.write().unwrap().create_policy(policy).await
@@ -107,11 +95,25 @@ impl<S: PolicyStore> PolicyService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
     use crate::store::memory::InMemoryWamiStore;
 
     fn setup_service() -> PolicyService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        PolicyService::new(store, "123456789012".to_string())
+        PolicyService::new(store)
+    }
+
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
@@ -127,7 +129,8 @@ mod tests {
             tags: None,
         };
 
-        let policy = service.create_policy(request).await.unwrap();
+        let context = test_context();
+        let policy = service.create_policy(&context, request).await.unwrap();
         assert_eq!(policy.policy_name, "S3FullAccess");
         assert_eq!(policy.path, "/service/");
         assert_eq!(
@@ -153,7 +156,11 @@ mod tests {
             description: Some("Original description".to_string()),
             tags: None,
         };
-        let policy = service.create_policy(create_request).await.unwrap();
+        let context = test_context();
+        let policy = service
+            .create_policy(&context, create_request)
+            .await
+            .unwrap();
 
         // Update policy
         let update_request = UpdatePolicyRequest {
@@ -178,7 +185,8 @@ mod tests {
             description: None,
             tags: None,
         };
-        let policy = service.create_policy(request).await.unwrap();
+        let context = test_context();
+        let policy = service.create_policy(&context, request).await.unwrap();
 
         service.delete_policy(&policy.arn).await.unwrap();
 
@@ -200,7 +208,8 @@ mod tests {
                 description: None,
                 tags: None,
             };
-            service.create_policy(request).await.unwrap();
+            let context = test_context();
+            service.create_policy(&context, request).await.unwrap();
         }
 
         let list_request = ListPoliciesRequest {

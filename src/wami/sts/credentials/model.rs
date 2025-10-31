@@ -1,5 +1,6 @@
 //! Credentials Domain Model
 
+use crate::arn::WamiArn;
 use serde::{Deserialize, Serialize};
 
 /// Temporary AWS credentials
@@ -16,7 +17,7 @@ use serde::{Deserialize, Serialize};
 ///     session_token: "FwoGZXIvYXdzEBYaDH...".to_string(),
 ///     expiration: Utc::now() + chrono::Duration::hours(1),
 ///     arn: "arn:aws:sts::123456789012:assumed-role/MyRole/session".to_string(),
-///     wami_arn: "arn:wami:sts:tenant-hash:credentials/session-id".to_string(),
+///     wami_arn: "arn:wami:sts:root:wami:123456789012:credentials/session-id".parse().unwrap(),
 ///     providers: vec![],
 ///     tenant_id: None,
 /// };
@@ -34,7 +35,7 @@ pub struct Credentials {
     /// The native cloud provider ARN (e.g., AWS ARN for assumed role)
     pub arn: String,
     /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
     /// Optional tenant ID for multi-tenant isolation
@@ -67,4 +68,98 @@ pub enum CredentialType {
     FederatedUser,
     /// Session token credentials
     SessionToken,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::arn::{TenantPath, WamiArn};
+
+    #[test]
+    fn test_credentials_is_expired() {
+        let wami_arn = WamiArn::builder()
+            .service(crate::arn::Service::Sts)
+            .tenant_path(TenantPath::single("root"))
+            .wami_instance("123456789012")
+            .resource("credentials", "test")
+            .build()
+            .unwrap();
+
+        // Expired credentials
+        let expired = Credentials {
+            access_key_id: "AKIA".to_string(),
+            secret_access_key: "secret".to_string(),
+            session_token: "token".to_string(),
+            expiration: chrono::Utc::now() - chrono::Duration::hours(1),
+            arn: "arn:aws:sts::123456789012:assumed-role/Test/test".to_string(),
+            wami_arn: wami_arn.clone(),
+            providers: vec![],
+            tenant_id: None,
+        };
+        assert!(expired.is_expired());
+
+        // Valid credentials
+        let valid = Credentials {
+            access_key_id: "AKIA".to_string(),
+            secret_access_key: "secret".to_string(),
+            session_token: "token".to_string(),
+            expiration: chrono::Utc::now() + chrono::Duration::hours(1),
+            arn: "arn:aws:sts::123456789012:assumed-role/Test/test".to_string(),
+            wami_arn: wami_arn.clone(),
+            providers: vec![],
+            tenant_id: None,
+        };
+        assert!(!valid.is_expired());
+    }
+
+    #[test]
+    fn test_credentials_time_remaining() {
+        let wami_arn = WamiArn::builder()
+            .service(crate::arn::Service::Sts)
+            .tenant_path(TenantPath::single("root"))
+            .wami_instance("123456789012")
+            .resource("credentials", "test")
+            .build()
+            .unwrap();
+
+        let creds = Credentials {
+            access_key_id: "AKIA".to_string(),
+            secret_access_key: "secret".to_string(),
+            session_token: "token".to_string(),
+            expiration: chrono::Utc::now() + chrono::Duration::hours(2),
+            arn: "arn:aws:sts::123456789012:assumed-role/Test/test".to_string(),
+            wami_arn,
+            providers: vec![],
+            tenant_id: None,
+        };
+
+        let remaining = creds.time_remaining();
+        assert!(remaining.num_seconds() > 0);
+        assert!(remaining.num_seconds() <= 7200); // Approximately 2 hours
+    }
+
+    #[test]
+    fn test_credentials_expires_within() {
+        let wami_arn = WamiArn::builder()
+            .service(crate::arn::Service::Sts)
+            .tenant_path(TenantPath::single("root"))
+            .wami_instance("123456789012")
+            .resource("credentials", "test")
+            .build()
+            .unwrap();
+
+        let creds = Credentials {
+            access_key_id: "AKIA".to_string(),
+            secret_access_key: "secret".to_string(),
+            session_token: "token".to_string(),
+            expiration: chrono::Utc::now() + chrono::Duration::minutes(30),
+            arn: "arn:aws:sts::123456789012:assumed-role/Test/test".to_string(),
+            wami_arn,
+            providers: vec![],
+            tenant_id: None,
+        };
+
+        assert!(creds.expires_within(chrono::Duration::hours(1)));
+        assert!(!creds.expires_within(chrono::Duration::minutes(10)));
+    }
 }

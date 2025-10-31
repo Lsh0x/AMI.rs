@@ -1,5 +1,6 @@
 //! LoginProfile Domain Model
 
+use crate::arn::WamiArn;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +14,7 @@ pub struct LoginProfile {
     /// Whether the user must reset their password on next sign-in
     pub password_reset_required: bool,
     /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
 }

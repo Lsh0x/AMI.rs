@@ -10,7 +10,8 @@
 //! Run with: `cargo run --example 14_policy_basics`
 
 use std::sync::{Arc, RwLock};
-use wami::provider::AwsProvider;
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::{PolicyService, UserService};
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::identity::user::requests::CreateUserRequest;
@@ -21,11 +22,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Policy Basics ===\n");
 
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let _provider = Arc::new(AwsProvider::new());
-    let account_id = "123456789012";
 
-    let policy_service = PolicyService::new(store.clone(), account_id.to_string());
-    let user_service = UserService::new(store.clone(), account_id.to_string());
+    // Create context
+    let context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    let policy_service = PolicyService::new(store.clone());
+    let user_service = UserService::new(store.clone());
 
     // === CREATE USERS ===
     println!("Step 1: Creating users...\n");
@@ -36,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: None,
     };
-    user_service.create_user(alice_req).await?;
+    user_service.create_user(&context, alice_req).await?;
     println!("✓ Created alice");
 
     let bob_req = CreateUserRequest {
@@ -45,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: None,
     };
-    user_service.create_user(bob_req).await?;
+    user_service.create_user(&context, bob_req).await?;
     println!("✓ Created bob");
 
     // === CREATE READ-ONLY POLICY ===
@@ -71,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tags: None,
     };
 
-    let readonly_policy = policy_service.create_policy(readonly_req).await?;
+    let readonly_policy = policy_service.create_policy(&context, readonly_req).await?;
     println!("✓ Created ReadOnlyAccess policy:");
     println!("  - ARN: {}", readonly_policy.arn);
     println!("  - Actions: s3:GetObject, s3:ListBucket");
@@ -100,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tags: None,
     };
 
-    let deny_policy = policy_service.create_policy(deny_req).await?;
+    let deny_policy = policy_service.create_policy(&context, deny_req).await?;
     println!("✓ Created DenyDelete policy:");
     println!("  - ARN: {}", deny_policy.arn);
     println!("  - Actions: s3:DeleteObject, s3:DeleteBucket");
@@ -126,7 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tags: None,
     };
 
-    let admin_policy = policy_service.create_policy(admin_req).await?;
+    let admin_policy = policy_service.create_policy(&context, admin_req).await?;
     println!("✓ Created AdministratorAccess policy:");
     println!("  - ARN: {}", admin_policy.arn);
     println!("  - Actions: * (all actions)");

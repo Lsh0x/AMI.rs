@@ -1,14 +1,9 @@
 //! Service-Linked Role Builder
 
 use super::model::*;
-use crate::provider::CloudProvider;
 
 /// Build a deletion task info
-pub fn build_deletion_task(
-    role_name: String,
-    _provider: &dyn CloudProvider,
-    _account_id: &str,
-) -> DeletionTaskInfo {
+pub fn build_deletion_task(role_name: String) -> DeletionTaskInfo {
     let deletion_task_id = uuid::Uuid::new_v4().to_string();
 
     DeletionTaskInfo {

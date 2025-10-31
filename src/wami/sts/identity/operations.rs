@@ -7,14 +7,22 @@ pub mod identity_operations {
     use super::*;
 
     /// Build caller identity from ARN (pure function)
-    pub fn build_identity(arn: String, account_id: String, user_id: String) -> CallerIdentity {
-        CallerIdentity {
+    #[allow(clippy::result_large_err)]
+    pub fn build_identity(
+        arn: String,
+        account_id: String,
+        user_id: String,
+    ) -> Result<CallerIdentity, crate::error::AmiError> {
+        // Parse ARN string to WamiArn
+        let wami_arn: crate::arn::WamiArn = arn.parse()?;
+
+        Ok(CallerIdentity {
             arn: arn.clone(),
             account: account_id,
             user_id,
-            wami_arn: arn, // Use same ARN for now
+            wami_arn,
             providers: vec![],
-        }
+        })
     }
 
     /// Extract account ID from ARN (pure function)
@@ -79,12 +87,16 @@ mod tests {
     #[test]
     fn test_build_identity() {
         let identity = build_identity(
-            "arn:aws:iam::123456789012:user/alice".to_string(),
+            "arn:wami:iam:root:wami:123456789012:user/alice".to_string(),
             "123456789012".to_string(),
             "AIDAI123456".to_string(),
         );
 
-        assert_eq!(identity.arn, "arn:aws:iam::123456789012:user/alice");
+        let identity = identity.unwrap();
+        assert_eq!(
+            identity.arn,
+            "arn:wami:iam:root:wami:123456789012:user/alice"
+        );
         assert_eq!(identity.account, "123456789012");
         assert_eq!(identity.user_id, "AIDAI123456");
     }

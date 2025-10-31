@@ -11,7 +11,8 @@
 //! Run with: `cargo run --example 12_provider_specific_features`
 
 use std::sync::{Arc, RwLock};
-use wami::provider::{AwsProvider, AzureProvider, GcpProvider};
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::RoleService;
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::identity::role::requests::{CreateRoleRequest, ListRolesRequest};
@@ -22,11 +23,55 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
 
+    // Create AWS context
+    let aws_context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("aws"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("aws"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    // Create GCP context
+    let gcp_context = WamiContext::builder()
+        .instance_id("my-gcp-project")
+        .tenant_path(TenantPath::single("gcp"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("gcp"))
+                .wami_instance("my-gcp-project")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    // Create Azure context
+    let azure_context = WamiContext::builder()
+        .instance_id("my-subscription")
+        .tenant_path(TenantPath::single("azure"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("azure"))
+                .wami_instance("my-subscription")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    let role_service = RoleService::new(store.clone());
+
     // === AWS: IAM ROLES WITH TRUST POLICIES ===
     println!("Step 1: AWS IAM Role with Trust Policy...\n");
-
-    let _aws_provider = Arc::new(AwsProvider::new());
-    let aws_service = RoleService::new(store.clone(), "123456789012".to_string());
 
     let aws_trust_policy = r#"{
   "Version": "2012-10-17",
@@ -47,17 +92,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tags: None,
     };
 
-    let aws_role = aws_service.create_role(aws_role_req).await?;
+    let aws_role = role_service.create_role(&aws_context, aws_role_req).await?;
     println!("✓ Created AWS Lambda execution role:");
     println!("  - ARN: {}", aws_role.arn);
+    println!("  - WAMI ARN: {}", aws_role.wami_arn);
     println!("  - Trust Policy: Allows lambda.amazonaws.com to assume");
     println!("  - Use case: Serverless function execution");
 
     // === GCP: SERVICE ACCOUNT PATTERN ===
     println!("\n\nStep 2: GCP Service Account Pattern...\n");
-
-    let _gcp_provider = Arc::new(GcpProvider::new("my-gcp-project".to_string()));
-    let gcp_service = RoleService::new(store.clone(), "my-gcp-project".to_string());
 
     let gcp_trust_policy = r#"{
   "bindings": [{
@@ -76,20 +119,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tags: None,
     };
 
-    let gcp_role = gcp_service.create_role(gcp_role_req).await?;
+    let gcp_role = role_service.create_role(&gcp_context, gcp_role_req).await?;
     println!("✓ Created GCP service account:");
     println!("  - ARN: {}", gcp_role.arn);
+    println!("  - WAMI ARN: {}", gcp_role.wami_arn);
     println!("  - Bindings: Compute Engine service usage");
     println!("  - Use case: VM instance identity");
 
     // === AZURE: MANAGED IDENTITY PATTERN ===
     println!("\n\nStep 3: Azure Managed Identity Pattern...\n");
-
-    let _azure_provider = Arc::new(AzureProvider::new(
-        "my-subscription".to_string(),
-        "default-rg".to_string(),
-    ));
-    let azure_service = RoleService::new(store.clone(), "my-subscription".to_string());
 
     let azure_trust_policy = r#"{
   "properties": {
@@ -109,7 +147,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tags: None,
     };
 
-    let azure_role = azure_service.create_role(azure_role_req).await?;
+    let azure_role = role_service
+        .create_role(&azure_context, azure_role_req)
+        .await?;
     println!("✓ Created Azure managed identity:");
     println!("  - ARN: {}", azure_role.arn);
     println!("  - Type: System-assigned managed identity");
@@ -136,7 +176,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // === DEMONSTRATE UNIFIED VIEW ===
     println!("\n\nStep 5: Unified view across providers...\n");
 
-    let (all_roles, _, _) = aws_service
+    let (all_roles, _, _) = role_service
         .list_roles(ListRolesRequest {
             path_prefix: None,
             pagination: None,
@@ -147,14 +187,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         all_roles.len()
     );
     for role in &all_roles {
-        let provider = if role.arn.contains("aws") {
+        let provider = if role.wami_arn.to_string().contains("aws") {
             "AWS"
-        } else if role.arn.contains("gcp") {
+        } else if role.wami_arn.to_string().contains("gcp") {
             "GCP"
         } else {
             "Azure"
         };
-        println!("  - {} ({}) → {}", role.role_name, provider, role.arn);
+        println!("  - {} ({}) → {}", role.role_name, provider, role.wami_arn);
     }
 
     println!("\n✅ Example completed successfully!");

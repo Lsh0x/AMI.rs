@@ -66,7 +66,12 @@ mod tests {
             name: Some(name.to_string()),
             status: "ACTIVE".to_string(),
             created_date: Utc::now(),
-            wami_arn: format!("arn:wami:sso:::instance/{}", name),
+            wami_arn: format!(
+                "arn:wami:sso-admin:root:wami:123456789012:instance/{}",
+                name
+            )
+            .parse()
+            .unwrap(),
             providers: vec![],
         }
     }

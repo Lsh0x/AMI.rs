@@ -2,8 +2,8 @@
 //!
 //! Orchestrates access key management operations.
 
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::traits::AccessKeyStore;
 use crate::wami::credentials::access_key::{
     builder as access_key_builder, AccessKey, CreateAccessKeyRequest, ListAccessKeysRequest,
@@ -15,37 +15,22 @@ use std::sync::{Arc, RwLock};
 /// Provides high-level operations for access key management.
 pub struct AccessKeyService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: AccessKeyStore> AccessKeyService<S> {
-    /// Create a new AccessKeyService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new AccessKeyService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Create a new access key
-    pub async fn create_access_key(&self, request: CreateAccessKeyRequest) -> Result<AccessKey> {
+    pub async fn create_access_key(
+        &self,
+        context: &WamiContext,
+        request: CreateAccessKeyRequest,
+    ) -> Result<AccessKey> {
         // Use wami builder to create access key
-        let access_key = access_key_builder::build_access_key(
-            request.user_name,
-            &*self.provider,
-            &self.account_id,
-        );
+        let access_key = access_key_builder::build_access_key(request.user_name, context)?;
 
         // Store it
         self.store
@@ -98,11 +83,25 @@ impl<S: AccessKeyStore> AccessKeyService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
     use crate::store::memory::InMemoryWamiStore;
 
     fn setup_service() -> AccessKeyService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        AccessKeyService::new(store, "123456789012".to_string())
+        AccessKeyService::new(store)
+    }
+
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
@@ -113,7 +112,8 @@ mod tests {
             user_name: "alice".to_string(),
         };
 
-        let access_key = service.create_access_key(request).await.unwrap();
+        let context = test_context();
+        let access_key = service.create_access_key(&context, request).await.unwrap();
         assert_eq!(access_key.user_name, "alice");
         assert!(!access_key.access_key_id.is_empty());
         assert!(access_key.secret_access_key.is_some());
@@ -133,7 +133,8 @@ mod tests {
         let request = CreateAccessKeyRequest {
             user_name: "bob".to_string(),
         };
-        let access_key = service.create_access_key(request).await.unwrap();
+        let context = test_context();
+        let access_key = service.create_access_key(&context, request).await.unwrap();
 
         service
             .delete_access_key(&access_key.access_key_id)
@@ -156,7 +157,8 @@ mod tests {
             let request = CreateAccessKeyRequest {
                 user_name: "charlie".to_string(),
             };
-            service.create_access_key(request).await.unwrap();
+            let context = test_context();
+            service.create_access_key(&context, request).await.unwrap();
         }
 
         let list_request = ListAccessKeysRequest {

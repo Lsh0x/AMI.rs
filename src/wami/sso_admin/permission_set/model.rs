@@ -1,5 +1,6 @@
 //! Permission Set Model
 
+use crate::arn::WamiArn;
 use serde::{Deserialize, Serialize};
 
 /// Represents an SSO permission set
@@ -22,7 +23,7 @@ pub struct PermissionSet {
     /// The date and time when the permission set was created
     pub created_date: chrono::DateTime<chrono::Utc>,
     /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
 }

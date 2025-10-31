@@ -2,8 +2,8 @@
 //!
 //! Orchestrates identity provider management operations by combining wami builders with store persistence.
 
+use crate::context::WamiContext;
 use crate::error::{AmiError, Result};
-use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::traits::IdentityProviderStore;
 use crate::types::Tag;
 use crate::wami::identity::identity_provider::{
@@ -18,52 +18,14 @@ use std::sync::{Arc, RwLock};
 /// Service for managing identity providers (SAML and OIDC)
 ///
 /// Provides high-level operations for federated authentication setup.
-///
-/// # Example
-///
-/// ```rust
-/// use wami::service::IdentityProviderService;
-/// use wami::store::memory::InMemoryWamiStore;
-/// use wami::wami::identity::identity_provider::CreateSAMLProviderRequest;
-/// use std::sync::{Arc, RwLock};
-///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-/// let service = IdentityProviderService::new(store, "123456789012".to_string());
-///
-/// // Create SAML provider
-/// let request = CreateSAMLProviderRequest {
-///     name: "OktaProvider".to_string(),
-///     saml_metadata_document: "<EntityDescriptor>...</EntityDescriptor>".to_string(),
-///     tags: None,
-/// };
-/// let saml_provider = service.create_saml_provider(request).await?;
-/// # Ok(())
-/// # }
-/// ```
 pub struct IdentityProviderService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: IdentityProviderStore> IdentityProviderService<S> {
-    /// Create a new IdentityProviderService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider (cheap clone - all Arc)
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: Arc::clone(&self.store),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new IdentityProviderService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     // ===========================
@@ -73,6 +35,7 @@ impl<S: IdentityProviderStore> IdentityProviderService<S> {
     /// Create a new SAML provider
     pub async fn create_saml_provider(
         &self,
+        context: &WamiContext,
         request: CreateSAMLProviderRequest,
     ) -> Result<SamlProvider> {
         // Validate name
@@ -85,9 +48,8 @@ impl<S: IdentityProviderStore> IdentityProviderService<S> {
         let mut provider = builder::build_saml_provider(
             request.name,
             request.saml_metadata_document.clone(),
-            self.provider.as_ref(),
-            &self.account_id,
-        );
+            context,
+        )?;
 
         // Extract validity if present
         if let Ok(Some(valid_until)) =
@@ -168,6 +130,7 @@ impl<S: IdentityProviderStore> IdentityProviderService<S> {
     /// Create a new OIDC provider
     pub async fn create_oidc_provider(
         &self,
+        context: &WamiContext,
         request: CreateOpenIDConnectProviderRequest,
     ) -> Result<OidcProvider> {
         // Validate URL
@@ -184,9 +147,8 @@ impl<S: IdentityProviderStore> IdentityProviderService<S> {
             request.url,
             request.client_id_list,
             request.thumbprint_list,
-            self.provider.as_ref(),
-            &self.account_id,
-        );
+            context,
+        )?;
 
         // Add tags
         if let Some(tags) = request.tags {
@@ -317,12 +279,33 @@ impl<S: IdentityProviderStore> IdentityProviderService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
     use crate::store::memory::InMemoryWamiStore;
+
+    fn test_context() -> WamiContext {
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("root"))
+            .caller_arn(
+                WamiArn::builder()
+                    .service(crate::arn::Service::Iam)
+                    .tenant_path(TenantPath::single("root"))
+                    .wami_instance("123456789012")
+                    .resource("user", "test-user")
+                    .build()
+                    .unwrap(),
+            )
+            .is_root(false)
+            .build()
+            .unwrap()
+    }
 
     #[tokio::test]
     async fn test_saml_provider_service() {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        let service = IdentityProviderService::new(store, "123456789012".to_string());
+        let service = IdentityProviderService::new(store);
+        let context = test_context();
 
         let metadata = r#"<?xml version="1.0"?>
             <EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata">
@@ -335,7 +318,10 @@ mod tests {
             saml_metadata_document: metadata.to_string(),
             tags: None,
         };
-        let created = service.create_saml_provider(request).await.unwrap();
+        let created = service
+            .create_saml_provider(&context, request)
+            .await
+            .unwrap();
         assert_eq!(created.saml_provider_name, "TestSAML");
 
         // Get
@@ -366,7 +352,8 @@ mod tests {
     #[tokio::test]
     async fn test_oidc_provider_service() {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        let service = IdentityProviderService::new(store, "123456789012".to_string());
+        let service = IdentityProviderService::new(store);
+        let context = test_context();
 
         // Create
         let request = CreateOpenIDConnectProviderRequest {
@@ -375,7 +362,10 @@ mod tests {
             thumbprint_list: vec!["0123456789abcdef0123456789abcdef01234567".to_string()],
             tags: None,
         };
-        let created = service.create_oidc_provider(request).await.unwrap();
+        let created = service
+            .create_oidc_provider(&context, request)
+            .await
+            .unwrap();
         assert_eq!(created.url, "https://accounts.google.com");
 
         // Get

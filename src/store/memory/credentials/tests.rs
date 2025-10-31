@@ -2,13 +2,27 @@
 //!
 //! Tests for AccessKeyStore, MfaDeviceStore, and LoginProfileStore
 
-use crate::provider::aws::AwsProvider;
+use crate::arn::{TenantPath, WamiArn};
+use crate::context::WamiContext;
 use crate::store::memory::InMemoryWamiStore;
 use crate::store::traits::{AccessKeyStore, LoginProfileStore, MfaDeviceStore};
 use crate::types::PaginationParams;
 use crate::wami::credentials::access_key::builder as access_key_builder;
 use crate::wami::credentials::login_profile::builder as login_profile_builder;
 use crate::wami::credentials::mfa_device::builder as mfa_builder;
+
+fn test_context() -> WamiContext {
+    let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+        .parse()
+        .unwrap();
+    WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("test"))
+        .caller_arn(arn)
+        .is_root(false)
+        .build()
+        .unwrap()
+}
 
 // ============================================================================
 // ACCESS KEY STORE TESTS
@@ -17,10 +31,9 @@ use crate::wami::credentials::mfa_device::builder as mfa_builder;
 #[tokio::test]
 async fn test_access_key_create_and_get() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let access_key =
-        access_key_builder::build_access_key("alice".to_string(), &provider, "123456789012");
+    let access_key = access_key_builder::build_access_key("alice".to_string(), &context).unwrap();
 
     let key_id = access_key.access_key_id.clone();
 
@@ -45,10 +58,9 @@ async fn test_access_key_get_nonexistent() {
 #[tokio::test]
 async fn test_access_key_update() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let access_key =
-        access_key_builder::build_access_key("bob".to_string(), &provider, "123456789012");
+    let access_key = access_key_builder::build_access_key("bob".to_string(), &context).unwrap();
 
     let key_id = access_key.access_key_id.clone();
     store.create_access_key(access_key.clone()).await.unwrap();
@@ -66,10 +78,9 @@ async fn test_access_key_update() {
 #[tokio::test]
 async fn test_access_key_delete() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let access_key =
-        access_key_builder::build_access_key("charlie".to_string(), &provider, "123456789012");
+    let access_key = access_key_builder::build_access_key("charlie".to_string(), &context).unwrap();
 
     let key_id = access_key.access_key_id.clone();
     store.create_access_key(access_key).await.unwrap();
@@ -85,18 +96,17 @@ async fn test_access_key_delete() {
 #[tokio::test]
 async fn test_access_key_list_for_user() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     // Create multiple access keys for same user
     for _ in 0..3 {
         let access_key =
-            access_key_builder::build_access_key("alice".to_string(), &provider, "123456789012");
+            access_key_builder::build_access_key("alice".to_string(), &context).unwrap();
         store.create_access_key(access_key).await.unwrap();
     }
 
     // Create keys for different user
-    let other_key =
-        access_key_builder::build_access_key("bob".to_string(), &provider, "123456789012");
+    let other_key = access_key_builder::build_access_key("bob".to_string(), &context).unwrap();
     store.create_access_key(other_key).await.unwrap();
 
     // List keys for alice
@@ -110,12 +120,12 @@ async fn test_access_key_list_for_user() {
 #[tokio::test]
 async fn test_access_key_list_with_pagination() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     // Create 5 access keys for one user
     for _ in 0..5 {
         let access_key =
-            access_key_builder::build_access_key("alice".to_string(), &provider, "123456789012");
+            access_key_builder::build_access_key("alice".to_string(), &context).unwrap();
         store.create_access_key(access_key).await.unwrap();
     }
 
@@ -152,14 +162,14 @@ async fn test_access_key_list_empty() {
 #[tokio::test]
 async fn test_mfa_device_create_and_get() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     let mfa_device = mfa_builder::build_mfa_device(
         "alice".to_string(),
         "arn:aws:iam::123456789012:mfa/alice".to_string(),
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
 
     let serial = mfa_device.serial_number.clone();
 
@@ -176,14 +186,14 @@ async fn test_mfa_device_create_and_get() {
 #[tokio::test]
 async fn test_mfa_device_delete() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     let mfa_device = mfa_builder::build_mfa_device(
         "bob".to_string(),
         "arn:aws:iam::123456789012:mfa/bob".to_string(),
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
 
     let serial = mfa_device.serial_number.clone();
     store.create_mfa_device(mfa_device).await.unwrap();
@@ -199,16 +209,16 @@ async fn test_mfa_device_delete() {
 #[tokio::test]
 async fn test_mfa_device_list_for_user() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     // Create MFA devices for alice
     for i in 0..2 {
         let mfa_device = mfa_builder::build_mfa_device(
             "alice".to_string(),
             format!("arn:aws:iam::123456789012:mfa/alice-device-{}", i),
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
         store.create_mfa_device(mfa_device).await.unwrap();
     }
 
@@ -216,9 +226,9 @@ async fn test_mfa_device_list_for_user() {
     let other_device = mfa_builder::build_mfa_device(
         "bob".to_string(),
         "arn:aws:iam::123456789012:mfa/bob".to_string(),
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
     store.create_mfa_device(other_device).await.unwrap();
 
     // List devices for alice
@@ -244,14 +254,10 @@ async fn test_mfa_device_list_empty() {
 #[tokio::test]
 async fn test_login_profile_create_and_get() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let login_profile = login_profile_builder::build_login_profile(
-        "alice".to_string(),
-        true,
-        &provider,
-        "123456789012",
-    );
+    let login_profile =
+        login_profile_builder::build_login_profile("alice".to_string(), true, &context).unwrap();
 
     // Create login profile
     let created = store
@@ -277,14 +283,10 @@ async fn test_login_profile_get_nonexistent() {
 #[tokio::test]
 async fn test_login_profile_update() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let login_profile = login_profile_builder::build_login_profile(
-        "bob".to_string(),
-        true,
-        &provider,
-        "123456789012",
-    );
+    let login_profile =
+        login_profile_builder::build_login_profile("bob".to_string(), true, &context).unwrap();
 
     store
         .create_login_profile(login_profile.clone())
@@ -303,14 +305,10 @@ async fn test_login_profile_update() {
 #[tokio::test]
 async fn test_login_profile_delete() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let login_profile = login_profile_builder::build_login_profile(
-        "charlie".to_string(),
-        false,
-        &provider,
-        "123456789012",
-    );
+    let login_profile =
+        login_profile_builder::build_login_profile("charlie".to_string(), false, &context).unwrap();
 
     store.create_login_profile(login_profile).await.unwrap();
 
@@ -325,14 +323,14 @@ async fn test_login_profile_delete() {
 #[tokio::test]
 async fn test_login_profile_password_reset_required() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
     let login_profile = login_profile_builder::build_login_profile(
         "alice".to_string(),
         true, // password_reset_required
-        &provider,
-        "123456789012",
-    );
+        &context,
+    )
+    .unwrap();
 
     store.create_login_profile(login_profile).await.unwrap();
 
@@ -343,24 +341,16 @@ async fn test_login_profile_password_reset_required() {
 #[tokio::test]
 async fn test_login_profile_one_per_user() {
     let mut store = InMemoryWamiStore::new();
-    let provider = AwsProvider::new();
+    let context = test_context();
 
-    let profile1 = login_profile_builder::build_login_profile(
-        "alice".to_string(),
-        false,
-        &provider,
-        "123456789012",
-    );
+    let profile1 =
+        login_profile_builder::build_login_profile("alice".to_string(), false, &context).unwrap();
 
     store.create_login_profile(profile1).await.unwrap();
 
     // Creating another profile for same user should replace the first
-    let profile2 = login_profile_builder::build_login_profile(
-        "alice".to_string(),
-        true,
-        &provider,
-        "123456789012",
-    );
+    let profile2 =
+        login_profile_builder::build_login_profile("alice".to_string(), true, &context).unwrap();
 
     store.create_login_profile(profile2).await.unwrap();
 

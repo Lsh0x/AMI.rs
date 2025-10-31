@@ -150,30 +150,38 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::provider::AwsProvider;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
     use crate::store::memory::InMemoryWamiStore;
     use crate::wami::identity::role::builder::build_role;
     use crate::wami::identity::user::builder::build_user;
     use crate::wami::policies::policy::builder::build_policy;
     use std::sync::Arc;
 
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn test_put_boundary_on_user() {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        let account_id = "123456789012";
-        let provider = Arc::new(AwsProvider::new());
-        let service = PermissionsBoundaryService::new(store.clone(), account_id.to_string());
+        let context = test_context();
+        let service = PermissionsBoundaryService::new(store.clone(), "123456789012".to_string());
 
         // Create a user
-        let user = build_user(
-            "alice".to_string(),
-            Some("/".to_string()),
-            provider.as_ref(),
-            account_id,
-        );
+        let user = build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
         {
             let mut s = store.write().unwrap();
-            s.create_user(user.clone()).await.unwrap();
+            s.create_user(user).await.unwrap();
         }
 
         // Create a boundary policy
@@ -191,9 +199,9 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            provider.as_ref(),
-            account_id,
-        );
+            &context,
+        )
+        .unwrap();
         {
             let mut s = store.write().unwrap();
             s.create_policy(policy.clone()).await.unwrap();
@@ -203,7 +211,7 @@ mod tests {
         let request = PutPermissionsBoundaryRequest {
             principal_type: PrincipalType::User,
             principal_name: "alice".to_string(),
-            permissions_boundary: policy.arn.clone(),
+            permissions_boundary: policy.wami_arn.to_string(),
         };
 
         let result = service.put_permissions_boundary(request).await;
@@ -215,7 +223,10 @@ mod tests {
                 // Verify boundary was set
                 let s = store.read().unwrap();
                 let updated_user = s.get_user("alice").await.unwrap().unwrap();
-                assert_eq!(updated_user.permissions_boundary, Some(policy.arn));
+                assert_eq!(
+                    updated_user.permissions_boundary,
+                    Some(policy.wami_arn.to_string())
+                );
             }
             Err(_) => {
                 // Expected due to current update limitations
@@ -226,9 +237,8 @@ mod tests {
     #[tokio::test]
     async fn test_put_boundary_on_role() {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        let account_id = "123456789012";
-        let provider = Arc::new(AwsProvider::new());
-        let service = PermissionsBoundaryService::new(store.clone(), account_id.to_string());
+        let context = test_context();
+        let service = PermissionsBoundaryService::new(store.clone(), "123456789012".to_string());
 
         // Create a role
         let assume_policy = r#"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}"#;
@@ -238,12 +248,12 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            provider.as_ref(),
-            account_id,
-        );
+            &context,
+        )
+        .unwrap();
         {
             let mut s = store.write().unwrap();
-            s.create_role(role.clone()).await.unwrap();
+            s.create_role(role).await.unwrap();
         }
 
         // Create a boundary policy
@@ -261,9 +271,9 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            provider.as_ref(),
-            account_id,
-        );
+            &context,
+        )
+        .unwrap();
         {
             let mut s = store.write().unwrap();
             s.create_policy(policy.clone()).await.unwrap();
@@ -281,15 +291,14 @@ mod tests {
         // Verify boundary was set
         let s = store.read().unwrap();
         let updated_role = s.get_role("test-role").await.unwrap().unwrap();
-        assert_eq!(updated_role.permissions_boundary, Some(policy.arn));
+        assert_eq!(updated_role.permissions_boundary, Some(policy.arn.clone()));
     }
 
     #[tokio::test]
     async fn test_delete_boundary_from_role() {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        let account_id = "123456789012";
-        let provider = Arc::new(AwsProvider::new());
-        let service = PermissionsBoundaryService::new(store.clone(), account_id.to_string());
+        let context = test_context();
+        let service = PermissionsBoundaryService::new(store.clone(), "123456789012".to_string());
 
         // Create a role with boundary
         let assume_policy = r#"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}"#;
@@ -299,13 +308,13 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            provider.as_ref(),
-            account_id,
-        );
+            &context,
+        )
+        .unwrap();
         role.permissions_boundary = Some("arn:aws:iam::123456789012:policy/boundary".to_string());
         {
             let mut s = store.write().unwrap();
-            s.create_role(role.clone()).await.unwrap();
+            s.create_role(role).await.unwrap();
         }
 
         // Remove boundary
@@ -341,17 +350,11 @@ mod tests {
     #[tokio::test]
     async fn test_put_boundary_nonexistent_policy() {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        let account_id = "123456789012";
-        let provider = Arc::new(AwsProvider::new());
-        let service = PermissionsBoundaryService::new(store.clone(), account_id.to_string());
+        let context = test_context();
+        let service = PermissionsBoundaryService::new(store.clone(), "123456789012".to_string());
 
         // Create a user
-        let user = build_user(
-            "alice".to_string(),
-            Some("/".to_string()),
-            provider.as_ref(),
-            account_id,
-        );
+        let user = build_user("alice".to_string(), Some("/".to_string()), &context).unwrap();
         {
             let mut s = store.write().unwrap();
             s.create_user(user).await.unwrap();
@@ -370,9 +373,8 @@ mod tests {
     #[tokio::test]
     async fn test_put_boundary_nonexistent_user() {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        let account_id = "123456789012";
-        let provider = Arc::new(AwsProvider::new());
-        let service = PermissionsBoundaryService::new(store.clone(), account_id.to_string());
+        let context = test_context();
+        let service = PermissionsBoundaryService::new(store.clone(), "123456789012".to_string());
 
         // Create a policy but no user
         let policy_doc = r#"{
@@ -389,9 +391,9 @@ mod tests {
             Some("/".to_string()),
             None,
             None,
-            provider.as_ref(),
-            account_id,
-        );
+            &context,
+        )
+        .unwrap();
         {
             let mut s = store.write().unwrap();
             s.create_policy(policy.clone()).await.unwrap();

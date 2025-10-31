@@ -1,5 +1,6 @@
 //! Policy Domain Model
 
+use crate::arn::WamiArn;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -33,7 +34,7 @@ pub struct Policy {
     /// A list of tags associated with the policy
     pub tags: Vec<crate::types::Tag>,
     /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
     /// Optional tenant ID for multi-tenant isolation

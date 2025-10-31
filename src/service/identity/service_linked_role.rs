@@ -2,8 +2,8 @@
 //!
 //! Orchestrates service-linked role management operations.
 
+use crate::context::WamiContext;
 use crate::error::Result;
-use crate::provider::{AwsProvider, CloudProvider};
 use crate::store::traits::{RoleStore, ServiceLinkedRoleStore};
 use crate::wami::identity::role::builder as role_builder;
 use crate::wami::identity::service_linked_role::{
@@ -17,32 +17,18 @@ use std::sync::{Arc, RwLock};
 /// Service-linked roles are predefined AWS roles that are linked to specific AWS services.
 pub struct ServiceLinkedRoleService<S> {
     store: Arc<RwLock<S>>,
-    provider: Arc<dyn CloudProvider>,
-    account_id: String,
 }
 
 impl<S: RoleStore + ServiceLinkedRoleStore> ServiceLinkedRoleService<S> {
-    /// Create a new ServiceLinkedRoleService with default AWS provider
-    pub fn new(store: Arc<RwLock<S>>, account_id: String) -> Self {
-        Self {
-            store,
-            provider: Arc::new(AwsProvider::new()),
-            account_id,
-        }
-    }
-
-    /// Returns a new service instance with different provider
-    pub fn with_provider(&self, provider: Arc<dyn CloudProvider>) -> Self {
-        Self {
-            store: self.store.clone(),
-            provider,
-            account_id: self.account_id.clone(),
-        }
+    /// Create a new ServiceLinkedRoleService
+    pub fn new(store: Arc<RwLock<S>>) -> Self {
+        Self { store }
     }
 
     /// Create a service-linked role
     pub async fn create_service_linked_role(
         &self,
+        context: &WamiContext,
         request: CreateServiceLinkedRoleRequest,
     ) -> Result<Role> {
         // Validate service name
@@ -68,16 +54,15 @@ impl<S: RoleStore + ServiceLinkedRoleStore> ServiceLinkedRoleService<S> {
             request.aws_service_name
         );
 
-        // Use wami role builder to create the role
+        // Use wami role builder to create the role with context
         let role = role_builder::build_role(
             role_name,
             assume_role_policy,
             Some(path),
             request.description,
             None, // max_session_duration
-            &*self.provider,
-            &self.account_id,
-        );
+            context,
+        )?;
 
         // Store it (service-linked roles are stored as regular roles)
         self.store.write().unwrap().create_role(role).await
@@ -99,11 +84,26 @@ impl<S: RoleStore + ServiceLinkedRoleStore> ServiceLinkedRoleService<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arn::{TenantPath, WamiArn};
+    use crate::context::WamiContext;
     use crate::store::memory::InMemoryWamiStore;
 
     fn setup_service() -> ServiceLinkedRoleService<InMemoryWamiStore> {
         let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-        ServiceLinkedRoleService::new(store, "123456789012".to_string())
+        ServiceLinkedRoleService::new(store)
+    }
+
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     #[tokio::test]
@@ -116,7 +116,11 @@ mod tests {
             custom_suffix: None,
         };
 
-        let role = service.create_service_linked_role(request).await.unwrap();
+        let context = test_context();
+        let role = service
+            .create_service_linked_role(&context, request)
+            .await
+            .unwrap();
         assert!(role.role_name.contains("AWSServiceRoleForElasticbeanstalk"));
         assert_eq!(
             role.path,
@@ -134,7 +138,11 @@ mod tests {
             custom_suffix: Some("MyApp".to_string()),
         };
 
-        let role = service.create_service_linked_role(request).await.unwrap();
+        let context = test_context();
+        let role = service
+            .create_service_linked_role(&context, request)
+            .await
+            .unwrap();
         assert!(role.role_name.contains("MyApp"));
     }
 
@@ -148,7 +156,8 @@ mod tests {
             custom_suffix: None,
         };
 
-        let result = service.create_service_linked_role(request).await;
+        let context = test_context();
+        let result = service.create_service_linked_role(&context, request).await;
         assert!(result.is_err());
     }
 
@@ -162,7 +171,11 @@ mod tests {
             description: None,
             custom_suffix: None,
         };
-        service.create_service_linked_role(request).await.unwrap();
+        let context = test_context();
+        service
+            .create_service_linked_role(&context, request)
+            .await
+            .unwrap();
 
         // Try to get a nonexistent deletion task
         let task = service

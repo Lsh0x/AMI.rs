@@ -14,19 +14,31 @@
 //! ```rust
 //! use wami::store::memory::InMemoryWamiStore;
 //! use wami::store::traits::UserStore;
-//! use wami::provider::AwsProvider;
 //! use wami::wami::identity::user::builder::build_user;
+//! use wami::{WamiContext, TenantPath, WamiArn, Service};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let mut store = InMemoryWamiStore::default();
-//! let provider = AwsProvider::new();
+//!
+//! let context = WamiContext::builder()
+//!     .instance_id("123456789012")
+//!     .tenant_path(TenantPath::single("root"))
+//!     .caller_arn(
+//!         WamiArn::builder()
+//!             .service(Service::Iam)
+//!             .tenant_path(TenantPath::single("root"))
+//!             .wami_instance("123456789012")
+//!             .resource("user", "admin")
+//!             .build()?,
+//!     )
+//!     .is_root(false)
+//!     .build()?;
 //!
 //! let user = build_user(
 //!     "alice".to_string(),
 //!     Some("/engineering/".to_string()),
-//!     &provider,
-//!     "123456789012",
-//! );
+//!     &context,
+//! )?;
 //!
 //! let created_user = store.create_user(user).await?;
 //! # Ok(())

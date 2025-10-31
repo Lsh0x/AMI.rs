@@ -219,7 +219,9 @@ mod tests {
             update_date: chrono::Utc::now(),
             policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
             tags: vec![],
-            wami_arn: "arn:wami:iam::123456789012:policy/boundary".to_string(),
+            wami_arn: "arn:wami:iam:root:wami:123456789012:policy/boundary"
+                .parse()
+                .unwrap(),
             providers: vec![],
             tenant_id: None,
         };
@@ -243,7 +245,9 @@ mod tests {
             update_date: chrono::Utc::now(),
             policy_document: r#"{"Version":"2012-10-17","Statement":[]}"#.to_string(),
             tags: vec![],
-            wami_arn: "".to_string(),
+            wami_arn: "arn:wami:iam:root:wami:123456789012:policy/inline"
+                .parse()
+                .unwrap(),
             providers: vec![],
             tenant_id: None,
         };
@@ -267,7 +271,9 @@ mod tests {
             update_date: chrono::Utc::now(),
             policy_document: "".to_string(),
             tags: vec![],
-            wami_arn: "arn:wami:iam::123456789012:policy/empty".to_string(),
+            wami_arn: "arn:wami:iam:root:wami:123456789012:policy/empty"
+                .parse()
+                .unwrap(),
             providers: vec![],
             tenant_id: None,
         };
@@ -299,7 +305,9 @@ mod tests {
             }"#
             .to_string(),
             tags: vec![],
-            wami_arn: "arn:wami:iam::123456789012:policy/boundary".to_string(),
+            wami_arn: "arn:wami:iam:root:wami:123456789012:policy/boundary"
+                .parse()
+                .unwrap(),
             providers: vec![],
             tenant_id: None,
         };
@@ -345,7 +353,9 @@ mod tests {
             }"#
             .to_string(),
             tags: vec![],
-            wami_arn: "arn:wami:iam::123456789012:policy/boundary".to_string(),
+            wami_arn: "arn:wami:iam:root:wami:123456789012:policy/boundary"
+                .parse()
+                .unwrap(),
             providers: vec![],
             tenant_id: None,
         };

@@ -10,7 +10,8 @@
 //! Run with: `cargo run --example 08_tenant_migration`
 
 use std::sync::{Arc, RwLock};
-use wami::provider::AwsProvider;
+use wami::arn::{TenantPath, WamiArn};
+use wami::context::WamiContext;
 use wami::service::{GroupService, TenantService, UserService};
 use wami::store::memory::InMemoryWamiStore;
 use wami::wami::identity::group::requests::CreateGroupRequest;
@@ -22,16 +23,61 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Tenant Migration ===\n");
 
     let store = Arc::new(RwLock::new(InMemoryWamiStore::default()));
-    let _provider = Arc::new(AwsProvider::new());
+
+    // Create root context
+    let root_context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("root"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("root"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(true)
+        .build()?;
+
+    // Create old tenant context
+    let old_tenant_context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("old-tenant"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("old-tenant"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
+
+    // Create new tenant context
+    let new_tenant_context = WamiContext::builder()
+        .instance_id("123456789012")
+        .tenant_path(TenantPath::single("new-tenant"))
+        .caller_arn(
+            WamiArn::builder()
+                .service(wami::arn::Service::Iam)
+                .tenant_path(TenantPath::single("new-tenant"))
+                .wami_instance("123456789012")
+                .resource("user", "admin")
+                .build()?,
+        )
+        .is_root(false)
+        .build()?;
 
     // === CREATE TENANTS ===
     println!("Step 1: Creating source and destination tenants...\n");
 
-    let tenant_service = TenantService::new(store.clone(), "root".to_string());
+    let tenant_service = TenantService::new(store.clone());
 
     let _old_tenant_id = TenantId::new("old-tenant");
     tenant_service
         .create_tenant(
+            &root_context,
             "old-tenant".to_string(),
             Some("Old Tenant (deprecated)".to_string()),
             None,
@@ -42,6 +88,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _new_tenant_id = TenantId::new("new-tenant");
     tenant_service
         .create_tenant(
+            &root_context,
             "new-tenant".to_string(),
             Some("New Tenant (target)".to_string()),
             None,
@@ -52,8 +99,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // === CREATE RESOURCES IN OLD TENANT ===
     println!("\nStep 2: Creating resources in old tenant...\n");
 
-    let old_user_service = UserService::new(store.clone(), "old-tenant".to_string());
-    let old_group_service = GroupService::new(store.clone(), "old-tenant".to_string());
+    let user_service = UserService::new(store.clone());
+    let group_service = GroupService::new(store.clone());
 
     // Create user
     let user_req = CreateUserRequest {
@@ -62,7 +109,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: None,
         tags: None,
     };
-    let old_user = old_user_service.create_user(user_req).await?;
+    let old_user = user_service
+        .create_user(&old_tenant_context, user_req)
+        .await?;
     println!("✓ Created user in old-tenant:");
     println!("  - Name: {}", old_user.user_name);
     println!("  - ARN: {}", old_user.arn);
@@ -73,22 +122,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         path: Some("/groups/".to_string()),
         tags: None,
     };
-    let old_group = old_group_service.create_group(group_req).await?;
+    let old_group = group_service
+        .create_group(&old_tenant_context, group_req)
+        .await?;
     println!("\n✓ Created group in old-tenant:");
     println!("  - Name: {}", old_group.group_name);
     println!("  - ARN: {}", old_group.arn);
 
     // Add user to group
-    old_group_service
-        .add_user_to_group("developers", "bob")
-        .await?;
+    group_service.add_user_to_group("developers", "bob").await?;
     println!("\n✓ Added bob to developers group in old-tenant");
 
     // === MIGRATE TO NEW TENANT ===
     println!("\n\nStep 3: Migrating resources to new tenant...\n");
-
-    let new_user_service = UserService::new(store.clone(), "new-tenant".to_string());
-    let new_group_service = GroupService::new(store.clone(), "new-tenant".to_string());
 
     // Re-create user in new tenant
     println!("Migrating user...");
@@ -98,7 +144,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         permissions_boundary: old_user.permissions_boundary.clone(),
         tags: Some(old_user.tags.clone()),
     };
-    let new_user = new_user_service.create_user(new_user_req).await?;
+    let new_user = user_service
+        .create_user(&new_tenant_context, new_user_req)
+        .await?;
     println!("✓ Re-created user in new-tenant:");
     println!("  - Old ARN: {}", old_user.arn);
     println!("  - New ARN: {}", new_user.arn);
@@ -110,16 +158,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         path: Some(old_group.path.clone()),
         tags: Some(old_group.tags.clone()),
     };
-    let new_group = new_group_service.create_group(new_group_req).await?;
+    let new_group = group_service
+        .create_group(&new_tenant_context, new_group_req)
+        .await?;
     println!("✓ Re-created group in new-tenant:");
     println!("  - Old ARN: {}", old_group.arn);
     println!("  - New ARN: {}", new_group.arn);
 
     // Re-establish group membership
     println!("\nRestoring group membership...");
-    new_group_service
-        .add_user_to_group("developers", "bob")
-        .await?;
+    group_service.add_user_to_group("developers", "bob").await?;
     println!("✓ Re-added bob to developers group in new-tenant");
 
     // === CLEANUP OLD TENANT (Optional) ===
@@ -141,17 +189,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // === VERIFICATION ===
     println!("\n\nStep 5: Verifying migration...\n");
 
-    let (old_users, _, _) = old_user_service
+    let (old_users, _, _) = user_service
         .list_users(ListUsersRequest {
-            path_prefix: None,
+            path_prefix: Some("/users/".to_string()),
             pagination: None,
         })
         .await?;
     println!("Users remaining in old-tenant: {}", old_users.len());
 
-    let (new_users, _, _) = new_user_service
+    let (new_users, _, _) = user_service
         .list_users(ListUsersRequest {
-            path_prefix: None,
+            path_prefix: Some("/users/".to_string()),
             pagination: None,
         })
         .await?;

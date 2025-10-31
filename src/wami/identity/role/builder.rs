@@ -1,11 +1,62 @@
 //! Role Builder Functions
 
 use super::model::Role;
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
+use crate::error::Result;
 use crate::provider::{CloudProvider, ResourceType};
 use chrono::Utc;
+use uuid::Uuid;
 
-/// Build a new Role with provider-specific identifiers
+/// Build a new Role with context-based identifiers
+#[allow(clippy::result_large_err)]
 pub fn build_role(
+    role_name: String,
+    assume_role_policy_document: String,
+    path: Option<String>,
+    description: Option<String>,
+    max_session_duration: Option<i32>,
+    context: &WamiContext,
+) -> Result<Role> {
+    let role_id = Uuid::new_v4().to_string();
+    let path = path.unwrap_or_else(|| "/".to_string());
+
+    // Build WAMI ARN using context
+    let wami_arn = WamiArn::builder()
+        .service(Service::Iam)
+        .tenant_path(context.tenant_path().clone())
+        .wami_instance(context.instance_id())
+        .resource("role", &role_id)
+        .build()?;
+
+    // Generate AWS-compatible ARN (for backward compatibility)
+    let arn = format!(
+        "arn:aws:iam::{}:role{}{}",
+        context.instance_id(),
+        if path == "/" { "" } else { &path },
+        role_name
+    );
+
+    Ok(Role {
+        role_name,
+        role_id,
+        arn,
+        path,
+        create_date: Utc::now(),
+        assume_role_policy_document,
+        description,
+        max_session_duration,
+        permissions_boundary: None,
+        tags: vec![],
+        wami_arn,
+        providers: Vec::new(),
+        tenant_id: None,
+    })
+}
+
+/// Build a new Role with provider-specific identifiers (legacy)
+#[deprecated(note = "Use build_role with WamiContext instead")]
+pub fn build_role_legacy(
     role_name: String,
     assume_role_policy_document: String,
     path: Option<String>,
@@ -18,7 +69,20 @@ pub fn build_role(
     let path = path.unwrap_or_else(|| "/".to_string());
     let arn =
         provider.generate_resource_identifier(ResourceType::Role, account_id, &path, &role_name);
-    let wami_arn = provider.generate_wami_arn(ResourceType::Role, account_id, &path, &role_name);
+    let wami_arn_str =
+        provider.generate_wami_arn(ResourceType::Role, account_id, &path, &role_name);
+
+    // Parse the wami_arn string to WamiArn
+    let wami_arn = wami_arn_str.parse().unwrap_or_else(|_| {
+        // Fallback: create a basic ARN
+        WamiArn::builder()
+            .service(Service::Iam)
+            .tenant("default")
+            .wami_instance(account_id)
+            .resource("role", &role_id)
+            .build()
+            .expect("Failed to build fallback ARN")
+    });
 
     Role {
         role_name,
@@ -86,12 +150,21 @@ pub fn set_tenant_id(mut role: Role, tenant_id: crate::wami::tenant::TenantId) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::provider::aws::AwsProvider;
+    use crate::arn::TenantPath;
     use crate::types::Tag;
     use crate::wami::tenant::TenantId;
 
-    fn test_provider() -> AwsProvider {
-        AwsProvider::new()
+    fn test_context() -> WamiContext {
+        let arn: WamiArn = "arn:wami:iam:test:wami:123456789012:user/test"
+            .parse()
+            .unwrap();
+        WamiContext::builder()
+            .instance_id("123456789012")
+            .tenant_path(TenantPath::single("test"))
+            .caller_arn(arn)
+            .is_root(false)
+            .build()
+            .unwrap()
     }
 
     fn test_trust_policy() -> String {
@@ -100,16 +173,16 @@ mod tests {
 
     #[test]
     fn test_build_role_minimal() {
-        let provider = test_provider();
+        let context = test_context();
         let role = build_role(
             "test-role".to_string(),
             test_trust_policy(),
             None,
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         assert_eq!(role.role_name, "test-role");
         assert_eq!(role.path, "/");
@@ -123,16 +196,16 @@ mod tests {
 
     #[test]
     fn test_build_role_with_all_options() {
-        let provider = test_provider();
+        let context = test_context();
         let role = build_role(
             "admin-role".to_string(),
             test_trust_policy(),
             Some("/admin/".to_string()),
             Some("Administrator role".to_string()),
             Some(7200),
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         assert_eq!(role.role_name, "admin-role");
         assert_eq!(role.path, "/admin/");
@@ -142,16 +215,16 @@ mod tests {
 
     #[test]
     fn test_update_assume_role_policy() {
-        let provider = test_provider();
+        let context = test_context();
         let role = build_role(
             "test-role".to_string(),
             test_trust_policy(),
             None,
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let new_policy = r#"{"Version":"2012-10-17"}"#.to_string();
         let updated = update_assume_role_policy(role, new_policy.clone());
@@ -161,16 +234,16 @@ mod tests {
 
     #[test]
     fn test_update_description() {
-        let provider = test_provider();
+        let context = test_context();
         let role = build_role(
             "test-role".to_string(),
             test_trust_policy(),
             None,
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let updated = update_description(role, Some("New description".to_string()));
         assert_eq!(updated.description, Some("New description".to_string()));
@@ -181,16 +254,16 @@ mod tests {
 
     #[test]
     fn test_update_max_session_duration() {
-        let provider = test_provider();
+        let context = test_context();
         let role = build_role(
             "test-role".to_string(),
             test_trust_policy(),
             None,
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let updated = update_max_session_duration(role, 3600);
         assert_eq!(updated.max_session_duration, Some(3600));
@@ -198,16 +271,16 @@ mod tests {
 
     #[test]
     fn test_set_permissions_boundary() {
-        let provider = test_provider();
+        let context = test_context();
         let role = build_role(
             "test-role".to_string(),
             test_trust_policy(),
             None,
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let boundary = "arn:aws:iam::123:policy/boundary".to_string();
         let updated = set_permissions_boundary(role, boundary.clone());
@@ -217,16 +290,16 @@ mod tests {
 
     #[test]
     fn test_clear_permissions_boundary() {
-        let provider = test_provider();
+        let context = test_context();
         let mut role = build_role(
             "test-role".to_string(),
             test_trust_policy(),
             None,
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         role.permissions_boundary = Some("arn:aws:iam::123:policy/boundary".to_string());
         let updated = clear_permissions_boundary(role);
@@ -236,16 +309,16 @@ mod tests {
 
     #[test]
     fn test_add_tags() {
-        let provider = test_provider();
+        let context = test_context();
         let role = build_role(
             "test-role".to_string(),
             test_trust_policy(),
             None,
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let tags = vec![
             Tag {
@@ -264,16 +337,16 @@ mod tests {
 
     #[test]
     fn test_add_tags_no_duplicates() {
-        let provider = test_provider();
+        let context = test_context();
         let role = build_role(
             "test-role".to_string(),
             test_trust_policy(),
             None,
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let tags1 = vec![Tag {
             key: "Env".to_string(),
@@ -293,16 +366,16 @@ mod tests {
 
     #[test]
     fn test_set_tenant_id() {
-        let provider = test_provider();
+        let context = test_context();
         let role = build_role(
             "test-role".to_string(),
             test_trust_policy(),
             None,
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let tenant_id = TenantId::new("acme");
         let updated = set_tenant_id(role, tenant_id.clone());
@@ -312,16 +385,16 @@ mod tests {
 
     #[test]
     fn test_role_immutability() {
-        let provider = test_provider();
+        let context = test_context();
         let role = build_role(
             "test-role".to_string(),
             test_trust_policy(),
             None,
             None,
             None,
-            &provider,
-            "123456789012",
-        );
+            &context,
+        )
+        .unwrap();
 
         let original_name = role.role_name.clone();
         let _ = update_max_session_duration(role.clone(), 9999);

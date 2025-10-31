@@ -20,7 +20,8 @@
 //! ```rust
 //! use wami::store::memory::InMemoryWamiStore;
 //! use wami::store::traits::UserStore;
-//! use wami::provider::{AwsProvider, CloudProvider};
+//! use wami::arn::{TenantPath, WamiArn};
+//! use wami::context::WamiContext;
 //! use wami::wami::identity::user::builder::build_user;
 //!
 //! #[tokio::main]
@@ -31,16 +32,27 @@
 //!     // Initialize store
 //!     let mut store = InMemoryWamiStore::default();
 //!     
-//!     // Create provider
-//!     let provider = AwsProvider::new();
+//!     // Create WamiContext
+//!     let context = WamiContext::builder()
+//!         .instance_id("123456789012")
+//!         .tenant_path(TenantPath::single("root"))
+//!         .caller_arn(
+//!             WamiArn::builder()
+//!                 .service(wami::arn::Service::Iam)
+//!                 .tenant_path(TenantPath::single("root"))
+//!                 .wami_instance("123456789012")
+//!                 .resource("user", "admin")
+//!                 .build()?,
+//!         )
+//!         .is_root(false)
+//!         .build()?;
 //!     
 //!     // Build a user using pure functions
 //!     let user = build_user(
 //!         "alice".to_string(),
 //!         Some("/".to_string()),
-//!         &provider,
-//!         "123456789012",
-//!     );
+//!         &context,
+//!     )?;
 //!     
 //!     // Store the user
 //!     let created_user = store.create_user(user).await?;
@@ -57,6 +69,8 @@
 //! }
 //! ```
 
+pub mod arn;
+pub mod context;
 pub mod error;
 pub mod provider;
 pub mod service;
@@ -68,6 +82,16 @@ pub mod wami;
 pub use error::{AmiError, Result};
 pub use types::{AmiResponse, AwsConfig, PaginationParams, PolicyDocument, PolicyStatement, Tag};
 
+// Re-export ARN types
+pub use arn::{
+    get_transformer, parse_arn, ArnBuilder, ArnParseError, ArnTransformer, AwsArnTransformer,
+    AzureArnTransformer, CloudMapping, GcpArnTransformer, ProviderArnInfo, Resource,
+    ScalewayArnTransformer, Service, TenantPath, WamiArn,
+};
+
+// Re-export context types
+pub use context::{SessionInfo, WamiContext};
+
 // Re-export store traits and implementations
 pub use store::memory::InMemoryStore;
 pub use store::{SsoAdminStore, Store, StsStore, WamiStore};
@@ -77,20 +101,23 @@ pub use provider::ProviderConfig;
 
 // Re-export service layer
 pub use service::{
-    AccessKeyService, AccountAssignmentService, ApplicationService, AssumeRoleService,
-    AttachmentService, CredentialReportService, EvaluationService, FederationService, GroupService,
-    IdentityService, InlinePolicyService, InstanceService as SsoInstanceService,
-    LoginProfileService, MfaDeviceService, PermissionSetService, PolicyService, RoleService,
-    ServerCertificateService, ServiceCredentialService, ServiceLinkedRoleService, SessionService,
-    SessionTokenService, SigningCertificateService, TenantService, TrustedTokenIssuerService,
-    UserService,
+    hash_secret, verify_secret, AccessKeyService, AccountAssignmentService, ApplicationService,
+    AssumeRoleService, AttachmentService, AuthenticationService, AuthorizationService,
+    CredentialReportService, EvaluationService, FederationService, GroupService, IdentityService,
+    InlinePolicyService, InstanceService as SsoInstanceService, LoginProfileService,
+    MfaDeviceService, PermissionSetService, PolicyService, RoleService, ServerCertificateService,
+    ServiceCredentialService, ServiceLinkedRoleService, SessionService, SessionTokenService,
+    SigningCertificateService, TenantService, TrustedTokenIssuerService, UserService,
 };
 
 // Re-export WAMI modules for convenience (Legacy compatibility)
-pub use wami::{sso_admin, sts, tenant};
+pub use wami::{instance, sso_admin, sts, tenant};
+
+// Re-export instance types
+pub use wami::instance::{InstanceBootstrap, RootCredentials};
 
 // Re-export identity types
-pub use wami::identity::{Group, Role, User};
+pub use wami::identity::{Group, Role, RootUser, User};
 
 // Re-export credential types
 pub use wami::credentials::{
@@ -217,6 +244,17 @@ pub use sts::{AssumeRoleRequest, GetSessionTokenRequest};
 /// Create a new in-memory store
 pub fn create_memory_store() -> InMemoryStore {
     InMemoryStore::new()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_memory_store() {
+        let _store = create_memory_store();
+        // Just verify it can be created
+    }
 }
 
 // Note: Provider-specific functionality has been removed from the unified store.

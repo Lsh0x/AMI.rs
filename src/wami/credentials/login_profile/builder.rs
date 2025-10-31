@@ -1,24 +1,33 @@
 //! LoginProfile Builder
 
 use super::model::LoginProfile;
-use crate::provider::{CloudProvider, ProviderConfig, ResourceType};
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
+use crate::error::Result;
+use crate::provider::ProviderConfig;
 
-/// Build a new LoginProfile resource
+/// Build a new LoginProfile resource with context-based identifiers
+#[allow(clippy::result_large_err)]
 pub fn build_login_profile(
     user_name: String,
     password_reset_required: bool,
-    provider: &dyn CloudProvider,
-    account_id: &str,
-) -> LoginProfile {
-    let wami_arn = provider.generate_wami_arn(ResourceType::User, account_id, "/", &user_name);
+    context: &WamiContext,
+) -> Result<LoginProfile> {
+    // Build WAMI ARN using context (login profile uses user ARN pattern)
+    let wami_arn = WamiArn::builder()
+        .service(Service::Iam)
+        .tenant_path(context.tenant_path().clone())
+        .wami_instance(context.instance_id())
+        .resource("user", &user_name)
+        .build()?;
 
-    LoginProfile {
+    Ok(LoginProfile {
         user_name,
         create_date: chrono::Utc::now(),
         password_reset_required,
         wami_arn,
         providers: Vec::new(),
-    }
+    })
 }
 
 /// Update a LoginProfile resource

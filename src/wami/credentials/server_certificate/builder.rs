@@ -1,32 +1,38 @@
 //! Server Certificate Builder
 
 use super::model::*;
-use crate::provider::{CloudProvider, ResourceType};
+use crate::arn::{Service, WamiArn};
+use crate::context::WamiContext;
+use crate::error::Result;
 use chrono::Utc;
+use uuid::Uuid;
 
-/// Build a new ServerCertificate resource
+/// Build a new ServerCertificate resource with context-based identifiers
+#[allow(clippy::result_large_err)]
 pub fn build_server_certificate(
     server_certificate_name: String,
     certificate_body: String,
     certificate_chain: Option<String>,
     path: String,
     tags: Vec<crate::types::Tag>,
-    provider: &dyn CloudProvider,
-    account_id: &str,
-) -> ServerCertificate {
-    let cert_id = provider.generate_resource_id(ResourceType::ServerCertificate);
-    let arn = provider.generate_resource_identifier(
-        ResourceType::ServerCertificate,
-        account_id,
-        &path,
-        &server_certificate_name,
-    );
+    context: &WamiContext,
+) -> Result<ServerCertificate> {
+    let cert_id = Uuid::new_v4().to_string();
 
-    let wami_arn = provider.generate_wami_arn(
-        ResourceType::ServerCertificate,
-        account_id,
-        &path,
-        &server_certificate_name,
+    // Build WAMI ARN using context
+    let wami_arn = WamiArn::builder()
+        .service(Service::Iam)
+        .tenant_path(context.tenant_path().clone())
+        .wami_instance(context.instance_id())
+        .resource("server-certificate", &cert_id)
+        .build()?;
+
+    // Generate AWS-compatible ARN
+    let arn = format!(
+        "arn:aws:iam::{}:server-certificate{}{}",
+        context.instance_id(),
+        if path == "/" { "" } else { &path },
+        server_certificate_name
     );
 
     let metadata = ServerCertificateMetadata {
@@ -38,12 +44,12 @@ pub fn build_server_certificate(
         expiration: None, // Would need to parse cert to get actual expiration
     };
 
-    ServerCertificate {
+    Ok(ServerCertificate {
         server_certificate_metadata: metadata,
         certificate_body,
         certificate_chain,
         tags,
         wami_arn,
         providers: Vec::new(),
-    }
+    })
 }

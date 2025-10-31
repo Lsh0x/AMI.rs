@@ -1,5 +1,6 @@
 //! Role Domain Model
 
+use crate::arn::WamiArn;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -28,8 +29,8 @@ pub struct Role {
     pub permissions_boundary: Option<String>,
     /// A list of tags associated with the role
     pub tags: Vec<crate::types::Tag>,
-    /// The WAMI ARN for cross-provider identification
-    pub wami_arn: String,
+    /// The WAMI ARN for cross-provider identification (structured type)
+    pub wami_arn: WamiArn,
     /// List of cloud providers where this resource exists
     pub providers: Vec<crate::provider::ProviderConfig>,
     /// Optional tenant ID for multi-tenant isolation
