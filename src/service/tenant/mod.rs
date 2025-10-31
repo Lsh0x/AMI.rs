@@ -392,4 +392,173 @@ mod tests {
         // ARN should reflect WAMI format
         assert!(tenant.arn.contains("wami"));
     }
+
+    #[tokio::test]
+    async fn test_find_tenant_by_name_root_level() {
+        let service = setup_service();
+        let context = test_context();
+
+        // Create multiple root tenants
+        let tenant1 = service
+            .create_tenant(&context, "acme".to_string(), None, None)
+            .await
+            .unwrap();
+        service
+            .create_tenant(&context, "globex".to_string(), None, None)
+            .await
+            .unwrap();
+
+        // Find by name at root level
+        let found = service.find_tenant_by_name("acme", None).await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().id, tenant1.id);
+
+        // Find non-existent
+        let not_found = service
+            .find_tenant_by_name("nonexistent", None)
+            .await
+            .unwrap();
+        assert!(not_found.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_find_tenant_by_name_with_parent() {
+        let service = setup_service();
+        let context = test_context();
+
+        // Create parent
+        let parent = service
+            .create_tenant(&context, "parent".to_string(), None, None)
+            .await
+            .unwrap();
+
+        // Create children with same name but different parent
+        let child1 = service
+            .create_tenant(
+                &context,
+                "engineering".to_string(),
+                None,
+                Some(parent.id.clone()),
+            )
+            .await
+            .unwrap();
+
+        // Create another parent with child of same name
+        let parent2 = service
+            .create_tenant(&context, "parent2".to_string(), None, None)
+            .await
+            .unwrap();
+        service
+            .create_tenant(
+                &context,
+                "engineering".to_string(),
+                None,
+                Some(parent2.id.clone()),
+            )
+            .await
+            .unwrap();
+
+        // Find child by name within specific parent
+        let found = service
+            .find_tenant_by_name("engineering", Some(&parent.id))
+            .await
+            .unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().id, child1.id);
+    }
+
+    #[tokio::test]
+    async fn test_name_uniqueness_validation() {
+        let service = setup_service();
+        let context = test_context();
+
+        // Create tenant with name "test"
+        service
+            .create_tenant(&context, "test".to_string(), None, None)
+            .await
+            .unwrap();
+
+        // Try to create another with same name at root level - should fail
+        let result = service
+            .create_tenant(&context, "test".to_string(), None, None)
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("already exists"));
+    }
+
+    #[tokio::test]
+    async fn test_name_uniqueness_within_parent() {
+        let service = setup_service();
+        let context = test_context();
+
+        // Create parent
+        let parent = service
+            .create_tenant(&context, "parent".to_string(), None, None)
+            .await
+            .unwrap();
+
+        // Create child with name "eng"
+        service
+            .create_tenant(&context, "eng".to_string(), None, Some(parent.id.clone()))
+            .await
+            .unwrap();
+
+        // Try to create another child with same name in same parent - should fail
+        let result = service
+            .create_tenant(&context, "eng".to_string(), None, Some(parent.id.clone()))
+            .await;
+        assert!(result.is_err());
+
+        // But can create with same name in different parent
+        let parent2 = service
+            .create_tenant(&context, "parent2".to_string(), None, None)
+            .await
+            .unwrap();
+        let result2 = service
+            .create_tenant(&context, "eng".to_string(), None, Some(parent2.id.clone()))
+            .await;
+        assert!(result2.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_numeric_tenant_id_format() {
+        let service = setup_service();
+        let context = test_context();
+
+        let tenant = service
+            .create_tenant(&context, "test".to_string(), None, None)
+            .await
+            .unwrap();
+
+        // Tenant ID should be numeric (slash-separated)
+        let id_str = tenant.id.as_str();
+        // Should parse as u64 or multiple u64s separated by /
+        let parts: Vec<&str> = id_str.split('/').collect();
+        for part in parts {
+            assert!(
+                part.parse::<u64>().is_ok(),
+                "Invalid numeric segment: {}",
+                part
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_tenant_id_global_uniqueness() {
+        let service = setup_service();
+        let context = test_context();
+
+        // Create multiple tenants - each should have unique numeric ID
+        let tenant1 = service
+            .create_tenant(&context, "tenant1".to_string(), None, None)
+            .await
+            .unwrap();
+        let tenant2 = service
+            .create_tenant(&context, "tenant2".to_string(), None, None)
+            .await
+            .unwrap();
+
+        // IDs should be different (even though both are root tenants)
+        assert_ne!(tenant1.id, tenant2.id);
+    }
 }

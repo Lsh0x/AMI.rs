@@ -563,6 +563,31 @@ mod tests {
     }
 
     #[test]
+    fn test_tenant_path_from_tenant_id() {
+        use crate::wami::tenant::TenantId;
+
+        // Root tenant ID
+        let root_id = TenantId::root();
+        let root_path = TenantPath::from_tenant_id(&root_id);
+        assert_eq!(root_path.segments, root_id.segments().to_vec());
+        assert_eq!(root_path.depth(), root_id.segments().len());
+
+        // Child tenant ID
+        let child_id = root_id.child();
+        let child_path = TenantPath::from_tenant_id(&child_id);
+        assert_eq!(child_path.segments, child_id.segments().to_vec());
+        assert_eq!(child_path.segments.len(), 2);
+        assert_eq!(child_path.depth(), 2);
+
+        // Multi-level hierarchy
+        let grandchild_id = child_id.child();
+        let grandchild_path = TenantPath::from_tenant_id(&grandchild_id);
+        assert_eq!(grandchild_path.segments, grandchild_id.segments().to_vec());
+        assert_eq!(grandchild_path.segments.len(), 3);
+        assert_eq!(grandchild_path.depth(), 3);
+    }
+
+    #[test]
     fn test_wami_arn_native() {
         let arn = WamiArn {
             service: Service::Iam,
