@@ -21,7 +21,7 @@
 - 🔑 **Temporary Credentials** - STS sessions and role assumption
 - 📊 **SSO Administration** - Permission sets, assignments, and federation
 - 🦀 **100% Rust** - Type-safe, async-first, zero-cost abstractions
-- ✅ **Well-tested** - 402 unit tests with high coverage (all passing)
+- ✅ **Well-tested** - 539 unit tests with 89.43% code coverage (all passing)
 
 ---
 
@@ -275,7 +275,7 @@ Run the full test suite:
 cargo test
 ```
 
-WAMI has **376 tests** (all passing ✅) covering:
+WAMI has **539 tests** (all passing ✅) covering:
 - ✅ Domain logic (pure functions)
 - ✅ Store implementations (CRUD, queries, concurrency)
 - ✅ Multi-tenant isolation
