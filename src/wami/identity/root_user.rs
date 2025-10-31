@@ -216,9 +216,9 @@ mod tests {
         let arn = root_user.arn();
 
         assert_eq!(arn.service, Service::Iam);
-        assert_eq!(arn.tenant_path.as_string(), "root");
+        assert_eq!(arn.tenant_path.as_string(), "0"); // Root tenant ID is 0
         assert_eq!(arn.wami_instance_id, "999888777");
-        assert_eq!(arn.to_string(), "arn:wami:.*:0:wami:999888777:user/root");
+        assert_eq!(arn.to_string(), "arn:wami:iam:0:wami:999888777:user/root");
     }
 
     #[test]
